@@ -1,0 +1,1302 @@
+# CHORES YOUR OWN ADVENTURE — CHARACTER, PARTY, AND CORE FUNCTIONALITY CORRECTION PASS
+
+The latest build has improved the structure, but testing has exposed several major problems.
+
+Do NOT add new advanced features during this pass.
+
+Fix the character system, equipment rendering, Party management, quest assignment, and the Party Goal crash first.
+
+The current issues observed in actual testing are:
+
+* Character sprites are far too small and crude.
+* Species barely look different.
+* Elf ears are visibly detached from the head.
+* Dwarf and Gnome use essentially the same body proportions as Human/Elf.
+* Class does not visually affect the starting character.
+* Male/Female/Other presentation has no meaningful visual distinction.
+* Eyes appear cross-eyed.
+* Glasses make the face look even stranger.
+* Stubble and mustache rendering are poor.
+* Equipment can be equipped/unequipped but does not visibly change the character.
+* There is no obvious interface to add kids/Party members.
+* There is no obvious interface to assign quests to Party members.
+* "Set a Goal for Your Party" crashes with a JavaScript error:
+  `Cannot read properties of undefined (reading 'filter')`
+* Character customization needs more fantasy color options.
+* A Dumpster Fire background is required because obviously it is.
+
+Fix these before moving forward.
+
+---
+
+# 1. CHANGE CHARACTER ART DIRECTION FROM STRICT 8-BIT TO 16-BIT PIXEL ART
+
+The current character sprites are too small to support the customization system.
+
+Do NOT abandon pixel art.
+
+Instead, move the CHARACTER artwork specifically to a richer:
+
+# 16-BIT / SNES-ERA CHIBI FANTASY RPG STYLE
+
+The rest of the app may retain its existing retro UI style.
+
+Characters should resemble classic 16-bit RPG sprites:
+
+* clearly pixelated;
+* compact/chibi proportions;
+* larger heads for readability;
+* distinguishable faces;
+* readable hair;
+* readable clothing;
+* clearly visible equipment;
+* clearly visible species differences.
+
+Do NOT use smooth vector cartoons.
+
+Do NOT use emojis.
+
+Do NOT use photorealism.
+
+Use larger logical sprite dimensions, approximately in the range of 64×96, 80×112, or 96×128 pixels per composed character as appropriate.
+
+Display them substantially larger in the UI using nearest-neighbor/pixelated scaling.
+
+The full character preview should occupy most of the Character Creation preview card.
+
+The character should NOT be a tiny figure floating in a huge empty box.
+
+Use CSS/image rendering appropriate for pixel art such as:
+
+`image-rendering: pixelated`
+
+where applicable.
+
+---
+
+# 2. MAKE SPECIES VISUALLY DISTINCT
+
+Species cannot simply be Human plus one tiny alteration.
+
+Create visibly distinct body/silhouette templates.
+
+## HUMAN
+
+Baseline proportions.
+
+## ELF
+
+* Slightly taller/slimmer than Human.
+* Proper attached pointed ears integrated into the head sprite.
+* Ears must not float beside the head.
+* Slightly more angular fantasy appearance.
+
+## DWARF
+
+Dwarf MUST visibly be:
+
+* shorter;
+* stockier;
+* broader torso;
+* shorter legs.
+
+Optional facial-hair options should look particularly appropriate on Dwarf characters.
+
+Do NOT render Dwarf at Human height.
+
+## GNOME
+
+Gnome should visibly be:
+
+* substantially shorter;
+* smaller/narrower body than Dwarf;
+* slightly larger head relative to body;
+* clearly different silhouette from both Human and Dwarf.
+
+## HALFLING
+
+* shorter than Human;
+* less stocky than Dwarf;
+* proportionally distinct.
+
+## ORC
+
+Do more than turn a Human green.
+
+Include recognizable original fantasy traits such as:
+
+* broader build;
+* slight tusks where readable;
+* heavier jaw/brow;
+* pointed or different ear shape.
+
+Allow normal human skin colors AND fantasy skin colors.
+
+## GOBLIN
+
+Goblin should NOT just be a differently colored Orc.
+
+Use:
+
+* shorter stature;
+* thinner limbs/body;
+* larger pointed ears;
+* more pronounced nose/head silhouette;
+* clearly distinct body proportions.
+
+All species remain cosmetic only.
+
+---
+
+# 3. IDENTITY / BODY PRESENTATION SHOULD ACTUALLY LOOK DIFFERENT
+
+The current Masculine/Feminine/Any selections do not visibly change the character.
+
+Create visible but simple stereotypical fantasy-game presentation differences.
+
+This is visual customization only.
+
+## MASCULINE
+
+Possible baseline differences:
+
+* slightly broader torso;
+* pants/trousers default;
+* masculine hair/facial-hair options.
+
+## FEMININE
+
+Possible baseline differences:
+
+* slightly different body silhouette;
+* option/default for skirt, dress, tunic/skirt, or other recognizable fantasy feminine clothing;
+* feminine hair options.
+
+Do not make this sexualized.
+
+The point is simply that selecting Feminine should visually do something.
+
+## ANY / OTHER
+
+Use a neutral silhouette/default and allow all appearance options without restriction.
+
+Do not mechanically restrict hair, colors, classes, or equipment based on identity selection.
+
+---
+
+# 4. CLASS MUST CHANGE THE STARTING LOOK
+
+Classes are still cosmetic and MUST NOT restrict future equipment.
+
+However, character creation should visually preview each class with recognizable starter garb.
+
+Changing class should immediately change the preview.
+
+Examples:
+
+## FIGHTER
+
+* basic tunic/light armor;
+* starter sword visual;
+* sturdy boots.
+
+## RANGER
+
+* green/brown adventuring clothing;
+* hood or light cloak;
+* bow visual.
+
+## WIZARD
+
+This must immediately read as WIZARD.
+
+Use:
+
+* pointed wizard hat;
+* robe;
+* staff.
+
+## ROGUE
+
+* darker/lightweight clothing;
+* hood or bandana;
+* dagger.
+
+## CLERIC
+
+* simple robe/tabard;
+* small mace or staff;
+* holy/fantasy symbol that is generic and not tied to a real-world religion.
+
+## BARBARIAN
+
+* rougher sleeveless/warrior clothing;
+* axe or large weapon preview.
+
+These are character-creation preview/starter appearances.
+
+After character creation, the user may equip anything regardless of class.
+
+A Wizard may later wear Knight Armor and wield an axe.
+
+That remains intentional.
+
+---
+
+# 5. STARTER CLASS GEAR VS OWNED SHOP GEAR
+
+Do not confuse class preview equipment with purchased inventory.
+
+The starter appearance should provide a basic visual class outfit so the character looks interesting on Day 1.
+
+It does not need to grant valuable Shop inventory.
+
+After creation, the user should still have a basic Starter Outfit owned/equipped.
+
+If necessary, treat starter visuals as zero-value starter cosmetic assets.
+
+The core requirement is:
+
+A Level 1 Wizard should LOOK like a Wizard immediately.
+
+A Level 1 Fighter should LOOK like a Fighter immediately.
+
+---
+
+# 6. GREATLY EXPAND SKIN COLOR OPTIONS
+
+Current realistic skin tones are fine.
+
+KEEP THEM.
+
+Also add fantasy skin colors.
+
+Provide at minimum:
+
+REALISTIC:
+
+* several light through dark human skin tones.
+
+FANTASY:
+
+* Red
+* Blue
+* Green
+* Pink
+* Purple
+* Gray
+* possibly teal
+
+Fantasy colors should work across species unless a specific visual conflict exists.
+
+Do not hide fantasy colors behind Orc/Goblin selection.
+
+If someone wants a bright blue Human Wizard, allow it.
+
+---
+
+# 7. GREATLY EXPAND HAIR COLORS
+
+Keep normal hair colors:
+
+* Black
+* Dark Brown
+* Brown
+* Blonde
+* Red/Auburn
+* Gray
+* White
+
+Also add fantasy colors:
+
+* Blue
+* Green
+* Pink
+* Purple
+* Bright Red
+* Cyan/Teal
+
+Hair color is purely cosmetic.
+
+---
+
+# 8. FIX THE FACE
+
+The current character frequently appears cross-eyed.
+
+This needs to be corrected.
+
+Use simpler, cleaner pixel faces.
+
+Both eyes should:
+
+* face the same direction;
+* be symmetrically positioned unless deliberately creating an expression;
+* not point inward toward each other.
+
+Do not try to render detailed pupils if the sprite resolution cannot support them.
+
+Two readable eye pixels/shapes are better than complex cross-eyed faces.
+
+The default expression should be pleasant/neutral.
+
+---
+
+# 9. FIX GLASSES
+
+Current glasses visually collide with the eyes and make the face look stranger.
+
+Rebuild glasses as proper sprite overlays aligned to the character face.
+
+Offer only a few GOOD styles initially.
+
+For example:
+
+* Round glasses
+* Square glasses
+* Small spectacles
+
+They must:
+
+* align with the eye line;
+* remain attached to the face;
+* not obscure the entire face;
+* scale correctly for each species/head template.
+
+If glasses cannot be made to look good on every species immediately, create species-specific alignment offsets.
+
+Do not simply place the same SVG/icon coordinates over every character.
+
+---
+
+# 10. FIX FACIAL HAIR
+
+Current facial hair quality is inconsistent.
+
+## BEARD
+
+Current beard is directionally acceptable.
+
+Refine it for the larger sprite.
+
+## MUSTACHE
+
+Current mustache is nearly unreadable.
+
+Create a clearly recognizable pixel mustache.
+
+It should sit directly beneath the nose/mouth area.
+
+## STUBBLE
+
+Current stubble looks like blurry noise.
+
+Do NOT use blur, transparency clouds, or anti-aliased shading.
+
+Pixel-art stubble should use intentional dark individual pixels/small clusters along:
+
+* jaw;
+* chin;
+* upper lip if appropriate.
+
+It should clearly look like stubble rather than dirt or a rendering artifact.
+
+---
+
+# 11. MAKE HAIR STYLES MORE READABLE
+
+Use a small curated set rather than many poor variations.
+
+Start with several clearly different silhouettes, such as:
+
+* Short
+* Medium
+* Long
+* Curly
+* Ponytail
+* Mohawk
+* Bald
+
+Hair should conform to different head/species templates.
+
+Elf ears should remain visible where appropriate.
+
+---
+
+# 12. MAKE THE CHARACTER PREVIEW MUCH LARGER
+
+The current character is far too small relative to the preview card.
+
+Increase displayed sprite size approximately 2–3×.
+
+The character itself should dominate the preview area.
+
+A user must be able to clearly see:
+
+* hair;
+* skin;
+* eyes;
+* glasses;
+* clothing;
+* class;
+* weapons;
+* species;
+* facial hair.
+
+Reduce unnecessary empty space in the preview card.
+
+---
+
+# 13. RANDOMIZE MUST RANDOMIZE EVERYTHING MEANINGFUL
+
+Randomize should select:
+
+* Adventurer Name;
+* identity/body presentation;
+* species;
+* class;
+* skin color;
+* hair style;
+* hair color;
+* eye style/color where applicable;
+* glasses;
+* facial hair where applicable.
+
+It should produce a visibly different character on repeated presses.
+
+Do not randomly select impossible/broken combinations.
+
+---
+
+# 14. EQUIPMENT CURRENTLY DOES NOT VISUALLY WORK — FIX IT
+
+Testing shows:
+
+Traveler's Tunic can be unequipped and re-equipped, but NOTHING changes visually.
+
+This indicates equipment state is not correctly tied to character rendering.
+
+Fix this.
+
+The character renderer must read the actual equipped-item state.
+
+When an equipped visual item changes, the sprite must rerender immediately.
+
+For example:
+
+Equip Traveler's Tunic:
+→ Traveler's Tunic visibly appears.
+
+Unequip Traveler's Tunic:
+→ character visibly changes to the basic starter/base clothing.
+
+Re-equip:
+→ Traveler's Tunic visibly returns.
+
+The same must work for:
+
+* Head
+* Outfit
+* Main Hand
+* Off Hand
+* Pet
+* Pet Accessory
+* Background
+* Effect
+
+---
+
+# 15. PROVIDE A VISUAL FALLBACK WHEN OUTFIT IS UNEQUIPPED
+
+If the Outfit slot is cleared, do not make the character naked.
+
+Use a neutral/basic under-outfit such as:
+
+* simple shirt/tunic;
+* basic pants/skirt based on visual presentation.
+
+This allows the user to actually SEE that an outfit was removed.
+
+Starter/base clothing should be visually different from Traveler's Tunic.
+
+---
+
+# 16. EQUIPMENT LAYERS MUST BE REAL
+
+Ensure equipped visual state maps into render layers.
+
+Conceptually:
+
+Background
+→ Base Body
+→ Legs/base clothing
+→ Outfit
+→ Hair
+→ Species features
+→ Facial hair
+→ Headwear
+→ Face/glasses
+→ Off Hand
+→ Main Hand
+→ Effect
+→ Pet
+→ Pet Accessory
+
+Adjust exact order based on visual correctness.
+
+Do not merely store equippedItemId without using it when rendering.
+
+---
+
+# 17. ADD A REAL "MANAGE PARTY" INTERFACE
+
+There is currently no obvious way for a Party Leader to add Party members.
+
+This is a core V1 requirement.
+
+On the PARTY screen, Party Leaders must see a prominent control:
+
+# + ADD PARTY MEMBER
+
+or:
+
+# MANAGE PARTY
+
+Do not hide this several screens deep.
+
+---
+
+# 18. ADD KID / ADVENTURER CREATION
+
+Party Leader should be able to add a child Adventurer without email.
+
+Flow:
+
+PARTY
+→ ADD PARTY MEMBER
+→ **ADD ADVENTURER / CHILD**
+
+Required:
+
+* Display Name
+* 4-digit PIN
+* Optional School Calendar assignment
+
+Do NOT have Party Leader build the kid's character.
+
+After creation, show the new member on the Party screen.
+
+On the kid's first login:
+
+Household Code
+→ select their name
+→ PIN
+→ CREATE YOUR ADVENTURER
+
+---
+
+# 19. ADD ADULT INVITES
+
+Party Leader should also have:
+
+# INVITE ADULT
+
+Allow generation of:
+
+* invite code;
+* invite link.
+
+Choose invited Party role:
+
+* Adventurer
+* Party Leader
+
+Do not require this to be highly polished yet, but the workflow must exist.
+
+---
+
+# 20. PARTY SCREEN MUST SHOW MEMBERS
+
+Show Party members as character/profile cards.
+
+Each should show:
+
+* character sprite or incomplete-character placeholder;
+* Display Name;
+* Adventurer Name if created;
+* Level;
+* role.
+
+For a child who has not created their character yet, show:
+
+**CHARACTER NOT CREATED YET**
+
+Do not assign them an emoji.
+
+---
+
+# 21. ADD QUEST ASSIGNMENT TO PARTY MEMBERS
+
+There is currently no obvious place to create a quest for another Party member.
+
+This is a core chore-app requirement.
+
+Party Leader needs a clearly visible:
+
+# + CREATE
+
+button available from Home and/or Quests.
+
+Menu:
+
+* New Quest
+* Build a Plan
+* New Project/Boss
+* New Party Goal
+
+For the current pass, New Quest is priority.
+
+---
+
+# 22. NEW QUEST ASSIGNMENT FLOW
+
+When creating a quest, include a very obvious:
+
+# WHO IS THIS FOR?
+
+Options:
+
+## INDIVIDUAL
+
+Show Party member cards/check boxes.
+
+Allow selecting ONE OR MULTIPLE people.
+
+Selecting Jensen + Juliette creates two independent Individual Quest assignments.
+
+## OPEN QUEST
+
+Available to eligible Party members.
+
+## PARTY QUEST
+
+Select multiple participants for a genuinely shared Party Quest.
+
+Do not confuse multi-user Individual Quests with Party Quests.
+
+---
+
+# 23. PARTY LEADER SHOULD BE ABLE TO ASSIGN QUESTS TO THEMSELVES
+
+Party Leaders are also players.
+
+Include the current Party Leader in the Individual assignment list.
+
+Example:
+
+☑ Dad
+☐ Jensen
+☐ Juliette
+☐ Mom
+
+---
+
+# 24. CREATED QUEST MUST APPEAR FOR THE ASSIGNED USER
+
+After quest creation:
+
+* assigned user's Home must show the quest;
+* assigned user's Quest tab must show the quest;
+* Party Leader management should show the quest definition/assignment.
+
+Verify that assigning a quest to another user does not accidentally assign it to the creator.
+
+---
+
+# 25. FIX THE PARTY GOAL CRASH
+
+Testing the control:
+
+**SET A GOAL FOR YOUR PARTY**
+
+currently crashes with:
+
+`Cannot read properties of undefined (reading 'filter')`
+
+Find and fix the ROOT CAUSE.
+
+Do not merely wrap the code in try/catch and hide the error.
+
+Likely investigate:
+
+* undefined Party Goal array;
+* undefined Party member array;
+* undefined catalog/config list;
+* query returning `undefined` rather than `[]`;
+* component rendering before async data has loaded.
+
+Collections that are validly empty should default to:
+
+`[]`
+
+not:
+
+`undefined`.
+
+Ensure loading states exist while necessary data is fetched.
+
+---
+
+# 26. PARTY GOAL SCREEN MUST WORK WITH ZERO EXISTING GOALS
+
+A brand-new Party will naturally have no goals.
+
+That is NORMAL, not an exceptional state.
+
+The Party Goal creation screen must function when:
+
+* availableGoals = [];
+* activeGoal = null;
+* reserve = 0;
+* Party has only one member.
+
+Do not assume pre-existing data.
+
+---
+
+# 27. PARTY GOAL CREATION FLOW
+
+Party Leader should be able to create:
+
+NAME
+
+Example:
+Ice Cream Adventure
+
+DESCRIPTION
+
+Optional.
+
+TARGET PARTY GOLD
+
+Example:
+400
+
+Then:
+
+SAVE GOAL
+
+The created goal becomes available for Party selection/activation.
+
+For current V1 testing, allow Party Leader to directly activate it if necessary.
+
+---
+
+# 28. PARTY RESERVE MUST DEFAULT TO ZERO
+
+If no Party Gold has been earned:
+
+Party Reserve = 0
+
+Do not allow undefined/null values to break math/rendering.
+
+Same principle applies to:
+
+* XP;
+* Gold;
+* Legendary count;
+* item lists;
+* quest lists;
+* Party Goal list;
+* members;
+* equipment.
+
+Use safe explicit defaults.
+
+---
+
+# 29. ADD A DUMPSTER FIRE BACKGROUND
+
+Add a Shop/background catalog item:
+
+# DUMPSTER FIRE
+
+This should be an original 16-bit-style pixel-art background showing:
+
+* a dumpster;
+* clearly on fire;
+* nighttime/alley or suitably ridiculous setting;
+* enough negative/background space that the character remains readable in front.
+
+Tone should be funny rather than grim.
+
+Suggested metadata:
+
+Category:
+Background
+
+Name:
+Dumpster Fire
+
+Description:
+**Everything is fine.**
+
+Make it attainable reasonably early because this is important.
+
+Suggested:
+
+Unlock Level: 3
+
+Price: 500 Gold
+
+When equipped, the character should visibly stand in front of the Dumpster Fire scene.
+
+---
+
+# 30. ADD MORE PERSONALITY TO EARLY ITEMS
+
+The Shop should not consist entirely of generic fantasy gear.
+
+Keep useful basics, but include occasional funny items.
+
+Examples that can be seeded later/currently if easy:
+
+* Ridiculous Feathered Hat
+* Giant Wooden Spoon
+* Suspiciously Shiny Shield
+* Dumpster Fire Background
+
+Do not overdo comedy on every item.
+
+The contrast between normal fantasy gear and occasional ridiculous items is what makes them funny.
+
+---
+
+# 31. CHARACTER CREATION TEXT CORRECTION
+
+Current copy says:
+
+**"Choose wisely — your first appearance is permanent for 7 days."**
+
+This is slightly misleading because the FIRST creation itself should not feel like a punishment.
+
+Use something friendlier such as:
+
+**Create your adventurer. You can change your base appearance again after 7 days.**
+
+or:
+
+**Choose your look! After you begin your adventure, base character changes have a 7-day cooldown.**
+
+Do not imply that randomized accidents during creation immediately lock the user.
+
+The cooldown begins only after BEGIN ADVENTURE.
+
+---
+
+# 32. CHARACTER CREATION MUST NOT SHOW "???" AS THE PRIMARY NAME ONCE A NAME IS ENTERED
+
+Before a name is selected, ??? is acceptable as a retro placeholder.
+
+Once the Adventurer Name field contains a value, update the character card immediately.
+
+Example:
+
+THORNBLADE
+
+Elf · Rogue
+
+Do not require saving before updating the preview.
+
+---
+
+# 33. CHARACTER CREATION FORM SHOULD STAY LIVE AND RESPONSIVE
+
+Every option change should update the character preview without refresh.
+
+Changing:
+
+Human → Dwarf
+
+should immediately shorten/stockify the character.
+
+Changing:
+
+Fighter → Wizard
+
+should immediately show Wizard garb/staff/hat.
+
+Changing:
+
+Brown hair → Purple hair
+
+should immediately turn the hair purple.
+
+Changing:
+
+Masculine → Feminine
+
+should visibly alter body/base presentation.
+
+This is important because the character creator is part of the FUN, not merely a database form.
+
+---
+
+# 34. TEST EACH SPECIES VISUALLY
+
+Before considering character creation complete, manually inspect:
+
+* Human
+* Elf
+* Dwarf
+* Gnome
+* Halfling
+* Orc
+* Goblin
+
+Place screenshots side-by-side mentally/visually.
+
+Ask:
+
+**Could a child identify these as different types of fantasy characters without reading the label?**
+
+If the answer is no, the differences are insufficient.
+
+---
+
+# 35. TEST EACH CLASS VISUALLY
+
+Similarly test:
+
+* Fighter
+* Ranger
+* Wizard
+* Rogue
+* Cleric
+* Barbarian
+
+Without reading the label, the class should have a recognizable visual cue.
+
+Wizard especially must visibly have:
+
+* robe;
+* pointy hat;
+* staff.
+
+---
+
+# 36. TEST IDENTITY VISUALLY
+
+Masculine and Feminine options should look visibly different enough to be meaningful.
+
+Again, do not sexualize.
+
+A traditional fantasy game visual shorthand is sufficient.
+
+Allow all users to later equip any outfit regardless of identity.
+
+---
+
+# 37. CHARACTER ASSET QUALITY IS MORE IMPORTANT THAN NUMBER OF OPTIONS
+
+If necessary, reduce the number of initial:
+
+* hair styles;
+* glasses;
+* facial hair styles;
+* classes;
+* species
+
+temporarily in order to make each option look GOOD.
+
+Five good variations are better than fifteen broken variations.
+
+Do not generate differences by merely recoloring the same sprite when the option represents a structural difference.
+
+---
+
+# 38. FIX ERROR BOUNDARIES WITHOUT HIDING BUGS
+
+The current "Something went wrong" screen is useful as a fallback.
+
+Keep an application error boundary.
+
+However:
+
+* fix the underlying bugs;
+* log useful technical details;
+* make Try Again functional;
+* do not rely on error boundary as normal control flow.
+
+User-visible technical messages should be concise.
+
+App Admin/development logs can retain stack traces/details.
+
+---
+
+# 39. MOBILE LAYOUT
+
+Character creation is being tested on a phone.
+
+Increase character preview size without creating excessive scrolling.
+
+Good priority order:
+
+Character Preview
+→ Name
+→ Identity
+→ Species
+→ Class
+→ Appearance options
+→ Begin Adventure
+
+The preview can become sticky within reason if that improves live customization, but do not obscure form controls.
+
+---
+
+# 40. CORE ACCEPTANCE TESTS FOR THIS PASS
+
+Do not proceed to Cat Foley/Boss/advanced features until all of these pass.
+
+## CHARACTER TEST
+
+Create:
+
+Human Fighter
+
+Then switch to:
+
+Elf Fighter
+
+Expected:
+Proper attached pointed ears and different proportions.
+
+Switch to:
+
+Dwarf Fighter
+
+Expected:
+Clearly shorter and stockier.
+
+Switch to:
+
+Gnome Fighter
+
+Expected:
+Clearly shorter/smaller than Dwarf and visually distinct.
+
+Switch to:
+
+Orc Fighter
+
+Expected:
+More than green skin; broader/tusk/fantasy silhouette.
+
+Switch to:
+
+Goblin Fighter
+
+Expected:
+Clearly smaller and structurally different from Orc.
+
+## CLASS TEST
+
+Use same Human character.
+
+Switch:
+
+Fighter → Wizard
+
+Expected:
+Visual changes to robe + pointed hat + staff.
+
+Wizard → Ranger
+
+Expected:
+Visual changes to ranger clothing + bow.
+
+Wizard → Rogue
+
+Expected:
+Visual changes to rogue clothing + dagger/hood.
+
+## COLOR TEST
+
+Choose:
+
+Blue skin
+Pink hair
+
+Expected:
+Character immediately shows both.
+
+## FACE TEST
+
+Inspect default face.
+
+Expected:
+Not cross-eyed.
+
+Equip glasses.
+
+Expected:
+Eyes remain readable and glasses align properly.
+
+Enable:
+
+Stubble
+
+Expected:
+Intentional pixel stubble, not blur/noise.
+
+Enable:
+
+Mustache
+
+Expected:
+Clearly recognizable mustache.
+
+## EQUIPMENT TEST
+
+Create/save character.
+
+Equip Traveler's Tunic.
+
+Expected:
+Character visibly wears Traveler's Tunic.
+
+Unequip.
+
+Expected:
+Character visibly returns to basic starter clothing.
+
+Re-equip.
+
+Expected:
+Tunic returns.
+
+Perform the same visual test for:
+
+* weapon;
+* shield;
+* hat;
+* pet;
+* background.
+
+## PARTY MEMBER TEST
+
+As Party Leader:
+
+Party
+→ Add Party Member
+→ Add Child Adventurer
+
+Create:
+
+Jensen
+PIN 1234
+
+Expected:
+Jensen appears on Party page.
+
+Repeat for another child.
+
+## KID LOGIN TEST
+
+Logout.
+
+Enter Household Code.
+
+Expected:
+New kids appear as choices.
+
+Select Jensen.
+
+Enter PIN.
+
+Expected:
+If no character exists, Jensen enters Create Your Adventurer.
+
+## QUEST ASSIGNMENT TEST
+
+Login as Party Leader.
+
+Create:
+
+Unload Dishwasher
+
+Assign to:
+
+Jensen
+
+Expected:
+It does NOT appear as Dad's quest.
+
+Login as Jensen.
+
+Expected:
+Quest appears.
+
+## MULTI-ASSIGNMENT TEST
+
+Create:
+
+Brush Teeth
+
+Assign individually to:
+
+Jensen + Juliette
+
+Expected:
+Two independent assignments.
+
+Completion by Jensen does not complete Juliette's.
+
+## PARTY GOAL TEST
+
+Select:
+
+Set a Goal for Your Party
+
+Expected:
+NO CRASH.
+
+Create:
+
+Ice Cream Adventure
+Target 400
+
+Expected:
+Goal saves and displays correctly.
+
+## BACKGROUND TEST
+
+Earn/purchase or admin-grant:
+
+Dumpster Fire
+
+Equip it.
+
+Expected:
+Character presentation visibly changes to the pixel-art Dumpster Fire background.
+
+---
+
+# DEFINITION OF SUCCESS
+
+This pass succeeds when:
+
+1. Character creation is actually FUN to play with.
+2. Species are visibly different.
+3. Classes are visibly different.
+4. Characters are large enough to appreciate.
+5. Equipment visibly changes characters.
+6. Party Leaders can add their kids.
+7. Party Leaders can assign chores to those kids.
+8. Kids can log in independently.
+9. Party Goal creation does not crash.
+10. The Dumpster Fire exists.
+
+Do NOT judge this pass by how much backend code was added.
+
+Judge it by whether an actual family can now begin using the application.

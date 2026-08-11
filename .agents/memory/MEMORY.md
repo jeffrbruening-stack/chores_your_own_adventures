@@ -1,3 +1,5 @@
 - [CYOA auth architecture](cyoa-auth.md) — custom JWT auth (no Clerk); token in localStorage "cyoa_token"; bcrypt for adults, 4-digit PIN for kids
 - [CYOA codegen fix](cyoa-codegen.md) — Orval 8.x generates Zod v4 syntax; fix by removing type:integer→number, format:email, bare type:object→additionalProperties:true in openapi.yaml
 - [CYOA core game loop](cyoa-core-loop.md) — character creation, equipped items, shop tabs, PixelCharacter component, DB schema additions for core loop
+- [CYOA pixel character v2](cyoa-pixel-character-v2.md) — 32×48 SVG canvas, 7 species with distinct body templates, layered render order, equipment changes outfit color
+- [CYOA quest field alignment](cyoa-quest-fields.md) — frontend+OpenAPI types use assignedUserIds; backend quests.ts must also use assignedUserIds (not assignedToUserIds)

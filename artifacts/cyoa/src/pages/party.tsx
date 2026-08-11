@@ -1,13 +1,22 @@
+import { useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { useGetParty, useListPartyMembers, getGetPartyQueryKey, getListPartyMembersQueryKey } from '@workspace/api-client-react';
+import {
+  useGetParty,
+  useListPartyMembers,
+  getGetPartyQueryKey,
+  getListPartyMembersQueryKey,
+} from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/hooks/use-toast';
 import { Link } from 'wouter';
-import { Shield, Users, Target, Settings as SettingsIcon, Crown, Plus, Coins } from 'lucide-react';
+import { Shield, Users, Target, Settings as SettingsIcon, Crown, Plus, Coins, X, UserPlus, Lock } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { PixelCharacter } from '@/components/pixel-character';
-import { cn } from '@/lib/utils';
 
 export default function Party() {
   const { activePartyId, currentUser } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: party, isLoading: partyLoading } = useGetParty(
     activePartyId!,
@@ -20,6 +29,45 @@ export default function Party() {
 
   const isLeader = party?.myRole === 'leader' || party?.myRole === 'founder';
   const activeGoal = (party as any)?.activePartyGoal ?? null;
+
+  // Add member state
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [newDisplayName, setNewDisplayName] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [addingMember, setAddingMember] = useState(false);
+
+  const handleAddKid = async () => {
+    if (!newDisplayName.trim()) {
+      toast({ title: 'Enter a display name', variant: 'destructive' }); return;
+    }
+    if (!/^\d{4}$/.test(newPin)) {
+      toast({ title: 'PIN must be exactly 4 digits', variant: 'destructive' }); return;
+    }
+    setAddingMember(true);
+    try {
+      const token = localStorage.getItem('cyoa_token');
+      const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+      const res = await fetch(`${BASE}/api/parties/${activePartyId}/members/kid`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ displayName: newDisplayName.trim(), pin: newPin }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Failed');
+      toast({
+        title: '🎉 ADVENTURER JOINED!',
+        description: `${newDisplayName.trim()} is ready to quest.`,
+        className: 'bg-primary text-primary-foreground border-none font-bold',
+      });
+      setNewDisplayName('');
+      setNewPin('');
+      setShowAddMember(false);
+      queryClient.invalidateQueries({ queryKey: getListPartyMembersQueryKey(activePartyId!) });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setAddingMember(false);
+    }
+  };
 
   if (!activePartyId) {
     return (
@@ -60,22 +108,74 @@ export default function Party() {
                 <Shield className="w-32 h-32" />
               </div>
               <h2 className="font-bold text-2xl mb-1">{party.name}</h2>
-              <div className="flex items-center gap-3 mt-2">
+              <div className="flex items-center gap-3 mt-2 flex-wrap">
                 <div className="bg-background/60 px-3 py-1.5 rounded-lg border border-border text-xs font-mono">
                   CODE:{' '}
                   <span className="font-bold tracking-widest text-primary">{party.householdCode}</span>
                 </div>
                 <div className="flex items-center gap-1 text-yellow-400 font-pixel text-xs">
-                  <Coins className="w-3 h-3" /> {party.partyGoldReserve ?? 0}
+                  <Coins className="w-3 h-3" /> {(party as any).partyGoldReserve ?? 0}
                 </div>
               </div>
             </div>
 
             {/* PARTY MEMBERS */}
             <div>
-              <h3 className="font-pixel text-[10px] text-muted-foreground mb-3 flex items-center gap-2">
-                <Users className="w-3 h-3" /> PARTY MEMBERS
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-pixel text-[10px] text-muted-foreground flex items-center gap-2">
+                  <Users className="w-3 h-3" /> PARTY MEMBERS
+                </h3>
+                {isLeader && (
+                  <button
+                    onClick={() => setShowAddMember(v => !v)}
+                    className="flex items-center gap-1.5 text-[10px] font-pixel text-primary bg-primary/10 border border-primary/30 rounded-lg px-2 py-1.5 hover:bg-primary/20 transition-colors"
+                  >
+                    {showAddMember ? <X className="w-3 h-3" /> : <UserPlus className="w-3 h-3" />}
+                    {showAddMember ? 'CANCEL' : 'ADD MEMBER'}
+                  </button>
+                )}
+              </div>
+
+              {/* Add kid form */}
+              {showAddMember && isLeader && (
+                <div className="bg-card border-2 border-primary/40 rounded-xl p-4 mb-4 flex flex-col gap-3 animate-in fade-in slide-in-from-top-2">
+                  <p className="font-pixel text-[10px] text-primary">NEW ADVENTURER</p>
+                  <input
+                    type="text"
+                    placeholder="Kid's display name"
+                    value={newDisplayName}
+                    onChange={e => setNewDisplayName(e.target.value)}
+                    className="bg-background border-2 border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary transition-colors"
+                    maxLength={20}
+                  />
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      placeholder="4-digit PIN"
+                      value={newPin}
+                      onChange={e => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                      className="w-full bg-background border-2 border-border rounded-xl pl-10 pr-4 py-3 text-sm font-mono tracking-widest focus:outline-none focus:border-primary transition-colors"
+                      maxLength={4}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground -mt-1">
+                    They'll use this PIN to log in. Make it easy for them to remember!
+                  </p>
+                  <button
+                    onClick={handleAddKid}
+                    disabled={addingMember || !newDisplayName.trim() || newPin.length !== 4}
+                    className="w-full bg-primary text-primary-foreground font-pixel py-3 rounded-xl text-xs disabled:opacity-50 transition-opacity"
+                  >
+                    {addingMember ? 'JOINING...' : '⚔️ ADD TO PARTY'}
+                  </button>
+                  <p className="text-[10px] text-muted-foreground text-center">
+                    They'll choose their character on first login with household code{' '}
+                    <span className="font-bold text-primary">{party.householdCode}</span>
+                  </p>
+                </div>
+              )}
 
               {membersLoading ? (
                 <div className="space-y-2">
@@ -89,18 +189,21 @@ export default function Party() {
                 <div className="flex flex-col gap-3">
                   {members.map((member: any) => (
                     <div key={member.userId} className="bg-card border border-border rounded-xl flex items-center gap-4 p-3">
-                      {/* Pixel character (minimal appearance — we only have species+class from member data) */}
+                      {/* Full-appearance pixel character */}
                       <div className="shrink-0">
                         <PixelCharacter
                           appearance={{
-                            species: member.species ?? 'human',
-                            class: member.class ?? 'fighter',
-                            skinTone: 'medium',
-                            hairColor: 'brown',
-                            hairStyle: 'short',
-                            eyeColor: 'brown',
+                            species:    member.species    ?? 'human',
+                            class:      member.class      ?? 'fighter',
+                            gender:     member.gender     ?? 'any',
+                            skinTone:   member.skinTone   ?? 'medium',
+                            hairStyle:  member.hairStyle  ?? 'short',
+                            hairColor:  member.hairColor  ?? 'brown',
+                            eyeColor:   member.eyeColor   ?? 'brown',
+                            hasGlasses: member.hasGlasses ?? false,
+                            facialHair: member.facialHair ?? 'none',
                           }}
-                          size={72}
+                          size={80}
                         />
                       </div>
 
@@ -114,8 +217,8 @@ export default function Party() {
                           )}
                         </div>
                         <div className="text-[10px] text-muted-foreground mt-0.5">{member.displayName}</div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="font-pixel text-[10px] text-primary">LVL {member.level}</span>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <span className="font-pixel text-[10px] text-primary">LVL {member.currentLevel ?? 1}</span>
                           {member.class && (
                             <span className="text-[10px] text-muted-foreground capitalize">{member.class}</span>
                           )}
@@ -138,25 +241,23 @@ export default function Party() {
                 <h3 className="font-pixel text-[10px] text-muted-foreground flex items-center gap-2">
                   <Target className="w-3 h-3" /> PARTY GOAL
                 </h3>
-                {isLeader && (
-                  <Link href="/party-goals">
-                    <button className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1">
-                      <Plus className="w-3 h-3" /> SET GOAL
-                    </button>
-                  </Link>
-                )}
+                <Link href="/party-goals">
+                  <button className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1">
+                    <Plus className="w-3 h-3" /> {isLeader ? 'MANAGE' : 'VIEW'} GOALS
+                  </button>
+                </Link>
               </div>
 
               {activeGoal ? (
                 <div className="bg-card border-2 border-yellow-900/40 rounded-xl p-4">
                   <h4 className="font-bold text-sm mb-2">{activeGoal.name}</h4>
                   <Progress
-                    value={Math.min(100, (activeGoal.currentGold / Math.max(1, activeGoal.targetGold)) * 100)}
+                    value={Math.min(100, ((activeGoal.currentGold ?? 0) / Math.max(1, activeGoal.targetGold)) * 100)}
                     indicatorColor="bg-yellow-500"
                     className="h-3"
                   />
                   <div className="flex justify-between mt-1.5 text-[10px] text-muted-foreground font-bold">
-                    <span>{activeGoal.currentGold} gold saved</span>
+                    <span>{activeGoal.currentGold ?? 0} gold saved</span>
                     <span>{activeGoal.targetGold} goal</span>
                   </div>
                 </div>
@@ -177,7 +278,7 @@ export default function Party() {
               )}
             </div>
 
-            {/* PROJECTS / BOSS BATTLES quick link */}
+            {/* BOSS BATTLES quick link */}
             <Link href="/projects">
               <div className="bg-card border border-red-900/40 rounded-xl p-4 flex items-center justify-between hover:border-red-500/60 transition-colors">
                 <div>

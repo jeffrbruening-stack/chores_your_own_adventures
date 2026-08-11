@@ -57,7 +57,7 @@ router.post("/", requireAuth, async (req, res) => {
     const userId = req.userId!;
     const {
       partyId, plainTitle, adventureTitle, description, questType,
-      difficulty, isLegendary, assignedToUserIds, requiresVerification,
+      difficulty, isLegendary, assignedUserIds, requiresVerification,
       xpReward, goldReward, partyGoldReward, isRoutine, routineSchedule,
       timeWindowStart, timeWindowEnd, schoolCalendarId,
     } = req.body;
@@ -73,7 +73,7 @@ router.post("/", requireAuth, async (req, res) => {
       questType: questType ?? "individual",
       difficulty: difficulty ?? "normal",
       isLegendary: isLegendary ?? false,
-      assignedToUserIds: assignedToUserIds ?? null,
+      assignedUserIds: assignedUserIds ?? null,
       requiresVerification: requiresVerification ?? false,
       xpReward: xpReward ?? rewards.xp,
       goldReward: goldReward ?? rewards.gold,
@@ -86,8 +86,8 @@ router.post("/", requireAuth, async (req, res) => {
     }).returning();
 
     // If individual quest, create assignment(s)
-    if (questType === "individual" && Array.isArray(assignedToUserIds) && assignedToUserIds.length > 0) {
-      for (const uid of assignedToUserIds) {
+    if (questType === "individual" && Array.isArray(assignedUserIds) && assignedUserIds.length > 0) {
+      for (const uid of assignedUserIds) {
         await db.insert(questAssignmentsTable).values({
           questDefinitionId: quest.id,
           userId: uid,

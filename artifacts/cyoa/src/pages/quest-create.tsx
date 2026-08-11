@@ -180,7 +180,7 @@ export default function QuestCreate() {
               <div className="space-y-2 mt-4">
                 <label className="text-sm font-bold block">ASSIGN TO:</label>
                 <div className="flex flex-wrap gap-2">
-                  {members.filter(m => m.userType === 'kid').map(m => (
+                  {members.map(m => (
                     <button
                       key={m.userId}
                       onClick={() => {

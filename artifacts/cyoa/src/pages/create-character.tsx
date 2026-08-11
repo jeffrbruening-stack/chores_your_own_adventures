@@ -171,7 +171,7 @@ export default function CreateCharacter() {
       <div className="flex flex-col gap-6 px-4 pt-6">
         {/* Live Preview */}
         <div className="bg-card border-2 border-border rounded-2xl p-6 flex flex-col items-center gap-3">
-          <PixelCharacter appearance={appearance} size={140} />
+          <PixelCharacter appearance={appearance} size={240} />
           <div className="text-center">
             <p className="font-pixel text-sm text-primary">{adventurerName || '???'}</p>
             <p className="text-xs text-muted-foreground mt-0.5">

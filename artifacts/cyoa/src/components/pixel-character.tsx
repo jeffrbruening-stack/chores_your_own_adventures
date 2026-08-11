@@ -1,50 +1,98 @@
 /**
- * PixelCharacter — layered pixel-art SVG sprite system
- * Character body: 16×20 "pixel" grid, each pixel = 3 SVG units
- * ViewBox extended to accommodate equipment overlays:
- *   left 8px for off-hand, top 7px for hats, right 10px for weapon+pet
+ * pixel-character.tsx
+ * 16-bit chibi RPG character renderer — 32×48 SVG canvas.
+ * Displayed crisp via image-rendering: pixelated at chosen size.
  */
+import React from 'react';
 
-const P = 3; // SVG units per pixel
+// ─── TYPES ────────────────────────────────────────────────────────────────────
 
-// ── PALETTES ──────────────────────────────────────────────────────────────────
+export interface CharacterAppearance {
+  skinTone?: string;
+  hairStyle?: string;
+  hairColor?: string;
+  eyeColor?: string;
+  hasGlasses?: boolean;
+  facialHair?: string;
+  species?: string;
+  gender?: string;
+  class?: string;
+}
+
+export interface EquippedItems {
+  outfit?:        { name: string; emoji?: string } | null;
+  head?:          { name: string; emoji?: string } | null;
+  main_hand?:     { name: string; emoji?: string } | null;
+  off_hand?:      { name: string; emoji?: string } | null;
+  pet?:           { name: string; emoji?: string } | null;
+  background?:    { name: string; emoji?: string } | null;
+  effect?:        { name: string; emoji?: string } | null;
+  pet_accessory?: { name: string; emoji?: string } | null;
+}
+
+interface PixelCharacterProps {
+  appearance?: CharacterAppearance;
+  equipped?: EquippedItems;
+  /** Display width in px; height = size × 1.5. Default 192. */
+  size?: number;
+}
+
+// ─── EXPORTED CONSTANTS ───────────────────────────────────────────────────────
 
 export const SKIN_TONES = [
-  { id: 'light',        label: 'Light',        color: '#FDDBB4' },
-  { id: 'light-medium', label: 'Light Med',    color: '#F0C49A' },
-  { id: 'medium',       label: 'Medium',       color: '#D4956A' },
-  { id: 'tan',          label: 'Tan',          color: '#C07840' },
-  { id: 'dark',         label: 'Dark',         color: '#8A4820' },
-  { id: 'very-dark',    label: 'Very Dark',    color: '#4A2010' },
+  // Realistic range
+  { id: 'light',          label: 'Porcelain',     color: '#FDDBB4' },
+  { id: 'light-medium',   label: 'Warm Light',    color: '#F0C49A' },
+  { id: 'medium',         label: 'Golden',        color: '#D4956A' },
+  { id: 'tan',            label: 'Honey',         color: '#C07840' },
+  { id: 'dark',           label: 'Deep',          color: '#8A4820' },
+  { id: 'very-dark',      label: 'Ebony',         color: '#4A2010' },
+  // Fantasy
+  { id: 'fantasy-red',    label: 'Crimson',       color: '#BB3030' },
+  { id: 'fantasy-blue',   label: 'Azure',         color: '#3060BB' },
+  { id: 'fantasy-green',  label: 'Jade',          color: '#30A040' },
+  { id: 'fantasy-pink',   label: 'Rose',          color: '#CC5090' },
+  { id: 'fantasy-purple', label: 'Violet',        color: '#7030B0' },
+  { id: 'fantasy-gray',   label: 'Stone',         color: '#8090A0' },
+  { id: 'fantasy-teal',   label: 'Teal',          color: '#209090' },
 ];
 
 export const HAIR_COLORS = [
-  { id: 'black',        label: 'Black',        color: '#201010' },
-  { id: 'dark-brown',   label: 'Dark Brown',   color: '#3C2010' },
-  { id: 'brown',        label: 'Brown',        color: '#6B3820' },
-  { id: 'auburn',       label: 'Auburn',       color: '#8B3520' },
-  { id: 'red',          label: 'Red',          color: '#C03018' },
-  { id: 'blonde',       label: 'Blonde',       color: '#D8A840' },
-  { id: 'light-blonde', label: 'Lt. Blonde',   color: '#F0D060' },
-  { id: 'gray',         label: 'Gray',         color: '#989090' },
-  { id: 'white',        label: 'White',        color: '#E8E8E0' },
+  { id: 'black',              label: 'Black',         color: '#1A1008' },
+  { id: 'dark-brown',         label: 'Espresso',      color: '#3D1F0A' },
+  { id: 'brown',              label: 'Chestnut',      color: '#6B3820' },
+  { id: 'auburn',             label: 'Auburn',        color: '#8B3020' },
+  { id: 'blonde',             label: 'Blonde',        color: '#C8A040' },
+  { id: 'red',                label: 'Copper',        color: '#9A2010' },
+  { id: 'gray',               label: 'Silver',        color: '#909090' },
+  { id: 'white',              label: 'White',         color: '#E0E0E8' },
+  { id: 'fantasy-blue',       label: 'Ocean',         color: '#1848BB' },
+  { id: 'fantasy-green',      label: 'Forest',        color: '#208040' },
+  { id: 'fantasy-pink',       label: 'Cotton Candy',  color: '#D040A0' },
+  { id: 'fantasy-purple',     label: 'Amethyst',      color: '#7030BB' },
+  { id: 'fantasy-bright-red', label: 'Fiery',         color: '#CC1010' },
+  { id: 'fantasy-cyan',       label: 'Frost',         color: '#10B0C0' },
 ];
 
 export const EYE_COLORS = [
-  { id: 'brown',  label: 'Brown',  color: '#6B3820' },
-  { id: 'hazel',  label: 'Hazel',  color: '#8B6030' },
-  { id: 'blue',   label: 'Blue',   color: '#2060A8' },
-  { id: 'green',  label: 'Green',  color: '#306840' },
-  { id: 'gray',   label: 'Gray',   color: '#607080' },
-  { id: 'purple', label: 'Purple', color: '#5840A0' },
+  { id: 'brown',   label: 'Brown',   color: '#6B3820' },
+  { id: 'hazel',   label: 'Hazel',   color: '#8B6030' },
+  { id: 'green',   label: 'Green',   color: '#307040' },
+  { id: 'blue',    label: 'Blue',    color: '#2050A8' },
+  { id: 'gray',    label: 'Gray',    color: '#6080A0' },
+  { id: 'black',   label: 'Black',   color: '#101010' },
+  { id: 'amber',   label: 'Amber',   color: '#B06010' },
+  { id: 'violet',  label: 'Violet',  color: '#7030B0' },
 ];
 
 export const HAIR_STYLES = [
-  { id: 'short', label: 'Short' },
-  { id: 'long',  label: 'Long'  },
-  { id: 'bun',   label: 'Bun'   },
-  { id: 'curly', label: 'Curly' },
-  { id: 'bald',  label: 'Bald'  },
+  { id: 'bald',      label: 'Bald'      },
+  { id: 'short',     label: 'Short'     },
+  { id: 'medium',    label: 'Medium'    },
+  { id: 'long',      label: 'Long'      },
+  { id: 'curly',     label: 'Curly'     },
+  { id: 'ponytail',  label: 'Ponytail'  },
+  { id: 'mohawk',    label: 'Mohawk'    },
 ];
 
 export const SPECIES_LIST = [
@@ -67,509 +115,920 @@ export const CLASSES_LIST = [
 ];
 
 export const FACIAL_HAIR_OPTIONS = [
-  { id: 'none',     label: 'None'      },
-  { id: 'mustache', label: 'Mustache'  },
-  { id: 'beard',    label: 'Beard'     },
-  { id: 'stubble',  label: 'Stubble'   },
+  { id: 'none',     label: 'None'     },
+  { id: 'stubble',  label: 'Stubble'  },
+  { id: 'mustache', label: 'Mustache' },
+  { id: 'beard',    label: 'Beard'    },
 ];
 
-// ── TYPES ─────────────────────────────────────────────────────────────────────
+// ─── COLOR RESOLUTION ─────────────────────────────────────────────────────────
 
-export interface CharacterAppearance {
-  skinTone?: string;
-  hairStyle?: string;
-  hairColor?: string;
-  eyeColor?: string;
-  hasGlasses?: boolean;
-  facialHair?: string;
-  species?: string;
-  gender?: string;
-  class?: string;
+function sk(id?: string): string {
+  return SKIN_TONES.find(t => t.id === id)?.color ?? '#D4956A';
 }
 
-export interface EquippedItemRef {
-  name: string;
-  emoji?: string;
-}
-
-export interface EquippedItems {
-  head?:          EquippedItemRef | null;
-  outfit?:        EquippedItemRef | null;
-  main_hand?:     EquippedItemRef | null;
-  off_hand?:      EquippedItemRef | null;
-  pet?:           EquippedItemRef | null;
-  background?:    EquippedItemRef | null;
-  effect?:        EquippedItemRef | null;
-  pet_accessory?: EquippedItemRef | null;
-}
-
-interface PixelCharacterProps {
-  appearance?: CharacterAppearance;
-  equipped?: EquippedItems;
-  size?: number;
-  className?: string;
-}
-
-// ── COLOR HELPERS ─────────────────────────────────────────────────────────────
-
-function skinColor(skinTone?: string, species?: string): string {
-  if (species === 'orc')    return '#608840';
-  if (species === 'goblin') return '#7A9830';
-  const m: Record<string, string> = {
-    'light': '#FDDBB4', 'light-medium': '#F0C49A', 'medium': '#D4956A',
-    'tan': '#C07840',   'dark': '#8A4820',          'very-dark': '#4A2010',
+function skDark(skinId?: string): string {
+  const map: Record<string, string> = {
+    '#FDDBB4': '#C8A070', '#F0C49A': '#B87840',
+    '#D4956A': '#A06030', '#C07840': '#885020',
+    '#8A4820': '#602808', '#4A2010': '#280800',
+    '#BB3030': '#8B1010', '#3060BB': '#10408B',
+    '#30A040': '#108020', '#CC5090': '#8C1060',
+    '#7030B0': '#400080', '#8090A0': '#506070',
+    '#209090': '#006060',
   };
-  return m[skinTone || 'medium'] ?? '#D4956A';
+  const c = sk(skinId);
+  return map[c] ?? '#805028';
 }
 
-function skinDark(skinTone?: string, species?: string): string {
-  const m: Record<string, string> = {
-    '#FDDBB4': '#E8BF90', '#F0C49A': '#D8A878', '#D4956A': '#BA7848',
-    '#C07840': '#A06028', '#8A4820': '#6A3010', '#4A2010': '#2A1008',
-    '#608840': '#3A6018', '#7A9830': '#5A7820',
-  };
-  return m[skinColor(skinTone, species)] ?? '#C07040';
+function hc(id?: string): string {
+  return HAIR_COLORS.find(h => h.id === id)?.color ?? '#6B3820';
 }
 
-function hairColor(hc?: string): string {
-  const m: Record<string, string> = {
-    'black': '#201010',   'dark-brown': '#3C2010', 'brown': '#6B3820',
-    'auburn': '#8B3520',  'red': '#C03018',        'blonde': '#D8A840',
-    'light-blonde': '#F0D060', 'gray': '#989090',  'white': '#E8E8E0',
-  };
-  return m[hc || 'brown'] ?? '#6B3820';
+function ec(id?: string): string {
+  return EYE_COLORS.find(e => e.id === id)?.color ?? '#2050A8';
 }
 
-function eyeColor(ec?: string): string {
-  const m: Record<string, string> = {
-    'brown': '#6B3820', 'hazel': '#8B6030', 'blue': '#2060A8',
-    'green': '#306840', 'gray': '#607080',  'purple': '#5840A0',
-  };
-  return m[ec || 'brown'] ?? '#6B3820';
-}
+// ─── SVG RECT HELPER ──────────────────────────────────────────────────────────
 
-function outfitColors(name?: string): [string, string] {
-  const m: Record<string, [string, string]> = {
-    "Traveler's Tunic":          ['#8B6020', '#5A3C10'],
-    "Apprentice Robes":          ['#4A3090', '#28185C'],
-    "Ranger Gear":               ['#2D5C28', '#1A3A18'],
-    "Fancy Adventurer Clothes":  ['#8B1A1A', '#601010'],
-    "Knight Armor":              ['#7080A0', '#485068'],
-    "Mage Robes":                ['#2C3090', '#181860'],
-  };
-  return m[name || ''] ?? ['#8B6020', '#5A3C10'];
-}
-
-// ── SVG RECT HELPER ───────────────────────────────────────────────────────────
-
+type El = React.ReactElement;
 let _k = 0;
-function rk() { return `r${_k++}`; }
-
-function R(x: number, y: number, w: number, h: number, fill: string) {
-  if (w <= 0 || h <= 0) return null;
-  return <rect key={rk()} x={x * P} y={y * P} width={w * P} height={h * P} fill={fill} />;
+function R(x: number, y: number, w: number, h: number, fill: string, opacity?: number): El {
+  return (
+    <rect
+      key={_k++}
+      x={x} y={y} width={w} height={h}
+      fill={fill}
+      {...(opacity !== undefined ? { opacity } : {})}
+    />
+  );
 }
 
-// ── BODY RENDERER ─────────────────────────────────────────────────────────────
+// ─── BODY TEMPLATE ────────────────────────────────────────────────────────────
 
-function renderBody(ap: CharacterAppearance, outfitName?: string) {
-  _k = 0;
-  const sk  = skinColor(ap.skinTone, ap.species);
-  const skD = skinDark(ap.skinTone, ap.species);
-  const hc  = hairColor(ap.hairColor);
-  const ec  = eyeColor(ap.eyeColor);
-  const [outfit, outfitD] = outfitColors(outfitName);
-
-  const PANTS  = '#2A3650';
-  const PANTSB = '#1A2438'; // belt/seam
-  const BOOT   = '#1A0A00';
-  const MOUTH  = '#A04040';
-  const EW     = '#F8F8F8'; // eye white
-  const els    = [];
-
-  // ─ HAIR ─
-  const hs = ap.hairStyle || 'short';
-  if (hs !== 'bald') {
-    if (hs === 'bun') {
-      els.push(R(5, -3, 6, 1, hc));
-      els.push(R(4, -2, 8, 1, hc));
-    }
-    els.push(R(4, 0, 8, 1, hc)); // row 0 top
-    els.push(R(3, 1, 10, 1, hc));
-    els.push(R(3, 2, 10, 1, hc));
-    if (hs === 'long') {
-      els.push(R(3, 3, 1, 6, hc));   // left side
-      els.push(R(12, 3, 1, 6, hc));  // right side
-    }
-    if (hs === 'curly') {
-      els.push(R(2, 1, 1, 3, hc));
-      els.push(R(13, 1, 1, 3, hc));
-    }
-  }
-
-  // ─ FACE ─
-  els.push(R(3, 3, 10, 1, sk)); // forehead
-
-  // Eye row (row 4)
-  els.push(R(3, 4, 1, 1, sk));  // skin left of eyes
-  els.push(R(4, 4, 1, 1, EW));  // left white
-  els.push(R(5, 4, 1, 1, ec));  // left iris
-  els.push(R(6, 4, 4, 1, sk));  // between eyes
-  els.push(R(10, 4, 1, 1, ec)); // right iris
-  els.push(R(11, 4, 1, 1, EW)); // right white
-  els.push(R(12, 4, 1, 1, sk)); // skin right of eyes
-
-  els.push(R(3, 5, 10, 1, sk)); // mid face
-
-  // Mouth row (row 6)
-  els.push(R(3, 6, 3, 1, sk));  // left of mouth
-  els.push(R(6, 6, 4, 1, MOUTH));
-  els.push(R(10, 6, 3, 1, sk)); // right of mouth
-
-  els.push(R(4, 7, 8, 1, sk));  // chin
-  els.push(R(6, 8, 4, 1, sk));  // neck
-  els.push(R(6, 9, 4, 1, sk));  // neck lower
-
-  // ─ SPECIES EXTRAS ─
-  if (ap.species === 'elf') {
-    els.push(R(-1, 3, 1, 2, sk)); // pointed left ear
-    els.push(R(16, 3, 1, 2, sk)); // pointed right ear
-  }
-
-  // ─ GLASSES ─
-  if (ap.hasGlasses) {
-    els.push(R(3, 4, 3, 1, '#404040')); // left frame
-    els.push(R(10, 4, 3, 1, '#404040')); // right frame
-    els.push(R(6, 4, 1, 1, '#505050'));  // bridge
-  }
-
-  // ─ FACIAL HAIR ─
-  if (ap.facialHair === 'mustache') {
-    els.push(R(6, 6, 4, 1, hc));
-  } else if (ap.facialHair === 'beard') {
-    els.push(R(5, 6, 6, 1, hc));
-    els.push(R(4, 7, 8, 1, hc));
-  } else if (ap.facialHair === 'stubble') {
-    els.push(R(5, 7, 1, 1, skD));
-    els.push(R(7, 7, 1, 1, skD));
-    els.push(R(9, 7, 1, 1, skD));
-    els.push(R(11, 7, 1, 1, skD));
-  }
-
-  // ─ OUTFIT / TORSO ─
-  els.push(R(2, 10, 12, 4, outfit));    // torso rows 10-13
-  els.push(R(3, 14, 10, 1, outfit));    // waist row 14
-  els.push(R(2, 10, 1, 4, outfitD));   // left sleeve shade
-  els.push(R(13, 10, 1, 4, outfitD));  // right sleeve shade
-  els.push(R(7, 10, 2, 1, sk));         // collar skin peek
-
-  // ─ PANTS ─
-  els.push(R(3, 15, 10, 1, PANTS));     // upper legs
-  els.push(R(7, 15, 2, 1, PANTSB));     // center seam
-  els.push(R(3, 16, 4, 3, PANTS));      // left leg
-  els.push(R(9, 16, 4, 3, PANTS));      // right leg
-
-  // ─ BOOTS ─
-  els.push(R(2, 19, 6, 1, BOOT));
-  els.push(R(8, 19, 6, 1, BOOT));
-
-  return els.filter(Boolean);
+interface Body {
+  // Head bounding box
+  hx: number; hy: number; hw: number; hh: number;
+  // Face anchors (absolute canvas coords)
+  eyeY: number; eyeLX: number; eyeRX: number;
+  noseX: number; noseY: number;
+  mouthX: number; mouthY: number; mouthW: number;
+  // Neck
+  nx: number; ny: number; nw: number; nh: number;
+  // Torso
+  tx: number; ty: number; tw: number; th: number;
+  // Arms (L = player-left, R = player-right; displayed mirrored)
+  lax: number; lay: number; law: number; lah: number;
+  rax: number; ray: number; raw: number; rah: number;
+  // Legs
+  llx: number; lly: number; llw: number; llh: number;
+  rlx: number; rly: number; rlw: number; rlh: number;
+  // Feet
+  lfx: number; lfy: number; lfw: number; lfh: number;
+  rfx: number; rfy: number; rfw: number; rfh: number;
 }
 
-// ── HAT RENDERER ──────────────────────────────────────────────────────────────
+const BODIES: Record<string, Body> = {
+  // ─ Human: balanced, 43u tall ──────────────────────────────────
+  human: {
+    hx:10, hy:2, hw:12, hh:12,
+    eyeY:7, eyeLX:11, eyeRX:18, noseX:15, noseY:11, mouthX:12, mouthY:13, mouthW:8,
+    nx:14, ny:14, nw:4, nh:2,
+    tx:8, ty:16, tw:16, th:11,
+    lax:5, lay:16, law:3, lah:11, rax:24, ray:16, raw:3, rah:11,
+    llx:8, lly:27, llw:7, llh:14, rlx:17, rly:27, rlw:7, rlh:14,
+    lfx:7, lfy:41, lfw:8, lfh:3, rfx:17, rfy:41, rfw:8, rfh:3,
+  },
+  // ─ Elf: taller+slimmer, 45u tall, pointed integrated ears ────
+  elf: {
+    hx:11, hy:1, hw:10, hh:12,
+    eyeY:6, eyeLX:12, eyeRX:18, noseX:15, noseY:10, mouthX:12, mouthY:12, mouthW:7,
+    nx:14, ny:13, nw:4, nh:2,
+    tx:9, ty:15, tw:14, th:13,
+    lax:6, lay:15, law:3, lah:13, rax:23, ray:15, raw:3, rah:13,
+    llx:9, lly:28, llw:6, llh:16, rlx:17, rly:28, rlw:6, rlh:16,
+    lfx:8, lfy:44, lfw:7, lfh:2, rfx:17, rfy:44, rfw:7, rfh:2,
+  },
+  // ─ Dwarf: much shorter+wider, 34u tall ───────────────────────
+  dwarf: {
+    hx:9, hy:7, hw:14, hh:12,
+    eyeY:12, eyeLX:11, eyeRX:19, noseX:15, noseY:16, mouthX:12, mouthY:18, mouthW:8,
+    nx:13, ny:19, nw:6, nh:1,
+    tx:6, ty:20, tw:20, th:10,
+    lax:3, lay:20, law:3, lah:10, rax:26, ray:20, raw:3, rah:10,
+    llx:7, lly:30, llw:8, llh:8, rlx:17, rly:30, rlw:8, rlh:8,
+    lfx:6, lfy:38, lfw:9, lfh:3, rfx:17, rfy:38, rfw:9, rfh:3,
+  },
+  // ─ Gnome: smallest, 30u tall, large head ─────────────────────
+  gnome: {
+    hx:8, hy:11, hw:16, hh:13,
+    eyeY:16, eyeLX:10, eyeRX:19, noseX:15, noseY:20, mouthX:11, mouthY:22, mouthW:9,
+    nx:14, ny:24, nw:4, nh:1,
+    tx:10, ty:25, tw:12, th:8,
+    lax:7, lay:25, law:3, lah:8, rax:22, ray:25, raw:3, rah:8,
+    llx:11, lly:33, llw:4, llh:6, rlx:17, rly:33, rlw:4, rlh:6,
+    lfx:10, lfy:39, lfw:5, lfh:2, rfx:17, rfy:39, rfw:5, rfh:2,
+  },
+  // ─ Halfling: medium-short, 37u tall ──────────────────────────
+  halfling: {
+    hx:10, hy:5, hw:12, hh:11,
+    eyeY:10, eyeLX:11, eyeRX:18, noseX:15, noseY:13, mouthX:12, mouthY:15, mouthW:7,
+    nx:14, ny:16, nw:4, nh:2,
+    tx:8, ty:18, tw:16, th:10,
+    lax:5, lay:18, law:3, lah:10, rax:24, ray:18, raw:3, rah:10,
+    llx:9, lly:28, llw:6, llh:10, rlx:17, rly:28, rlw:6, rlh:10,
+    lfx:8, lfy:38, lfw:7, lfh:3, rfx:17, rfy:38, rfw:7, rfh:3,
+  },
+  // ─ Orc: broad+powerful, 43u tall, wide body ──────────────────
+  orc: {
+    hx:7, hy:2, hw:18, hh:12,
+    eyeY:7, eyeLX:9, eyeRX:20, noseX:15, noseY:11, mouthX:10, mouthY:13, mouthW:12,
+    nx:12, ny:14, nw:8, nh:2,
+    tx:4, ty:16, tw:24, th:12,
+    lax:1, lay:16, law:4, lah:12, rax:27, ray:16, raw:4, rah:12,
+    llx:5, lly:28, llw:9, llh:13, rlx:18, rly:28, rlw:9, rlh:13,
+    lfx:4, lfy:41, lfw:10, lfh:3, rfx:18, rfy:41, rfw:10, rfh:3,
+  },
+  // ─ Goblin: small+scrappy, 30u tall, giant ears ───────────────
+  goblin: {
+    hx:9, hy:9, hw:14, hh:11,
+    eyeY:13, eyeLX:11, eyeRX:19, noseX:15, noseY:16, mouthX:11, mouthY:18, mouthW:9,
+    nx:14, ny:20, nw:4, nh:1,
+    tx:11, ty:21, tw:10, th:8,
+    lax:8, lay:21, law:3, lah:8, rax:21, ray:21, raw:3, rah:8,
+    llx:12, lly:29, llw:4, llh:7, rlx:16, rly:29, rlw:4, rlh:7,
+    lfx:11, lfy:36, lfw:5, lfh:2, rfx:16, rfy:36, rfw:5, rfh:2,
+  },
+};
 
-function renderHat(hatName?: string) {
-  if (!hatName) return [];
-  _k = 1000;
-  const els = [];
-  const palettes: Record<string, [string, string]> = {
-    "Adventurer Cap":           ['#8B4513', '#5A2C0A'],
-    "Ridiculous Feathered Hat": ['#4A3080', '#28185C'],
-    "Wizard Hat":               ['#2C3090', '#181860'],
-    "Ranger Hood":              ['#2D5C28', '#1A3A18'],
-    "Iron Helm":                ['#7080A0', '#485068'],
+// ─── SPECIES FEATURES (ears, tusks, brow ridges) ─────────────────────────────
+
+function renderSpeciesFeatures(species: string, skinCol: string, sdark: string, b: Body): El[] {
+  const out: El[] = [];
+  if (species === 'elf') {
+    const ey = b.hy + 3;
+    // Left pointed ear
+    out.push(R(b.hx - 3, ey, 3, 4, skinCol));
+    out.push(R(b.hx - 2, ey + 4, 2, 2, skinCol));
+    out.push(R(b.hx - 1, ey + 6, 1, 2, skinCol));
+    // Right pointed ear
+    out.push(R(b.hx + b.hw, ey, 3, 4, skinCol));
+    out.push(R(b.hx + b.hw - 1, ey + 4, 2, 2, skinCol));
+    out.push(R(b.hx + b.hw, ey + 6, 1, 2, skinCol));
+    // Inner ear shadow
+    out.push(R(b.hx - 1, ey + 1, 1, 4, sdark));
+    out.push(R(b.hx + b.hw + 1, ey + 1, 1, 4, sdark));
+  }
+  if (species === 'orc') {
+    // Heavy brow ridge
+    out.push(R(b.hx + 1, b.hy + 1, b.hw - 2, 2, sdark));
+    // Tusks below mouth
+    out.push(R(b.mouthX + 2, b.mouthY + 1, 2, 4, '#E8E0C0'));
+    out.push(R(b.mouthX + b.mouthW - 4, b.mouthY + 1, 2, 4, '#E8E0C0'));
+    // Tusk tip
+    out.push(R(b.mouthX + 3, b.mouthY + 5, 1, 1, '#E8E0C0'));
+    out.push(R(b.mouthX + b.mouthW - 4, b.mouthY + 5, 1, 1, '#E8E0C0'));
+  }
+  if (species === 'goblin') {
+    // Large bat-like ears
+    const ey = b.hy + 1;
+    // Left ear
+    out.push(R(b.hx - 5, ey, 5, 5, skinCol));
+    out.push(R(b.hx - 4, ey + 5, 4, 3, skinCol));
+    out.push(R(b.hx - 3, ey + 8, 2, 2, skinCol));
+    out.push(R(b.hx - 2, ey + 10, 1, 1, skinCol));
+    out.push(R(b.hx - 3, ey + 1, 1, 5, sdark));
+    // Right ear
+    out.push(R(b.hx + b.hw, ey, 5, 5, skinCol));
+    out.push(R(b.hx + b.hw, ey + 5, 4, 3, skinCol));
+    out.push(R(b.hx + b.hw + 1, ey + 8, 2, 2, skinCol));
+    out.push(R(b.hx + b.hw + 1, ey + 10, 1, 1, skinCol));
+    out.push(R(b.hx + b.hw + 3, ey + 1, 1, 5, sdark));
+    // Pointy chin
+    out.push(R(b.hx + Math.floor(b.hw / 2) - 1, b.hy + b.hh, 2, 2, skinCol));
+    out.push(R(b.hx + Math.floor(b.hw / 2), b.hy + b.hh + 2, 1, 1, skinCol));
+  }
+  return out;
+}
+
+// ─── BODY RENDERER ────────────────────────────────────────────────────────────
+
+function renderBody(
+  b: Body, skinCol: string, sdark: string,
+  outfitColor: string, legColor: string,
+  gender: string,
+): El[] {
+  const out: El[] = [];
+
+  // Feet / shoes
+  out.push(R(b.lfx, b.lfy, b.lfw, b.lfh, '#3A2010'));
+  out.push(R(b.rfx, b.rfy, b.rfw, b.rfh, '#3A2010'));
+  // Shoe highlight
+  out.push(R(b.lfx + 1, b.lfy, b.lfw - 2, 1, '#5A3018'));
+  out.push(R(b.rfx + 1, b.rfy, b.rfw - 2, 1, '#5A3018'));
+
+  // Legs
+  out.push(R(b.llx, b.lly, b.llw, b.llh, legColor));
+  out.push(R(b.rlx, b.rly, b.rlw, b.rlh, legColor));
+  // Leg inner shadow (left side of each leg)
+  out.push(R(b.llx, b.lly, 1, b.llh, '#00000022'));
+  out.push(R(b.rlx, b.rly, 1, b.rlh, '#00000022'));
+  // Knee detail
+  out.push(R(b.llx + 1, b.lly + Math.floor(b.llh * 0.45), b.llw - 2, 2, shadeColor(legColor, 15)));
+  out.push(R(b.rlx + 1, b.rly + Math.floor(b.rlh * 0.45), b.rlw - 2, 2, shadeColor(legColor, 15)));
+
+  // Arms (bare lower, sleeved upper)
+  out.push(R(b.lax, b.lay, b.law, b.lah, skinCol));
+  out.push(R(b.rax, b.ray, b.raw, b.rah, skinCol));
+  // Sleeve (outfit color on upper half)
+  const sleeveH = Math.floor(b.lah * 0.55);
+  out.push(R(b.lax, b.lay, b.law, sleeveH, outfitColor));
+  out.push(R(b.rax, b.ray, b.raw, sleeveH, outfitColor));
+
+  // Torso width adjusted for gender
+  const tw = gender === 'feminine' ? b.tw - 2 : b.tw;
+  const tx = gender === 'feminine' ? b.tx + 1 : b.tx;
+  out.push(R(tx, b.ty, tw, b.th, outfitColor));
+  // Torso shading (left edge darker, right edge slightly lighter)
+  out.push(R(tx, b.ty, 1, b.th, '#00000020'));
+  out.push(R(tx + tw - 1, b.ty, 1, b.th, '#FFFFFF10'));
+  // Belt line
+  out.push(R(tx + 1, b.ty + b.th - 2, tw - 2, 2, shadeColor(outfitColor, -20)));
+
+  // Feminine waist suggestion
+  if (gender === 'feminine') {
+    out.push(R(tx, b.ty + Math.floor(b.th * 0.5), tw, 2, shadeColor(outfitColor, 12)));
+  }
+
+  // Neck
+  out.push(R(b.nx, b.ny, b.nw, b.nh, skinCol));
+
+  // Head
+  out.push(R(b.hx, b.hy, b.hw, b.hh, skinCol));
+  // Head right-side shadow
+  out.push(R(b.hx + b.hw - 2, b.hy + 1, 2, b.hh - 2, sdark));
+  // Head top highlight
+  out.push(R(b.hx + 1, b.hy, b.hw - 2, 1, '#FFFFFF20'));
+
+  return out;
+}
+
+function shadeColor(hex: string, pct: number): string {
+  // Very lightweight lighten/darken — just return a semi-transparent overlay color.
+  // For actual use we return the same color; the overlay rects handle shading.
+  return pct > 0 ? lightenHex(hex, pct) : darkenHex(hex, -pct);
+}
+
+function lightenHex(hex: string, amt: number): string {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const r = Math.min(255, (n >> 16) + amt);
+  const g = Math.min(255, ((n >> 8) & 0xff) + amt);
+  const b = Math.min(255, (n & 0xff) + amt);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+}
+
+function darkenHex(hex: string, amt: number): string {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const r = Math.max(0, (n >> 16) - amt);
+  const g = Math.max(0, ((n >> 8) & 0xff) - amt);
+  const b = Math.max(0, (n & 0xff) - amt);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+}
+
+// ─── HAIR RENDERER ────────────────────────────────────────────────────────────
+
+function renderHair(style: string, hairCol: string, b: Body, species: string): El[] {
+  const out: El[] = [];
+  if (style === 'bald') return out;
+
+  const { hx, hy, hw } = b;
+
+  switch (style) {
+    case 'short':
+      out.push(R(hx + 1, hy - 2, hw - 2, 3, hairCol)); // cap
+      out.push(R(hx, hy, 2, 4, hairCol));               // L sideburn
+      out.push(R(hx + hw - 2, hy, 2, 4, hairCol));      // R sideburn
+      break;
+    case 'medium':
+      out.push(R(hx, hy - 3, hw, 4, hairCol));
+      out.push(R(hx - 2, hy, 2, Math.floor(b.hh * 0.65), hairCol));
+      out.push(R(hx + hw, hy, 2, Math.floor(b.hh * 0.65), hairCol));
+      break;
+    case 'long':
+      out.push(R(hx, hy - 3, hw, 4, hairCol));
+      out.push(R(hx - 2, hy, 2, b.hh + 6, hairCol));  // hangs below head
+      out.push(R(hx + hw, hy, 2, b.hh + 6, hairCol));
+      out.push(R(hx - 1, hy + b.hh + 4, 1, 4, hairCol)); // tapers
+      out.push(R(hx + hw, hy + b.hh + 4, 1, 4, hairCol));
+      break;
+    case 'curly':
+      // Bumpy crown
+      out.push(R(hx + 2, hy - 5, 2, 3, hairCol));
+      out.push(R(hx + 5, hy - 6, 3, 4, hairCol));
+      out.push(R(hx + hw - 5, hy - 5, 3, 3, hairCol));
+      out.push(R(hx, hy - 3, hw, 4, hairCol));
+      out.push(R(hx - 2, hy, 2, Math.floor(b.hh * 0.5), hairCol));
+      out.push(R(hx + hw, hy, 2, Math.floor(b.hh * 0.5), hairCol));
+      // Side curls
+      out.push(R(hx - 3, hy + 3, 2, 4, hairCol));
+      out.push(R(hx + hw + 1, hy + 3, 2, 4, hairCol));
+      break;
+    case 'ponytail':
+      out.push(R(hx, hy - 3, hw, 4, hairCol));
+      out.push(R(hx, hy, 2, 3, hairCol));
+      out.push(R(hx + hw - 2, hy, 2, 3, hairCol));
+      // Tail going right
+      out.push(R(hx + hw, hy + 1, 4, b.hh - 2, hairCol));
+      out.push(R(hx + hw + 1, hy + b.hh - 1, 3, 5, hairCol));
+      out.push(R(hx + hw + 2, hy + b.hh + 4, 2, 3, hairCol)); // curl
+      break;
+    case 'mohawk':
+      // Shaved sides (dark)
+      out.push(R(hx, hy, 3, Math.floor(b.hh * 0.6), '#282010'));
+      out.push(R(hx + hw - 3, hy, 3, Math.floor(b.hh * 0.6), '#282010'));
+      // Mohawk strip
+      out.push(R(hx + Math.floor(hw / 2) - 1, hy - 7, 3, 8, hairCol));
+      out.push(R(hx + Math.floor(hw / 2), hy - 9, 2, 2, hairCol));
+      out.push(R(hx + Math.floor(hw / 2) - 1, hy - 4, 4, 4, hairCol));
+      break;
+    default:
+      // fallback: short
+      out.push(R(hx + 1, hy - 2, hw - 2, 3, hairCol));
+      out.push(R(hx, hy, 2, 4, hairCol));
+      out.push(R(hx + hw - 2, hy, 2, 4, hairCol));
+  }
+  return out;
+}
+
+// ─── FACE RENDERER ────────────────────────────────────────────────────────────
+
+function renderFace(
+  b: Body, skinCol: string, sdark: string,
+  eyeCol: string, hasGlasses: boolean,
+  facialHair: string, hairCol: string,
+): El[] {
+  const out: El[] = [];
+  const { eyeY, eyeLX, eyeRX, noseX, noseY, mouthX, mouthY, mouthW } = b;
+
+  // ── Eyes ────────────────────────────────────────────────────
+  // Each eye: 3 wide × 2 tall white area. Pupil CENTERED in each eye (not cross-eyed).
+  out.push(R(eyeLX,     eyeY, 3, 2, '#F8F8F8'));  // left eye white
+  out.push(R(eyeRX,     eyeY, 3, 2, '#F8F8F8'));  // right eye white
+  out.push(R(eyeLX + 1, eyeY, 1, 2, eyeCol));      // left pupil (center)
+  out.push(R(eyeRX + 1, eyeY, 1, 2, eyeCol));      // right pupil (center)
+  // Eye shine (top-right of each pupil)
+  out.push(R(eyeLX + 2, eyeY, 1, 1, '#FFFFFF'));
+  out.push(R(eyeRX + 2, eyeY, 1, 1, '#FFFFFF'));
+  // Eyelids / upper lash line
+  out.push(R(eyeLX,     eyeY - 1, 3, 1, sdark));
+  out.push(R(eyeRX,     eyeY - 1, 3, 1, sdark));
+  // Lower lash line
+  out.push(R(eyeLX,     eyeY + 2, 3, 1, sdark));
+  out.push(R(eyeRX,     eyeY + 2, 3, 1, sdark));
+
+  // ── Nose ────────────────────────────────────────────────────
+  out.push(R(noseX, noseY, 2, 1, sdark));
+  // Nostril dots
+  out.push(R(noseX - 1, noseY, 1, 1, sdark));
+  out.push(R(noseX + 2, noseY, 1, 1, sdark));
+
+  // ── Mouth (chibi smile) ─────────────────────────────────────
+  // Center-high arc: outer pixels drop down 1
+  out.push(R(mouthX + 1, mouthY,     mouthW - 2, 1, sdark)); // center
+  out.push(R(mouthX,     mouthY + 1, 1,          1, sdark)); // left corner down
+  out.push(R(mouthX + mouthW - 1, mouthY + 1, 1, 1, sdark)); // right corner down
+
+  // ── Cheek blush ─────────────────────────────────────────────
+  out.push(R(eyeLX - 1, eyeY + 3, 2, 1, '#E87878'));
+  out.push(R(eyeRX + 2, eyeY + 3, 2, 1, '#E87878'));
+
+  // ── Facial hair ─────────────────────────────────────────────
+  if (facialHair === 'stubble') {
+    // Intentional pixel cluster along jaw — readable dots, not blur
+    const jy = mouthY + 2;
+    const jx = mouthX;
+    const jw = mouthW;
+    for (let i = 0; i < jw; i += 2) {
+      out.push(R(jx + i, jy, 1, 1, sdark));
+    }
+    for (let i = 1; i < jw - 1; i += 2) {
+      out.push(R(jx + i, jy + 1, 1, 1, sdark));
+    }
+    out.push(R(mouthX + 2, mouthY - 1, 1, 1, sdark)); // above lip L
+    out.push(R(mouthX + mouthW - 3, mouthY - 1, 1, 1, sdark)); // above lip R
+  }
+  if (facialHair === 'mustache') {
+    out.push(R(mouthX + 1, mouthY - 2, mouthW - 2, 2, hairCol));
+    out.push(R(mouthX,     mouthY - 1, 1, 1, hairCol));
+    out.push(R(mouthX + mouthW - 1, mouthY - 1, 1, 1, hairCol));
+    // Waxed ends curl up
+    out.push(R(mouthX - 1, mouthY - 2, 1, 1, hairCol));
+    out.push(R(mouthX + mouthW, mouthY - 2, 1, 1, hairCol));
+  }
+  if (facialHair === 'beard') {
+    const by = mouthY + 1;
+    const bx = mouthX - 1;
+    const bw = mouthW + 2;
+    out.push(R(bx,     by,     bw,     4, hairCol));
+    out.push(R(bx + 1, by + 4, bw - 2, 3, hairCol));
+    out.push(R(bx + 2, by + 7, bw - 4, 2, hairCol));
+    out.push(R(bx + 3, by + 9, bw - 6, 1, hairCol));
+    // Sideburns connecting to head hair
+    out.push(R(bx - 1, by - 3, 2, 4, hairCol));
+    out.push(R(bx + bw - 1, by - 3, 2, 4, hairCol));
+  }
+
+  // ── Glasses ─────────────────────────────────────────────────
+  if (hasGlasses) {
+    const gy = eyeY - 1;
+    const fc = '#303030'; // frame color
+    const lx = eyeLX - 1; // left frame outer x
+    const rx = eyeRX - 1; // right frame outer x
+    const fw = 5;  // frame width
+    const fh = 4;  // frame height
+    // Left lens frame
+    out.push(R(lx,      gy,      fw, 1, fc)); // top
+    out.push(R(lx,      gy+fh-1, fw, 1, fc)); // bottom
+    out.push(R(lx,      gy,      1,  fh, fc)); // left side
+    out.push(R(lx+fw-1, gy,      1,  fh, fc)); // right side
+    // Right lens frame
+    out.push(R(rx,      gy,      fw, 1, fc));
+    out.push(R(rx,      gy+fh-1, fw, 1, fc));
+    out.push(R(rx,      gy,      1,  fh, fc));
+    out.push(R(rx+fw-1, gy,      1,  fh, fc));
+    // Bridge between lenses
+    const bridgeX = lx + fw;
+    const bridgeW = Math.max(1, rx - (lx + fw));
+    out.push(R(bridgeX, gy + 1, bridgeW, 1, fc));
+    // Temple arms (side pieces)
+    out.push(R(lx - 2, gy + 1, 2, 1, fc));
+    out.push(R(rx + fw, gy + 1, 3, 1, fc));
+  }
+
+  return out;
+}
+
+// ─── OUTFIT + LEGS COLORS ────────────────────────────────────────────────────
+
+function getOutfitColors(equipped: EquippedItems, classId: string): { outfit: string; legs: string } {
+  const name = (equipped.outfit?.name ?? '').toLowerCase();
+
+  if (name.includes("traveler") || name.includes("tunic"))
+    return { outfit: '#7A5230', legs: '#4A3018' };
+  if (name.includes("leather armor") || name.includes("leather"))
+    return { outfit: '#5A3818', legs: '#382208' };
+  if (name.includes("chain") || name.includes("mail"))
+    return { outfit: '#9090A8', legs: '#6870A0' };
+  if (name.includes("plate") || name.includes("full plate"))
+    return { outfit: '#B8B8C8', legs: '#8890A8' };
+  if (name.includes("robe") || name.includes("arcane") || name.includes("mage"))
+    return { outfit: '#5030A0', legs: '#301870' };
+  if (name.includes("ranger") || name.includes("scout") || name.includes("woodland"))
+    return { outfit: '#3D6028', legs: '#2A4018' };
+  if (name.includes("shadow") || name.includes("rogue") || name.includes("dark"))
+    return { outfit: '#282828', legs: '#181818' };
+  if (name.includes("holy") || name.includes("cleric") || name.includes("divine"))
+    return { outfit: '#D8C870', legs: '#A89040' };
+  if (name.includes("barbarian") || name.includes("beast") || name.includes("fur"))
+    return { outfit: '#7A3818', legs: '#4A2008' };
+  if (name.includes("dumpster") || name.includes("fire"))
+    return { outfit: '#FF4010', legs: '#C03008' };
+
+  // Class defaults when nothing is equipped
+  const defaults: Record<string, { outfit: string; legs: string }> = {
+    fighter:   { outfit: '#7A6850', legs: '#4A4030' },
+    ranger:    { outfit: '#3D6028', legs: '#2A4018' },
+    wizard:    { outfit: '#5030A0', legs: '#301870' },
+    rogue:     { outfit: '#282828', legs: '#181818' },
+    cleric:    { outfit: '#D8C870', legs: '#A89040' },
+    barbarian: { outfit: '#7A3818', legs: '#4A2008' },
   };
-  const [c1, c2] = palettes[hatName] ?? ['#6B4020', '#3C2010'];
-
-  if (hatName === "Wizard Hat") {
-    els.push(R(7, -6, 2, 1, c1));
-    els.push(R(6, -5, 4, 1, c1));
-    els.push(R(5, -4, 6, 1, c1));
-    els.push(R(4, -3, 8, 1, c1));
-    els.push(R(3, -2, 10, 1, c1));
-    els.push(R(2, -1, 12, 1, c2)); // brim
-    els.push(R(5, -2, 1, 1, '#D4A847')); // buckle
-  } else if (hatName === "Ridiculous Feathered Hat") {
-    els.push(R(12, -7, 1, 1, '#FCEA60')); // feather tip
-    els.push(R(11, -6, 2, 1, '#E8C840'));
-    els.push(R(11, -5, 2, 1, '#D4A847'));
-    els.push(R(2, -3, 12, 1, c2)); // wide brim
-    els.push(R(4, -4, 8, 1, c1));
-    els.push(R(5, -5, 6, 1, c1));
-  } else if (hatName === "Ranger Hood") {
-    els.push(R(4, -3, 8, 1, c1));
-    els.push(R(3, -2, 10, 1, c1));
-    els.push(R(2, -1, 12, 1, c2));
-    els.push(R(2, 0, 1, 3, c1));  // hood left drape
-    els.push(R(13, 0, 1, 3, c1)); // hood right drape
-  } else if (hatName === "Iron Helm") {
-    els.push(R(4, -3, 8, 1, c1));
-    els.push(R(2, -2, 12, 1, c1));
-    els.push(R(2, -1, 12, 1, c2));
-    els.push(R(4, -1, 8, 1, '#0A0808')); // visor slit
-  } else if (hatName.toLowerCase().includes('crown')) {
-    els.push(R(3, -2, 10, 1, '#D4A847'));
-    els.push(R(4, -3, 2, 1, '#D4A847'));
-    els.push(R(7, -3, 2, 1, '#D4A847'));
-    els.push(R(10, -3, 2, 1, '#D4A847'));
-    els.push(R(5, -4, 1, 1, '#FFD700'));
-    els.push(R(8, -4, 1, 1, '#FFD700'));
-    els.push(R(11, -4, 1, 1, '#FFD700'));
-  } else {
-    // Adventurer Cap / default
-    els.push(R(3, -2, 10, 1, c1));
-    els.push(R(2, -1, 12, 1, c2));
-  }
-  return els.filter(Boolean);
+  return defaults[classId] ?? { outfit: '#7A6850', legs: '#4A4030' };
 }
 
-// ── MAIN HAND WEAPON (group at x = character right edge = 16 pixels) ──────────
+// ─── HEADGEAR ─────────────────────────────────────────────────────────────────
 
-function renderMainHand(weaponName?: string) {
-  if (!weaponName) return [];
-  _k = 2000;
-  const els = [];
+function renderHeadgear(equipped: EquippedItems, classId: string, b: Body): El[] {
+  const out: El[] = [];
+  const name = (equipped.head?.name ?? '').toLowerCase();
+  const hasHeadItem = !!equipped.head;
+  const hx = b.hx, hy = b.hy, hw = b.hw;
 
-  if (weaponName.includes("Staff")) {
-    els.push(R(1, 7, 2, 1, '#8050C0'));
-    els.push(R(0, 8, 4, 1, '#A060E0'));
-    els.push(R(1, 9, 2, 1, '#8050C0'));
-    els.push(R(1, 10, 1, 9, '#6B3820'));
-  } else if (weaponName.includes("Bow")) {
-    els.push(R(2, 8, 1, 1, '#6B3820'));
-    els.push(R(1, 9, 1, 1, '#6B3820'));
-    els.push(R(0, 10, 1, 3, '#6B3820'));
-    els.push(R(1, 13, 1, 1, '#6B3820'));
-    els.push(R(2, 14, 1, 1, '#6B3820'));
-    els.push(R(3, 8, 1, 7, '#D0C070')); // string
-  } else if (weaponName.includes("Axe")) {
-    els.push(R(0, 9, 4, 1, '#A0B0C0'));
-    els.push(R(0, 10, 5, 1, '#B0C0D0'));
-    els.push(R(0, 11, 4, 1, '#A0B0C0'));
-    els.push(R(1, 12, 1, 7, '#6B3820'));
-  } else if (weaponName.includes("Iron") || weaponName.includes("Battle")) {
-    // Silver sword
-    els.push(R(1, 9, 1, 6, '#A0B0C0'));
-    els.push(R(0, 15, 3, 1, '#D4A847'));
-    els.push(R(1, 16, 1, 2, '#606060'));
-    els.push(R(0, 18, 2, 1, '#808080'));
-  } else {
-    // Default sword (wooden, tan blade)
-    els.push(R(1, 9, 1, 6, '#A07840'));
-    els.push(R(0, 15, 3, 1, '#D4A847'));
-    els.push(R(1, 16, 1, 2, '#6B3820'));
-    els.push(R(0, 18, 2, 1, '#3C1810'));
+  // Class defaults when no head item equipped
+  const wantsHood   = !hasHeadItem && (classId === 'rogue');
+  const wantsRangerCap = !hasHeadItem && classId === 'ranger';
+  const wantsWizardHat = !hasHeadItem && classId === 'wizard';
+
+  if (name.includes('wizard') || name.includes('witch') || wantsWizardHat) {
+    // Brim
+    out.push(R(hx - 2, hy - 2, hw + 4, 3, '#3820A0'));
+    // Hat body, tapering to a point
+    out.push(R(hx + 1, hy - 6, hw - 4, 4, '#3820A0'));
+    out.push(R(hx + 2, hy - 9, hw - 6, 3, '#3820A0'));
+    out.push(R(hx + 3, hy - 11, hw - 8, 2, '#3820A0'));
+    out.push(R(hx + 4, hy - 12, 2, 1, '#3820A0'));
+    // Star emblem
+    out.push(R(hx + 3, hy - 7, 1, 3, '#FFD700'));
+    out.push(R(hx + 2, hy - 6, 3, 1, '#FFD700'));
+  } else if (name.includes('hood') || wantsHood) {
+    // Close-fitting rogue hood
+    out.push(R(hx - 1, hy - 1, hw + 2, 5, '#1A1A1A'));
+    out.push(R(hx - 2, hy + 4, hw + 4, 4, '#252525'));
+    // Face shadow from hood
+    out.push(R(hx, hy, 2, 4, '#0000003A'));
+    out.push(R(hx + hw - 2, hy, 2, 4, '#0000003A'));
+  } else if (name.includes('ranger') || name.includes('leaf') || wantsRangerCap) {
+    // Ranger's cap + cloak hood
+    out.push(R(hx, hy - 1, hw, 4, '#3D5828'));
+    out.push(R(hx - 1, hy + 3, hw + 2, 3, '#4A6830'));
+    // Feather
+    out.push(R(hx + hw - 1, hy - 3, 2, 5, '#D0C850'));
+    out.push(R(hx + hw, hy - 5, 1, 4, '#D0C850'));
+  } else if (name.includes('helm') || name.includes('knight') || name.includes('iron')) {
+    // Full metal helmet
+    out.push(R(hx - 1, hy - 1, hw + 2, hw, '#8888A0'));
+    out.push(R(hx, hy - 1, hw, 2, '#A0A0C0')); // top highlight
+    // Visor slot
+    out.push(R(hx + 1, hy + 3, hw - 2, 3, '#303038'));
+    // Nasal guard
+    out.push(R(hx + Math.floor(hw / 2) - 1, hy + 2, 2, 5, '#585870'));
+  } else if (name.includes('crown')) {
+    // Crown
+    out.push(R(hx, hy - 2, hw, 3, '#FFD700'));
+    out.push(R(hx + 1, hy - 4, 2, 2, '#FFD700'));
+    out.push(R(hx + Math.floor(hw/2) - 1, hy - 5, 2, 3, '#FFD700'));
+    out.push(R(hx + hw - 3, hy - 4, 2, 2, '#FFD700'));
+    // Gems
+    out.push(R(hx + 2, hy - 3, 1, 1, '#E84040'));
+    out.push(R(hx + hw - 3, hy - 3, 1, 1, '#4040E8'));
+    out.push(R(hx + Math.floor(hw/2), hy - 4, 1, 1, '#40E840'));
+  } else if (hasHeadItem) {
+    // Generic cap fallback
+    out.push(R(hx - 1, hy - 2, hw + 2, 3, '#6B4020'));
+    out.push(R(hx, hy, hw, 2, '#5A3010'));
   }
-  return els.filter(Boolean);
+
+  return out;
 }
 
-// ── OFF HAND (group at x = -8 pixels from char start) ────────────────────────
+// ─── WEAPON & OFF-HAND ────────────────────────────────────────────────────────
 
-function renderOffHand(itemName?: string) {
-  if (!itemName) return [];
-  _k = 3000;
-  const els = [];
+function renderEquipment(classId: string, equipped: EquippedItems, b: Body): El[] {
+  const out: El[] = [];
+  const wpName = (equipped.main_hand?.name ?? '').toLowerCase();
+  const ohName  = (equipped.off_hand?.name  ?? '').toLowerCase();
 
-  if (itemName.includes("Shield") || itemName.includes("Buckler")) {
-    const sc = itemName.includes("Iron") ? '#7080A0' : '#A07040';
-    const sd = itemName.includes("Iron") ? '#485068' : '#5A3010';
-    // Shield shape (x=0..5, roughly centered in group)
-    els.push(R(1, 10, 4, 1, sd));       // top edge
-    els.push(R(0, 11, 6, 4, sc));       // body
-    els.push(R(0, 11, 1, 4, sd));       // left border
-    els.push(R(5, 11, 1, 4, sd));       // right border
-    els.push(R(1, 15, 4, 1, sc));       // lower
-    els.push(R(2, 16, 2, 1, sc));       // point
-    els.push(R(2, 15, 1, 1, sd));       // point border
-    // Cross emblem
-    els.push(R(3, 11, 1, 4, '#D4A847'));
-    els.push(R(1, 13, 4, 1, '#D4A847'));
-  } else if (itemName.includes("Torch")) {
-    els.push(R(2, 8, 2, 1, '#FFCC30'));   // flame tip
-    els.push(R(1, 9, 4, 1, '#FF8820'));   // flame base
-    els.push(R(2, 10, 2, 1, '#707060'));  // torch top
-    els.push(R(2, 11, 2, 7, '#6B3820'));  // handle
-  } else if (itemName.includes("Book") || itemName.includes("Spell")) {
-    els.push(R(0, 9, 5, 1, '#D4A847'));
-    els.push(R(0, 10, 5, 6, '#4A3090'));
-    els.push(R(0, 16, 5, 1, '#D4A847'));
-    els.push(R(1, 10, 1, 6, '#28185C'));   // spine
-    els.push(R(2, 11, 3, 1, '#E8E0C0'));
-    els.push(R(2, 13, 3, 1, '#E8E0C0'));
-    els.push(R(2, 15, 3, 1, '#E8E0C0'));
-  } else {
-    // Generic small buckler
-    els.push(R(1, 10, 4, 1, '#A07040'));
-    els.push(R(0, 11, 5, 4, '#A07040'));
-    els.push(R(1, 15, 3, 1, '#A07040'));
-    els.push(R(2, 16, 1, 1, '#A07040'));
-  }
-  return els.filter(Boolean);
-}
+  // ── Main hand (right side of character) ─────────────────────
+  const wx = b.rax + b.raw + 1;
+  const wy = b.ray + 1;
 
-// ── PET (group at x = 18 pixels from char start) ─────────────────────────────
-
-function renderPet(petName?: string) {
-  if (!petName) return [];
-  _k = 4000;
-  const els = [];
-
-  if (petName.includes("Egg")) {
-    els.push(R(1, 13, 4, 1, '#F0E8C0'));
-    els.push(R(0, 14, 5, 4, '#F0E8C0'));
-    els.push(R(1, 18, 4, 1, '#F0E8C0'));
-    els.push(R(2, 15, 1, 1, '#D0C8A0'));
-    els.push(R(2, 16, 2, 1, '#D0C8A0'));
-    return els.filter(Boolean);
-  }
-  if (petName.includes("Phoenix")) {
-    els.push(R(1, 12, 3, 1, '#FF8020'));
-    els.push(R(0, 13, 5, 1, '#FF6010'));
-    els.push(R(1, 14, 3, 2, '#FF4000'));
-    els.push(R(0, 16, 5, 1, '#FF8020'));
-    els.push(R(2, 12, 1, 1, '#FFD700'));
-    return els.filter(Boolean);
+  // Determine weapon type: equipped item overrides class default
+  let weapon = classId; // default: class weapon
+  if (equipped.main_hand) {
+    if (wpName.includes('sword') || wpName.includes('blade')) weapon = 'sword';
+    else if (wpName.includes('staff') || wpName.includes('wand')) weapon = 'staff';
+    else if (wpName.includes('axe') || wpName.includes('hatchet')) weapon = 'axe';
+    else if (wpName.includes('dagger') || wpName.includes('knife')) weapon = 'dagger';
+    else if (wpName.includes('mace') || wpName.includes('hammer')) weapon = 'mace';
+    else if (wpName.includes('bow')) weapon = 'bow';
+    else weapon = 'sword'; // default equipped weapon
   }
 
-  if (petName.includes("Puppy") || petName.includes("Dog")) {
-    const bc = petName.includes("Black")   ? '#201818' :
-               petName.includes("Spotted") ? '#C8A040' : '#A06830';
-    const nose = '#2A1010';
-    els.push(R(0, 13, 2, 1, bc));   // left ear
-    els.push(R(4, 13, 2, 1, bc));   // right ear
-    els.push(R(0, 14, 6, 3, bc));   // head
-    els.push(R(1, 15, 1, 1, nose)); // left eye
-    els.push(R(4, 15, 1, 1, nose)); // right eye
-    els.push(R(2, 16, 2, 1, nose)); // nose
-    if (petName.includes("Spotted")) {
-      els.push(R(3, 14, 2, 1, '#201818')); // spot
+  switch (weapon) {
+    case 'fighter':
+    case 'sword': {
+      // Sword: pommel, guard, blade, tip
+      out.push(R(wx + 1, wy - 2, 2, 1, '#808080')); // pommel
+      out.push(R(wx,     wy - 1, 4, 1, '#606060')); // crossguard
+      out.push(R(wx + 1, wy,     2, 10, '#C8C8D0')); // blade
+      out.push(R(wx + 2, wy,     1, 10, '#E8E8F0')); // blade highlight
+      out.push(R(wx + 1, wy + 10, 1, 2, '#B0B0C0')); // tip taper
+      break;
     }
-    els.push(R(0, 17, 6, 2, bc));   // body
-    els.push(R(0, 19, 2, 1, bc));   // left leg
-    els.push(R(4, 19, 2, 1, bc));   // right leg
-    els.push(R(6, 15, 1, 3, bc));   // tail
-    els.push(R(7, 14, 1, 1, bc));   // tail curl
-  } else if (petName.includes("Cat")) {
-    const cc = '#D4781A';
-    els.push(R(0, 12, 1, 2, cc));   // left ear
-    els.push(R(5, 12, 1, 2, cc));   // right ear
-    els.push(R(0, 14, 6, 3, cc));   // head
-    els.push(R(1, 15, 1, 1, '#20A020')); // left eye (green)
-    els.push(R(4, 15, 1, 1, '#20A020')); // right eye
-    els.push(R(2, 16, 2, 1, '#C03050')); // nose
-    els.push(R(0, 17, 6, 3, cc));   // body
-    els.push(R(0, 19, 2, 1, cc));   // legs
-    els.push(R(4, 19, 2, 1, cc));
-    els.push(R(6, 14, 1, 4, cc));   // tail
-    els.push(R(7, 13, 1, 2, cc));   // tail curl
-  } else {
-    // Generic creature
-    els.push(R(1, 13, 4, 1, '#808040'));
-    els.push(R(0, 14, 5, 4, '#808040'));
-    els.push(R(1, 18, 4, 1, '#808040'));
+    case 'wizard':
+    case 'staff': {
+      // Staff: shaft + glowing orb
+      out.push(R(wx + 1, wy - 4, 2, 14, '#7A5028')); // shaft
+      out.push(R(wx,     wy - 7, 4, 4, '#8050C0')); // orb
+      out.push(R(wx + 1, wy - 6, 2, 2, '#C080F0')); // orb glow
+      out.push(R(wx + 2, wy - 7, 1, 1, '#E0B0FF')); // orb shine
+      break;
+    }
+    case 'rogue':
+    case 'dagger': {
+      // Dagger: short and fast
+      out.push(R(wx + 1, wy - 3, 2, 3, '#6A5028')); // handle
+      out.push(R(wx,     wy,     4, 1, '#606070')); // crossguard
+      out.push(R(wx + 1, wy + 1, 2, 7, '#C0C0C8')); // blade
+      out.push(R(wx + 2, wy + 1, 1, 7, '#E0E0E8')); // blade shine
+      out.push(R(wx + 1, wy + 8, 1, 1, '#B0B0B8')); // tip
+      break;
+    }
+    case 'barbarian':
+    case 'axe': {
+      // Great axe: big head, long handle
+      out.push(R(wx + 1, wy - 2, 2, 14, '#8B6030')); // handle
+      out.push(R(wx - 2, wy - 6, 6, 6, '#9090A8')); // axe head
+      out.push(R(wx - 3, wy - 5, 2, 4, '#B0B0C0')); // leading edge
+      out.push(R(wx - 1, wy - 7, 5, 2, '#9090A8')); // top beard
+      break;
+    }
+    case 'cleric':
+    case 'mace': {
+      // Mace: flanged head + handle
+      out.push(R(wx + 1, wy + 1, 2, 10, '#9A8060')); // handle
+      out.push(R(wx - 1, wy - 5, 6, 7, '#B0A070')); // mace head
+      out.push(R(wx,     wy - 7, 4, 2, '#C0B080')); // top flanges
+      out.push(R(wx + 1, wy - 8, 2, 1, '#C0B080'));
+      out.push(R(wx - 2, wy - 2, 2, 4, '#C0B080')); // side flanges
+      out.push(R(wx + 4, wy - 2, 2, 4, '#C0B080'));
+      break;
+    }
+    case 'ranger':
+    case 'bow': {
+      // Bow: held in off-hand (left side), arrow nocked
+      const bx = b.lax - 5;
+      const by = b.lay - 2;
+      out.push(R(bx + 1, by, 2, 16, '#7A5028')); // bow limbs
+      out.push(R(bx, by,     1, 1, '#7A5028')); // upper tip
+      out.push(R(bx, by + 15, 1, 1, '#7A5028')); // lower tip
+      // Bowstring
+      out.push(R(bx, by + 1, 1, 14, '#D0D0D0'));
+      // Arrow
+      out.push(R(bx + 3, by + 5, 10, 1, '#C8A840')); // shaft
+      out.push(R(bx + 13, by + 4, 2, 3, '#808090')); // head
+      out.push(R(bx + 3, by + 4, 2, 1, '#E87070')); // fletching
+      out.push(R(bx + 3, by + 6, 2, 1, '#E87070'));
+      break;
+    }
+    default:
+      break;
   }
-  return els.filter(Boolean);
+
+  // ── Off-hand (left side of character) ───────────────────────
+  if (equipped.off_hand && weapon !== 'ranger' && weapon !== 'bow') {
+    const ox = b.lax - 5;
+    const oy = b.lay;
+    if (ohName.includes('shield') || ohName.includes('buckler')) {
+      out.push(R(ox - 1, oy - 2, 6, 10, '#7A7AA0')); // shield
+      out.push(R(ox,     oy - 1, 4, 8, '#9090B8')); // face
+      out.push(R(ox + 1, oy + 2, 2, 4, '#B0B0D0')); // boss
+      out.push(R(ox + 2, oy + 3, 1, 2, '#D0D0F0')); // boss shine
+    } else if (ohName.includes('orb') || ohName.includes('focus')) {
+      out.push(R(ox + 1, oy, 4, 4, '#8030C0'));
+      out.push(R(ox + 2, oy + 1, 2, 2, '#C060F0'));
+      out.push(R(ox + 3, oy, 1, 1, '#E090FF'));
+    } else if (ohName.includes('tome') || ohName.includes('book')) {
+      out.push(R(ox - 1, oy - 1, 5, 7, '#8B5030'));
+      out.push(R(ox,     oy,     4, 5, '#D0B880'));
+      out.push(R(ox + 1, oy + 1, 2, 3, '#B09060'));
+    }
+  }
+
+  return out;
 }
 
-// ── BACKGROUND COLOR ──────────────────────────────────────────────────────────
+// ─── PET ─────────────────────────────────────────────────────────────────────
 
-function bgColor(bgName?: string): string | null {
-  if (!bgName) return null;
-  const m: Record<string, string> = {
-    'Village':   '#D4A847', 'Forest': '#2D5C28', 'Castle':  '#607080',
-    'Dungeon':   '#2A1840', 'Campfire': '#8B3020',
-  };
-  return m[bgName] ?? null;
+function renderPet(equipped: EquippedItems): El[] {
+  const out: El[] = [];
+  if (!equipped.pet) return out;
+
+  const name = equipped.pet.name.toLowerCase();
+  // Pet sits to the right of character
+  const px = 27, py = 30;
+
+  if (name.includes('dragon') || name.includes('wyvern')) {
+    out.push(R(px, py + 1, 5, 4, '#508020')); // body
+    out.push(R(px + 4, py - 2, 4, 4, '#508020')); // head
+    out.push(R(px + 7, py - 1, 1, 1, '#FF4010')); // eye
+    out.push(R(px + 3, py - 1, 2, 3, '#508020')); // neck
+    out.push(R(px - 1, py,     2, 2, '#406018')); // wing fold
+    out.push(R(px + 4, py + 4, 1, 4, '#508020')); // tail
+    out.push(R(px + 5, py + 7, 2, 1, '#508020'));
+  } else if (name.includes('cat') || name.includes('kitten')) {
+    out.push(R(px,     py + 2, 5, 3, '#D0A040')); // body
+    out.push(R(px + 1, py,     4, 3, '#D0A040')); // head
+    out.push(R(px + 1, py - 1, 1, 1, '#D0A040')); // L ear
+    out.push(R(px + 4, py - 1, 1, 1, '#D0A040')); // R ear
+    out.push(R(px + 2, py + 1, 1, 1, '#303030')); // eye
+    out.push(R(px + 4, py + 1, 1, 1, '#303030')); // eye
+    out.push(R(px + 5, py + 3, 4, 1, '#D0A040')); // tail
+    out.push(R(px + 8, py + 2, 1, 1, '#D0A040'));
+  } else if (name.includes('fox')) {
+    out.push(R(px,     py + 2, 5, 3, '#C06020')); // body
+    out.push(R(px + 1, py,     4, 3, '#C06020')); // head
+    out.push(R(px + 2, py - 1, 1, 1, '#C06020')); // ear
+    out.push(R(px + 4, py - 1, 1, 1, '#C06020')); // ear
+    out.push(R(px - 1, py + 1, 3, 3, '#F0F0F0')); // tail
+    out.push(R(px + 2, py + 1, 1, 1, '#303030')); // eye
+  } else {
+    // Generic small familiar
+    out.push(R(px,     py + 2, 4, 3, '#9060C0'));
+    out.push(R(px + 1, py,     3, 3, '#9060C0'));
+    out.push(R(px + 1, py + 1, 1, 1, '#FFFFFF'));
+    out.push(R(px + 3, py + 1, 1, 1, '#FFFFFF'));
+    out.push(R(px + 4, py + 3, 3, 1, '#7040A0')); // tail
+  }
+
+  return out;
 }
 
-// ── MAIN COMPONENT ────────────────────────────────────────────────────────────
+// ─── BACKGROUND ───────────────────────────────────────────────────────────────
 
-export function PixelCharacter({
-  appearance = {},
-  equipped = {},
-  size = 120,
-  className,
-}: PixelCharacterProps) {
-  const outfitName = equipped.outfit?.name;
-  const bg = bgColor(equipped.background?.name);
+function renderBackground(equipped: EquippedItems): El[] {
+  const out: El[] = [];
+  const name = (equipped.background?.name ?? '').toLowerCase();
 
-  // ViewBox: left 8px, top 7px, right 10px, bottom 2px buffer around 16×20 body
-  const VB_W = 34; // total pixel width  (8 + 16 + 10)
-  const VB_H = 29; // total pixel height (7 + 20 + 2)
-  const VB = `-24 -21 ${VB_W * P} ${VB_H * P}`;
-  const aspectRatio = VB_W / VB_H;
+  if (!name) {
+    // Default dark dungeon
+    out.push(R(0, 0, 32, 48, '#12101C'));
+    out.push(R(0, 38, 32, 10, '#0C0A14'));
+    // Some subtle floor tiles
+    for (let x = 0; x < 32; x += 8) out.push(R(x, 40, 7, 1, '#1A1828'));
+    return out;
+  }
+
+  if (name.includes('dumpster fire') || name.includes('dumpster')) {
+    // Night sky
+    out.push(R(0, 0, 32, 48, '#080610'));
+    // Alley floor
+    out.push(R(0, 38, 32, 10, '#1A1208'));
+    // Alley walls (sides)
+    out.push(R(0, 0, 7, 38, '#201A18'));
+    out.push(R(25, 0, 7, 38, '#201A18'));
+    // Bricks (L wall)
+    for (let y = 4; y < 36; y += 6) {
+      out.push(R(1, y, 4, 1, '#302018'));
+      out.push(R(3, y + 3, 3, 1, '#302018'));
+    }
+    // Dumpster body (left)
+    out.push(R(0, 24, 9, 13, '#2A4838'));
+    out.push(R(1, 22, 7, 3, '#2A4838')); // lid
+    out.push(R(2, 21, 5, 1, '#3A5848')); // lid highlight
+    // Dumpster wheels
+    out.push(R(1, 37, 3, 2, '#101010'));
+    out.push(R(5, 37, 3, 2, '#101010'));
+    // ── FIRE on dumpster ──
+    out.push(R(1, 20, 7, 3, '#FF6010')); // base flame (bright)
+    out.push(R(2, 17, 5, 3, '#FF4010'));
+    out.push(R(3, 14, 3, 3, '#FF2010'));
+    out.push(R(3, 12, 3, 2, '#EE1010'));
+    // Secondary flame shapes
+    out.push(R(1, 18, 2, 3, '#FFA020'));
+    out.push(R(6, 19, 2, 2, '#FFA020'));
+    out.push(R(4, 15, 2, 3, '#FFCC40')); // hottest inner
+    out.push(R(4, 11, 1, 2, '#FFEE80'));
+    // Sparks
+    out.push(R(4, 10, 1, 1, '#FFDD60'));
+    out.push(R(2,  9, 1, 1, '#FF8820'));
+    out.push(R(7, 11, 1, 1, '#FF8820'));
+    out.push(R(5,  8, 1, 1, '#FFEE80'));
+    // Glow on left wall from fire
+    out.push(R(0, 14, 1, 10, '#FF601020'));
+    // Stars in sky
+    out.push(R(11, 1, 1, 1, '#FFFFFF'));
+    out.push(R(16, 3, 1, 1, '#FFFF80'));
+    out.push(R(23, 2, 1, 1, '#FFFFFF'));
+    out.push(R(28, 5, 1, 1, '#FFFFFF'));
+    out.push(R(13, 6, 1, 1, '#FFFFFF'));
+    out.push(R(20, 1, 1, 1, '#FFFF80'));
+    // Scattered trash on ground
+    out.push(R(20, 39, 6, 2, '#3A3020'));
+    out.push(R(22, 37, 4, 2, '#2A2810'));
+    out.push(R(19, 41, 3, 1, '#281810'));
+    return out;
+  }
+
+  if (name.includes('forest') || name.includes('nature') || name.includes('grove')) {
+    out.push(R(0, 0, 32, 48, '#183010'));
+    out.push(R(0, 36, 32, 12, '#102008'));
+    // Trees
+    out.push(R(1, 14, 5, 22, '#204010')); // trunk+foliage
+    out.push(R(0, 8, 7, 8, '#30601A')); // upper foliage
+    out.push(R(25, 16, 5, 20, '#204010'));
+    out.push(R(24, 10, 8, 8, '#30601A'));
+    // Ground plants
+    out.push(R(9, 38, 2, 2, '#308020'));
+    out.push(R(20, 37, 2, 3, '#308020'));
+    return out;
+  }
+
+  if (name.includes('tavern') || name.includes('inn') || name.includes('bar')) {
+    out.push(R(0, 0, 32, 48, '#2A1808'));
+    out.push(R(0, 36, 32, 12, '#3A2010'));
+    // Wooden floor planks
+    for (let x = 0; x < 32; x += 8) out.push(R(x, 38, 7, 10, '#3A2008'));
+    // Wall decorations
+    out.push(R(2, 5, 6, 4, '#5A3820')); // picture frame
+    out.push(R(3, 6, 4, 2, '#C8A040'));
+    out.push(R(24, 4, 5, 6, '#5A3820'));
+    return out;
+  }
+
+  if (name.includes('cave') || name.includes('dungeon') || name.includes('mine')) {
+    out.push(R(0, 0, 32, 48, '#060406'));
+    out.push(R(0, 36, 32, 12, '#100C0A'));
+    // Stalactite-like ceiling drips
+    out.push(R(5, 0, 2, 5, '#181418'));
+    out.push(R(12, 0, 3, 3, '#181418'));
+    out.push(R(22, 0, 2, 6, '#181418'));
+    // Rock walls
+    out.push(R(0, 0, 3, 36, '#100C10'));
+    out.push(R(29, 0, 3, 36, '#100C10'));
+    return out;
+  }
+
+  if (name.includes('sky') || name.includes('cloud') || name.includes('heaven')) {
+    out.push(R(0, 0, 32, 48, '#4090D0'));
+    out.push(R(0, 28, 32, 20, '#A0D8F0'));
+    // Clouds
+    out.push(R(2, 4, 8, 3, '#F0F8FF'));
+    out.push(R(1, 5, 10, 3, '#F0F8FF'));
+    out.push(R(20, 8, 10, 3, '#F0F8FF'));
+    out.push(R(19, 9, 12, 3, '#F0F8FF'));
+    return out;
+  }
+
+  // Generic — just dark gradient
+  out.push(R(0, 0, 32, 48, '#12101C'));
+  out.push(R(0, 38, 32, 10, '#0C0A14'));
+  return out;
+}
+
+// ─── EFFECT OVERLAY ───────────────────────────────────────────────────────────
+
+function renderEffect(equipped: EquippedItems): El[] {
+  const out: El[] = [];
+  if (!equipped.effect) return out;
+  const name = equipped.effect.name.toLowerCase();
+
+  if (name.includes('star') || name.includes('sparkle') || name.includes('glitter')) {
+    out.push(R(4, 4, 2, 2, '#FFD700', 0.7));
+    out.push(R(26, 7, 2, 2, '#FFD700', 0.6));
+    out.push(R(12, 2, 1, 1, '#FFFFFF', 0.9));
+    out.push(R(20, 4, 1, 1, '#FFFFFF', 0.7));
+    out.push(R(7, 10, 1, 1, '#FFD700', 0.5));
+  } else if (name.includes('fire') || name.includes('flame')) {
+    out.push(R(5, 15, 2, 5, '#FF6010', 0.6));
+    out.push(R(25, 15, 2, 5, '#FF6010', 0.6));
+    out.push(R(5, 13, 1, 2, '#FF8020', 0.5));
+    out.push(R(26, 13, 1, 2, '#FF8020', 0.5));
+  } else if (name.includes('glow') || name.includes('aura') || name.includes('holy')) {
+    out.push(R(6, 3, 20, 40, '#FFFFFF', 0.07));
+  } else if (name.includes('shadow') || name.includes('dark')) {
+    out.push(R(0, 0, 32, 48, '#000000', 0.25));
+  }
+
+  return out;
+}
+
+// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
+
+export function PixelCharacter({ appearance = {}, equipped = {}, size = 192 }: PixelCharacterProps) {
+  _k = 0; // reset key counter each render
+
+  const species  = appearance.species  ?? 'human';
+  const classId  = appearance.class    ?? 'fighter';
+  const gender   = appearance.gender   ?? 'any';
+  const skinId   = appearance.skinTone;
+  const hairId   = appearance.hairColor;
+  const eyeId    = appearance.eyeColor;
+  const hairStyle = appearance.hairStyle  ?? 'short';
+  const facialHair = appearance.facialHair ?? 'none';
+  const hasGlasses = appearance.hasGlasses ?? false;
+
+  const b       = BODIES[species] ?? BODIES.human;
+  const skinCol = sk(skinId);
+  const sdark   = skDark(skinId);
+  const hairCol = hc(hairId);
+  const eyeCol  = ec(eyeId);
+
+  const { outfit: outfitColor, legs: legColor } = getOutfitColors(equipped, classId);
+
+  const elements: El[] = [
+    ...renderBackground(equipped),
+    ...renderBody(b, skinCol, sdark, outfitColor, legColor, gender),
+    ...renderSpeciesFeatures(species, skinCol, sdark, b),
+    ...renderHair(hairStyle, hairCol, b, species),
+    ...renderFace(b, skinCol, sdark, eyeCol, hasGlasses, facialHair, hairCol),
+    ...renderHeadgear(equipped, classId, b),
+    ...renderEquipment(classId, equipped, b),
+    ...renderPet(equipped),
+    ...renderEffect(equipped),
+  ];
 
   return (
-    <div
-      className={className}
-      style={{ width: size, height: Math.round(size / aspectRatio), display: 'inline-block' }}
+    <svg
+      width={size}
+      height={Math.round(size * 1.5)}
+      viewBox="0 0 32 48"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{ imageRendering: 'pixelated' } as React.CSSProperties}
+      shapeRendering="crispEdges"
     >
-      <svg
-        viewBox={VB}
-        width="100%"
-        height="100%"
-        style={{ shapeRendering: 'crispEdges', imageRendering: 'pixelated' }}
-        aria-hidden="true"
-      >
-        {/* Background wash */}
-        {bg && (
-          <rect x={-24} y={-21} width={VB_W * P} height={VB_H * P} fill={bg} opacity={0.25} />
-        )}
-
-        {/* Off-hand (left side, group at -8 pixels from char x=0) */}
-        {equipped.off_hand?.name && (
-          <g transform={`translate(${-8 * P}, 0)`}>
-            {renderOffHand(equipped.off_hand.name)}
-          </g>
-        )}
-
-        {/* Character body */}
-        {renderBody(appearance, outfitName)}
-
-        {/* Hat (above head, rendered on top of hair) */}
-        {renderHat(equipped.head?.name)}
-
-        {/* Main hand weapon (right of character) */}
-        {equipped.main_hand?.name && (
-          <g transform={`translate(${16 * P}, 0)`}>
-            {renderMainHand(equipped.main_hand.name)}
-          </g>
-        )}
-
-        {/* Pet (lower-right of character) */}
-        {equipped.pet?.name && (
-          <g transform={`translate(${18 * P}, 0)`}>
-            {renderPet(equipped.pet.name)}
-          </g>
-        )}
-
-        {/* Sparkle effect */}
-        {equipped.effect?.name?.includes('Sparkle') && (
-          <g style={{ fontSize: 8, opacity: 0.7 }}>
-            {[[-20, -8], [52, -4], [56, 38], [46, 62], [-14, 50]].map(([ex, ey], i) => (
-              <text key={i} x={ex} y={ey}>✦</text>
-            ))}
-          </g>
-        )}
-        {equipped.effect?.name?.includes('Flower') && (
-          <g style={{ fontSize: 8, opacity: 0.8 }}>
-            {[[-22, 0], [50, 10], [48, 55], [-18, 45]].map(([ex, ey], i) => (
-              <text key={i} x={ex} y={ey}>✿</text>
-            ))}
-          </g>
-        )}
-      </svg>
-    </div>
+      {elements}
+    </svg>
   );
 }
 

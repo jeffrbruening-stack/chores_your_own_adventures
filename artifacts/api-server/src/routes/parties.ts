@@ -126,7 +126,7 @@ router.get("/:partyId/members", requireAuth, async (req, res) => {
     const partyId = parseInt(String(req.params.partyId));
     await assertMember(partyId, req.userId!);
     const members = await db.select({
-      id: usersTable.id,
+      userId: usersTable.id,
       displayName: usersTable.displayName,
       userType: usersTable.userType,
       currentLevel: usersTable.currentLevel,
@@ -134,6 +134,16 @@ router.get("/:partyId/members", requireAuth, async (req, res) => {
       lifetimeXp: usersTable.lifetimeXp,
       role: partyMembersTable.role,
       adventurerName: charactersTable.adventurerName,
+      // Full appearance fields for PixelCharacter rendering
+      species: charactersTable.species,
+      class: charactersTable.class,
+      gender: charactersTable.gender,
+      skinTone: charactersTable.skinTone,
+      hairStyle: charactersTable.hairStyle,
+      hairColor: charactersTable.hairColor,
+      eyeColor: charactersTable.eyeColor,
+      hasGlasses: charactersTable.hasGlasses,
+      facialHair: charactersTable.facialHair,
     }).from(partyMembersTable)
       .innerJoin(usersTable, eq(usersTable.id, partyMembersTable.userId))
       .leftJoin(charactersTable, eq(charactersTable.userId, partyMembersTable.userId))
