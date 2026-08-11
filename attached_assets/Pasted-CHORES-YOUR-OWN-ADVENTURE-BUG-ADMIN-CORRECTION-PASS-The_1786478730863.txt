@@ -1,0 +1,922 @@
+CHORES YOUR OWN ADVENTURE — BUG + ADMIN CORRECTION PASS
+
+The current build is visually much closer, but there are still several core functional inconsistencies and a few remaining character-rendering problems.
+
+Do NOT redesign the overall interface during this pass.
+
+Do NOT add unrelated new systems.
+
+Focus on:
+
+1. Quest state consistency
+2. Quest navigation
+3. Give Me a Quest logic
+4. Character appearance lock behavior
+5. Character synchronization
+6. Party member admin controls
+7. Orc tusk cleanup
+8. Chin/jaw cleanup
+
+⸻
+
+1. QUEST STATE IS CURRENTLY INCONSISTENT ACROSS SCREENS
+
+Current actual behavior:
+
+* Home shows an active quest card.
+* Quest Hub → My Quests says there are no active quests.
+* Give Me a Quest says:
+    “All clear! No quests available right now.”
+* The exact same Home screen visibly shows an active assigned quest directly underneath.
+
+This is a major logic bug.
+
+The app is clearly using different quest filters/data sources in different places.
+
+Fix this at the root.
+
+There should be ONE canonical definition of:
+
+ACTIVE QUEST FOR CURRENT USER
+
+Home, Quest Hub, Give Me a Quest, and Quest Details must all derive from the same persisted quest/assignment data and the same eligibility logic.
+
+Do not fix each screen separately with custom exceptions.
+
+⸻
+
+2. DEFINE A CANONICAL ACTIVE-QUEST QUERY
+
+Create/reuse one shared server-side or domain-layer function for current-user quest eligibility.
+
+Conceptually, an active assigned quest should qualify when:
+
+* it belongs to the currently selected Party;
+* the current user/adventurer is an assignee;
+* the assignment/occurrence status is active/available;
+* it is not already completed;
+* it is not awaiting verification unless specifically shown in a verification state;
+* it has not expired;
+* recurring scheduling conditions currently allow it.
+
+Use this same canonical logic for:
+
+* Home → Your Quests
+* Quest Hub → My Quests
+* Give Me a Quest
+* Quest counters/badges
+* Quest Details navigation
+
+Do not duplicate filtering logic in multiple components.
+
+⸻
+
+3. TRACE THE EXISTING TEST QUEST
+
+There is an existing quest visibly shown on Home:
+
+Epic Quest to the Realm of Dave’s Busters
+
+It is:
+
+* Hard
+* 50 XP
+* 40 Personal Gold
+* 10 Party Gold
+
+Use that existing record during debugging.
+
+Trace and log:
+
+* quest ID
+* Party ID
+* creator ID
+* assignee user/adventurer ID
+* status
+* occurrence status
+* schedule/timing
+* current Party context
+* whether Home considers it active
+* whether My Quests considers it active
+* whether Give Me a Quest considers it eligible
+
+Identify exactly why those three results disagree.
+
+Fix the underlying inconsistency.
+
+⸻
+
+4. QUEST HUB — MY QUESTS MUST SHOW ASSIGNED QUESTS
+
+Current behavior:
+
+Quest Hub → My Quests says:
+
+You have no active quests.
+
+even though Home visibly shows an active quest assigned to the current user.
+
+Expected:
+
+If Home displays the quest under YOUR QUESTS, Quest Hub → My Quests must also display it.
+
+After fixing, manually verify:
+
+* assigned to current Party Leader
+* assigned to kid/adventurer
+* assigned to multiple people as separate individual assignments
+
+Each current assignee should see their own active assignment in My Quests.
+
+⸻
+
+5. QUEST HUB — ALL MUST ALSO BE CONSISTENT
+
+For Party Leaders, All should show the appropriate Party-visible quest set.
+
+Do not let All omit quests that clearly exist in the current Party.
+
+Open should show eligible Open Quests.
+
+Verify should show items awaiting the current Party Leader’s verification.
+
+Use clear separate server/domain queries built on the same underlying quest status model.
+
+⸻
+
+6. GIVE ME A QUEST LOGIC IS WRONG
+
+Current behavior:
+
+The app shows:
+
+All clear! No quests available right now. Take a break, hero!
+
+while an active quest is visibly displayed immediately below.
+
+This must never happen.
+
+If at least one eligible quest exists, Give Me a Quest must not return “All clear.”
+
+Use the SAME canonical active-quest function defined above.
+
+Priority remains:
+
+1. timed quest nearing expiration
+2. due-today quest
+3. other active assigned quest
+4. eligible Open Quest if no Open Quest is already claimed
+
+If the currently visible Dave & Buster’s quest is eligible, Give Me a Quest should select it.
+
+⸻
+
+7. GIVE ME A QUEST SHOULD ACTUALLY OPEN/SURFACE THE QUEST
+
+When an eligible quest is chosen:
+
+Do not just show a toast.
+
+Open or prominently surface that quest’s Quest Details view.
+
+Example:
+
+User taps:
+
+GIVE ME A QUEST!
+
+App selects:
+
+Epic Quest to the Realm of Dave’s Busters
+
+Then opens that quest’s details/action screen.
+
+If truly no quest exists, then and only then show:
+
+All clear! No quests available right now. Take a break, hero!
+
+⸻
+
+8. QUEST CARDS STILL DO NOTHING WHEN TAPPED
+
+Current behavior:
+
+The Home quest card is visible but tapping it does nothing.
+
+Fix this.
+
+Every interactive quest card should be clickable/tappable.
+
+Tapping a quest from:
+
+* Home
+* My Quests
+* Open
+* All
+* Party/shared views
+
+should navigate to:
+
+QUEST DETAILS
+
+using that quest/assignment ID.
+
+Do not create duplicate local quest objects.
+
+Load the actual persisted record.
+
+⸻
+
+9. BUILD/FIX QUEST DETAILS VIEW
+
+Quest Details should show, as applicable:
+
+* Plain Title
+* Adventure Title based on user preference
+* difficulty
+* description
+* assigned user(s)
+* status
+* timing/schedule
+* XP reward
+* Personal Gold reward
+* Party Gold reward
+* verification status
+* completion action
+* claim/release action for Open Quests
+* admin actions for Party Leaders where appropriate
+
+For current user’s normal active quest:
+
+show:
+
+COMPLETE QUEST
+
+For verification-required:
+
+SUBMIT FOR VERIFICATION
+
+⸻
+
+10. QUEST CREATION MUST INVALIDATE/REFRESH ALL RELEVANT DATA
+
+After successful quest creation:
+
+Immediately refresh/invalidate:
+
+* Home quest list
+* Quest Hub My Quests
+* Quest Hub All
+* Open list if relevant
+* Give Me a Quest eligibility
+* Party Leader management views
+
+Do not require:
+
+* logout
+* app refresh
+* switching tabs twice
+
+to see the new quest.
+
+⸻
+
+11. CHARACTER APPEARANCE LOCK RULES NEED TO CHANGE
+
+Current implementation appears to lock Party Leaders/adults for seven days.
+
+Change this.
+
+PARTY LEADERS / ADULTS
+
+Party Leaders should be allowed to edit and save THEIR OWN appearance at any time.
+
+Do NOT apply the seven-day appearance lock to Party Leaders.
+
+The lock is intended primarily to prevent kids/regular Adventurers from constantly changing base character design.
+
+ADVENTURERS / KIDS
+
+Regular Adventurers retain the seven-day base-appearance cooldown.
+
+⸻
+
+12. PARTY LEADER APPEARANCE OVERRIDE FOR MEMBERS
+
+Party Leaders need the ability to override/reset another member’s appearance lock.
+
+This is an explicit admin action.
+
+On a member’s admin screen, provide:
+
+RESET APPEARANCE LOCK
+
+or:
+
+UNLOCK APPEARANCE NOW
+
+Expected behavior:
+
+* clears the current appearance cooldown for that Party member;
+* allows them to edit/save base appearance immediately;
+* logs the admin action.
+
+This should work for a kid who accidentally saved a bad design.
+
+⸻
+
+13. CHARACTER SAVE MUST UPDATE EVERYWHERE
+
+Current behavior suggests the Character screen may show a newer design while Home still shows an older avatar.
+
+Fix this.
+
+There must be ONE canonical saved character configuration per global user.
+
+After saving appearance:
+
+Immediately refresh:
+
+* Character
+* Home
+* Party member cards
+* Quest assignment member cards
+* any profile/avatar preview
+
+Do not maintain separate avatar snapshots per screen.
+
+⸻
+
+14. USE ONE REUSABLE AVATAR RENDERER
+
+Build/reuse one canonical component such as:
+
+<AdventurerAvatar />
+
+All screens should render the same saved character configuration with only size/context changes.
+
+Home should use a smaller scale of the same avatar.
+
+Character screen should use a larger scale.
+
+Party should use a compact scale.
+
+Do not create separately coded “Home character,” “Party character,” etc.
+
+⸻
+
+15. PARTY MEMBERS SHOULD BE TAPPABLE BY PARTY LEADERS
+
+On Party screen:
+
+Party Leader should be able to tap any Party member card.
+
+Open:
+
+MANAGE PARTY MEMBER
+
+This is a core admin screen.
+
+⸻
+
+16. MANAGE PARTY MEMBER SCREEN
+
+For a kid/regular Adventurer, show:
+
+* Display Name
+* Adventurer Name
+* role
+* character status
+* appearance-lock status
+* PIN/login type
+* School Calendar assignment if present
+
+Party Leader actions should include:
+
+RESET APPEARANCE LOCK
+
+RESET PIN
+
+CHANGE ROLE
+
+where permitted
+
+REMOVE FROM PARTY
+
+and other existing admin correction tools where relevant.
+
+⸻
+
+17. ADULT PASSWORD HANDLING
+
+Do NOT expose or directly set another adult’s password from Party Leader admin.
+
+For adult members, offer:
+
+SEND PASSWORD RESET
+
+or equivalent.
+
+Use the application’s proper password-reset mechanism/email flow.
+
+Party Leader should never be able to view an adult’s current password.
+
+For kids/PIN users:
+
+Party Leader may reset the four-digit PIN directly.
+
+⸻
+
+18. PARTY ROLE ADMIN
+
+Where permissions allow:
+
+Party Founder should be able to:
+
+* promote adult Adventurer → Party Leader
+* demote Party Leader → Adventurer
+* remove Party Leader
+* transfer Founder
+
+Party Leaders may manage normal Adventurers/children according to existing rules.
+
+Founder-only restrictions remain Founder-only.
+
+Do not let a Party Leader delete or demote the Founder.
+
+⸻
+
+19. ADMIN ACTION AUDIT
+
+Log:
+
+* appearance unlock/reset
+* kid PIN reset
+* adult password-reset request
+* role changes
+* member removal
+
+Include:
+
+* actor
+* target
+* Party
+* timestamp
+* action
+
+Use existing audit infrastructure where possible.
+
+⸻
+
+20. CHIN/JAW ARTIFACT IS STILL PRESENT
+
+The face still has small skin-colored blocks hanging below the cheeks/jawline.
+
+This has been reported multiple times.
+
+Stop patching around it.
+
+Fix the BASE HEAD GEOMETRY.
+
+Clean-shaven head requirements:
+
+* lower edge of the face should end cleanly;
+* no skin-colored tabs under the left cheek;
+* no skin-colored tabs under the right cheek;
+* no little dangling center-chin block;
+* no weird jaw extensions.
+
+The neck should be a separate centered layer BEHIND the head.
+
+Conceptual order:
+
+body/outfit
+→ neck
+→ head/face
+
+Do not use dangling pixels to imply jaw shape.
+
+⸻
+
+21. MANUALLY INSPECT CLEAN-SHAVEN BASE FIRST
+
+Before adding:
+
+* beard
+* mustache
+* glasses
+* class clothing
+
+inspect the clean base face.
+
+It should look correct on its own.
+
+Test:
+
+* Human
+* Elf
+* Dwarf
+* Gnome
+* Halfling
+* Orc
+* Goblin
+
+If jaw artifacts exist in the base head template, fix the template rather than covering them.
+
+⸻
+
+22. ORC TUSKS ARE CURRENTLY HUGE AND MISPLACED
+
+The current Orc tusks appear as two long ivory strips hanging from the lower face/neck.
+
+This is incorrect.
+
+Completely redesign them.
+
+Tusks should be:
+
+* small
+* subtle
+* lower-canine style
+* located at the corners of the mouth
+* pointed upward
+* approximately 1–2 pixel-width protrusions at the logical sprite resolution
+
+They should never extend below the chin.
+
+They should read as teeth.
+
+They should NOT look like:
+
+* horns
+* necklace pieces
+* dangling fangs
+* white straps
+* ivory stalactites
+
+⸻
+
+23. ORC SHOULD STILL READ AS ORC WITHOUT GIANT TUSKS
+
+Use other subtle characteristics too:
+
+* broader jaw
+* slightly heavier brow
+* broader body
+* slightly different ear shape
+* fantasy skin options
+
+Do not rely entirely on tusk size to communicate Orc.
+
+⸻
+
+24. VERIFY WIZARD/CLASS VISUALS STILL WORK AFTER HEAD FIXES
+
+Do not regress class appearance.
+
+Current Wizard direction is much better.
+
+Keep recognizable:
+
+Wizard:
+
+* purple robe/garb
+* wizard hat
+* staff
+
+Fighter:
+
+* warrior outfit
+* sword
+
+Rogue:
+
+* dark readable gear
+* face unobstructed
+
+Cleric:
+
+* class garment/tool
+
+After jaw/tusk fixes, verify class layers do not reintroduce face artifacts.
+
+⸻
+
+25. ADULT CHARACTER LOCK COPY
+
+If the current user is a Party Leader and therefore not locked:
+
+Do not show:
+
+Appearance Locked
+
+Do not show:
+
+Unlocks Aug 18
+
+Instead simply allow editing.
+
+For kid/regular Adventurer under cooldown:
+
+show the lock state.
+
+For Party Leader viewing a locked member’s admin screen:
+
+show:
+
+Appearance locked until Aug 18
+
+and:
+
+UNLOCK NOW
+
+⸻
+
+26. PARTY MEMBER ADMIN UX
+
+Keep this simple.
+
+Party screen:
+tap member
+
+Then open a focused details/admin page or sheet.
+
+Do not expose dangerous controls directly on the main Party list.
+
+Use confirmation prompts for:
+
+* reset PIN
+* unlock appearance
+* role change
+* remove member
+
+⸻
+
+27. QUEST AND MEMBER ADMIN MUST WORK ON MOBILE
+
+All fixes must be tested on the iPhone-sized layout.
+
+Quest cards should have full-card tap targets.
+
+Member cards should have full-card tap targets for Party Leaders.
+
+Do not rely on tiny invisible icons.
+
+⸻
+
+28. ACCEPTANCE TEST — QUEST CONSISTENCY
+
+Login as Dad.
+
+Current Party:
+Bruening
+
+Create an Individual quest assigned to Dad.
+
+Expected:
+
+1. Quest appears on Home.
+2. Quest appears Quest Hub → My Quests.
+3. Quest appears Quest Hub → All.
+4. Give Me a Quest recognizes it.
+5. Tapping Home quest opens Quest Details.
+6. Tapping My Quests card opens same Quest Details.
+7. Quest ID/state is the same everywhere.
+
+No contradictory empty-state messaging.
+
+⸻
+
+29. ACCEPTANCE TEST — GIVE ME A QUEST
+
+Have exactly one active assigned quest.
+
+Tap:
+
+GIVE ME A QUEST!
+
+Expected:
+
+That quest is selected/opened.
+
+The app must NOT say:
+
+All clear!
+
+while the quest exists.
+
+Then complete/remove the quest.
+
+Tap Give Me a Quest again.
+
+Now expected:
+
+All clear! No quests available right now. Take a break, hero!
+
+⸻
+
+30. ACCEPTANCE TEST — CHARACTER SYNC
+
+As Party Leader:
+
+1. Edit own character.
+2. Change class/hair/color/etc.
+3. Save.
+4. Return Home.
+
+Expected:
+
+Home immediately shows updated character.
+
+Open Party.
+
+Expected:
+
+Updated character.
+
+Open Character.
+
+Expected:
+
+Same character.
+
+No old cached version remains.
+
+⸻
+
+31. ACCEPTANCE TEST — PARTY LEADER HAS NO APPEARANCE LOCK
+
+Login as Party Leader.
+
+Edit appearance.
+
+Save.
+
+Immediately edit again.
+
+Expected:
+
+Allowed.
+
+No seven-day lock.
+
+⸻
+
+32. ACCEPTANCE TEST — KID APPEARANCE LOCK + ADMIN OVERRIDE
+
+Login as kid Adventurer.
+
+Change appearance.
+
+Save.
+
+Expected:
+
+Seven-day lock applies.
+
+Login as Party Leader.
+
+Party
+→ tap kid
+→ Manage Party Member
+
+Tap:
+
+UNLOCK APPEARANCE NOW
+
+Expected:
+
+lock clears.
+
+Login as kid.
+
+Expected:
+
+appearance editing is immediately available.
+
+⸻
+
+33. ACCEPTANCE TEST — PIN RESET
+
+Party Leader:
+
+Party
+→ Kid
+→ Manage Party Member
+→ Reset PIN
+
+Set new PIN.
+
+Logout.
+
+Kid logs in using new PIN.
+
+Old PIN no longer works.
+
+⸻
+
+34. ACCEPTANCE TEST — ADULT PASSWORD RESET
+
+Party Leader opens adult member admin.
+
+Expected:
+
+No current password shown.
+
+Action:
+
+SEND PASSWORD RESET
+
+Expected:
+
+uses normal password-reset flow.
+
+Do not let Party Leader assign/view the adult’s raw password.
+
+⸻
+
+35. ACCEPTANCE TEST — ORC TUSKS
+
+Create Orc.
+
+Expected:
+
+small lower tusks near corners of mouth.
+
+They should not extend below chin.
+
+Switch to beard if allowed.
+
+Ensure tusks/beard layer sensibly.
+
+⸻
+
+36. ACCEPTANCE TEST — CHIN
+
+Create clean-shaven Human.
+
+Expected:
+
+no pixels hanging below cheek/jaw.
+
+Create Elf.
+
+Expected:
+
+same clean jaw.
+
+Create Orc.
+
+Expected:
+
+same clean jaw plus small properly placed tusks.
+
+The base face geometry should remain clean regardless of class.
+
+⸻
+
+37. IMPORTANT — FIX ROOT CAUSES
+
+Do not solve:
+
+Home quest list,
+Quest Hub,
+and Give Me a Quest
+
+with three separate ad-hoc fixes.
+
+Likewise do not solve:
+
+Home avatar,
+Character avatar,
+Party avatar
+
+with separate synchronization hacks.
+
+Centralize:
+
+* quest eligibility logic
+* avatar rendering/state
+
+These are currently the most obvious sources of inconsistent behavior.
+
+⸻
+
+DEFINITION OF SUCCESS
+
+This pass is complete when:
+
+1. An assigned quest appears consistently across Home and Quest Hub.
+2. Give Me a Quest recognizes existing active quests.
+3. Quest cards actually open Quest Details.
+4. Character changes update everywhere.
+5. Party Leaders are not subject to the seven-day self-appearance lock.
+6. Party Leaders can override a member’s appearance lock.
+7. Party Leaders can tap members and access admin controls.
+8. Kid PIN reset works.
+9. Adult password reset uses the proper reset flow.
+10. Chin/jaw hanging pixels are gone.
+11. Orc tusks are small and properly placed.
+12. No contradictory “no quests” message appears while a quest is visibly active.
+
+Do not add unrelated features until all of these are verified.

@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
-import { getGetMyCharacterQueryKey, getGetHomeDataQueryKey } from '@workspace/api-client-react';
+import { getGetMyCharacterQueryKey, getGetHomeDataQueryKey, useGetHomeData } from '@workspace/api-client-react';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { PixelCharacter, type CharacterAppearance } from '@/components/pixel-character';
@@ -38,10 +38,16 @@ function rand<T>(arr: T[]): T {
 }
 
 export default function CreateCharacter() {
-  const { refreshUser, hasCharacter } = useAuth();
+  const { refreshUser, hasCharacter, activePartyId } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Detect leader role — leaders have no appearance lock
+  const { data: homeData } = useGetHomeData({
+    query: { enabled: !!activePartyId, queryKey: getGetHomeDataQueryKey() },
+  });
+  const isLeader = (homeData as any)?.myRole === 'leader' || (homeData as any)?.myRole === 'founder';
 
   const [adventurerName, setAdventurerName] = useState('');
   const [appearance, setAppearance] = useState<CharacterAppearance>({ ...DEFAULTS });
@@ -77,7 +83,8 @@ export default function CreateCharacter() {
       .finally(() => setLoadingExisting(false));
   }, [hasCharacter]);
 
-  const onCooldown = cooldownUntil && cooldownUntil > new Date();
+  // Leaders are never on cooldown — they can edit appearance freely
+  const onCooldown = !isLeader && cooldownUntil && cooldownUntil > new Date();
 
   const set = (field: keyof CharacterAppearance) => (val: any) =>
     setAppearance(prev => ({ ...prev, [field]: val }));
@@ -155,7 +162,9 @@ export default function CreateCharacter() {
         </h1>
         <p className="text-xs text-muted-foreground mt-0.5">
           {hasCharacter
-            ? 'Appearance changes are locked for 7 days after saving.'
+            ? isLeader
+              ? 'As a Party Leader, you can update your appearance at any time.'
+              : 'Appearance changes are locked for 7 days after saving.'
             : 'Choose wisely — your first appearance is permanent for 7 days.'}
         </p>
       </div>

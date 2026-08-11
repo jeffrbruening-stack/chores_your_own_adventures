@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import {
   charactersTable, usersTable, shopItemsTable,
-  userInventoryTable, equippedItemsTable,
+  userInventoryTable, equippedItemsTable, partyMembersTable,
 } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
@@ -22,16 +22,32 @@ router.get("/me", requireAuth, async (req, res) => {
 });
 
 // PUT /api/characters/me — create or update character
-// First-time creation (no existing row) does NOT set cooldown
-// Subsequent saves trigger 7-day cooldown
+// Party Leaders/founders are never subject to the 7-day appearance lock.
+// Regular adventurers/kids get the 7-day cooldown on subsequent saves.
 router.put("/me", requireAuth, async (req, res) => {
   try {
     const userId = req.userId!;
+
+    // Check if this user is a party leader — leaders bypass appearance lock entirely
+    const [user] = await db.select({ activePartyId: usersTable.activePartyId })
+      .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+
+    let isLeader = false;
+    if (user?.activePartyId) {
+      const [membership] = await db.select({ role: partyMembersTable.role })
+        .from(partyMembersTable)
+        .where(and(
+          eq(partyMembersTable.partyId, user.activePartyId),
+          eq(partyMembersTable.userId, userId),
+        )).limit(1);
+      isLeader = membership?.role === "leader" || membership?.role === "founder";
+    }
+
     const [existing] = await db.select().from(charactersTable)
       .where(eq(charactersTable.userId, userId)).limit(1);
 
-    // Cooldown only applies to EXISTING configured characters
-    if (existing?.configured && existing?.cooldownUntil && existing.cooldownUntil > new Date()) {
+    // Cooldown enforcement — skip entirely for party leaders
+    if (!isLeader && existing?.configured && existing?.cooldownUntil && existing.cooldownUntil > new Date()) {
       res.status(429).json({
         error: "Character customization on cooldown",
         cooldownUntil: existing.cooldownUntil,
@@ -43,8 +59,11 @@ router.put("/me", requireAuth, async (req, res) => {
     const updates: any = { updatedAt: new Date(), configured: true };
     for (const k of ALLOWED) { if (req.body[k] !== undefined) updates[k] = req.body[k]; }
 
-    // Set 7-day cooldown only when EDITING an already-configured character
-    if (existing?.configured) {
+    if (isLeader) {
+      // Leaders: clear any existing cooldown — they can edit at any time
+      updates.cooldownUntil = null;
+    } else if (existing?.configured) {
+      // Non-leaders editing an already-configured character → 7-day cooldown
       updates.cooldownUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     }
 
@@ -66,12 +85,10 @@ router.put("/me", requireAuth, async (req, res) => {
         )).limit(1);
 
       if (tunic) {
-        // Grant ownership (idempotent)
         await db.insert(userInventoryTable).values({
           userId, shopItemId: tunic.id,
         }).onConflictDoNothing();
 
-        // Equip in outfit slot
         const [existingEquip] = await db.select().from(equippedItemsTable)
           .where(and(eq(equippedItemsTable.userId, userId), eq(equippedItemsTable.slot, "outfit")))
           .limit(1);

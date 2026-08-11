@@ -210,7 +210,7 @@ export function QuestDetailSheet({
           )}
 
           {/* Action: complete */}
-          {quest.status === 'available' && onComplete && (
+          {quest.status === 'active' && onComplete && (
             <button
               onClick={() => { onComplete(); onClose(); }}
               className="w-full bg-primary text-primary-foreground font-pixel py-4 rounded-xl pixel-corners border-b-4 border-r-4 border-black active:border-b-0 active:border-r-0 active:translate-y-1 active:translate-x-1 transition-all text-sm flex items-center justify-center gap-2"

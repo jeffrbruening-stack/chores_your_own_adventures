@@ -4,7 +4,7 @@ import {
   questDefinitionsTable, questAssignmentsTable, questProposalsTable,
   usersTable, quickQuestsTable, partyMembersTable,
 } from "@workspace/db/schema";
-import { eq, and, inArray, count, asc } from "drizzle-orm";
+import { eq, and, inArray, count, asc, notInArray } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { assertLeader, assertMember, getMemberRole } from "../lib/party.js";
 import { DIFFICULTY_REWARDS, levelFromXp } from "../lib/rewards.js";
@@ -33,6 +33,35 @@ const QUEST_SELECT = {
   isArchived: questDefinitionsTable.isArchived,
   createdAt: questDefinitionsTable.createdAt,
 };
+
+// Shared assignment+definition select shape — used across multiple endpoints
+const ASSIGNMENT_SELECT = {
+  id: questAssignmentsTable.id,
+  questDefinitionId: questAssignmentsTable.questDefinitionId,
+  status: questAssignmentsTable.status,
+  expiresAt: questAssignmentsTable.expiresAt,
+  completedAt: questAssignmentsTable.completedAt,
+  xpAwarded: questAssignmentsTable.xpAwarded,
+  goldAwarded: questAssignmentsTable.goldAwarded,
+  partyGoldAwarded: questAssignmentsTable.partyGoldAwarded,
+  plainTitle: questDefinitionsTable.plainTitle,
+  adventureTitle: questDefinitionsTable.adventureTitle,
+  description: questDefinitionsTable.description,
+  difficulty: questDefinitionsTable.difficulty,
+  isLegendary: questDefinitionsTable.isLegendary,
+  requiresVerification: questDefinitionsTable.requiresVerification,
+  xpReward: questDefinitionsTable.xpReward,
+  goldReward: questDefinitionsTable.goldReward,
+  partyGoldReward: questDefinitionsTable.partyGoldReward,
+  questType: questDefinitionsTable.questType,
+  timeWindowStart: questDefinitionsTable.timeWindowStart,
+  timeWindowEnd: questDefinitionsTable.timeWindowEnd,
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IMPORTANT: All static/sub-path routes MUST appear before /:questId
+// to prevent Express from routing e.g. GET /open as GET /:questId with id='open'
+// ─────────────────────────────────────────────────────────────────────────────
 
 // GET /api/quests?partyId=
 router.get("/", requireAuth, async (req, res) => {
@@ -85,7 +114,7 @@ router.post("/", requireAuth, async (req, res) => {
       schoolCalendarId: schoolCalendarId ?? null,
     }).returning();
 
-    // If individual quest, create assignment(s) for each assigned user
+    // Individual quest: create assignment(s) for each assigned user
     if (questType === "individual" && Array.isArray(assignedUserIds) && assignedUserIds.length > 0) {
       for (const uid of assignedUserIds) {
         await db.insert(questAssignmentsTable).values({
@@ -97,7 +126,7 @@ router.post("/", requireAuth, async (req, res) => {
       }
     }
 
-    // If party quest, create an active assignment for every current party member
+    // Party quest: create an active assignment for every current party member
     if (questType === "party") {
       const members = await db
         .select({ userId: partyMembersTable.userId })
@@ -121,103 +150,21 @@ router.post("/", requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/quests/:questId
-router.get("/:questId", requireAuth, async (req, res) => {
-  try {
-    const questId = parseInt(String(req.params.questId));
-    const [quest] = await db.select(QUEST_SELECT).from(questDefinitionsTable)
-      .where(eq(questDefinitionsTable.id, questId)).limit(1);
-    if (!quest) { res.status(404).json({ error: "Not found" }); return; }
-    await assertMember(quest.partyId, req.userId!);
-    res.json(quest);
-  } catch (err: any) {
-    res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
-  }
-});
+// ─── SUB-ROUTES (must come before /:questId) ────────────────────────────────
 
-// PATCH /api/quests/:questId
-router.patch("/:questId", requireAuth, async (req, res) => {
-  try {
-    const questId = parseInt(String(req.params.questId));
-    const [existing] = await db.select({ partyId: questDefinitionsTable.partyId })
-      .from(questDefinitionsTable).where(eq(questDefinitionsTable.id, questId)).limit(1);
-    if (!existing) { res.status(404).json({ error: "Not found" }); return; }
-    await assertLeader(existing.partyId, req.userId!);
-    const allowed = ["plainTitle","adventureTitle","description","difficulty","requiresVerification",
-      "xpReward","goldReward","partyGoldReward","timeWindowStart","timeWindowEnd","routineSchedule"];
-    const updates: any = { updatedAt: new Date() };
-    for (const k of allowed) { if (req.body[k] !== undefined) updates[k] = req.body[k]; }
-    const [quest] = await db.update(questDefinitionsTable).set(updates)
-      .where(eq(questDefinitionsTable.id, questId)).returning();
-    res.json(quest);
-  } catch (err: any) {
-    res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
-  }
-});
-
-// DELETE /api/quests/:questId
-router.delete("/:questId", requireAuth, async (req, res) => {
-  try {
-    const questId = parseInt(String(req.params.questId));
-    const [existing] = await db.select({ partyId: questDefinitionsTable.partyId })
-      .from(questDefinitionsTable).where(eq(questDefinitionsTable.id, questId)).limit(1);
-    if (!existing) { res.status(404).json({ error: "Not found" }); return; }
-    await assertLeader(existing.partyId, req.userId!);
-    await db.update(questDefinitionsTable).set({ isArchived: true, updatedAt: new Date() })
-      .where(eq(questDefinitionsTable.id, questId));
-    res.status(204).send();
-  } catch (err: any) {
-    res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
-  }
-});
-
-// PATCH /api/quests/:questId/pause
-router.patch("/:questId/pause", requireAuth, async (req, res) => {
-  try {
-    const questId = parseInt(String(req.params.questId));
-    const [existing] = await db.select({ partyId: questDefinitionsTable.partyId, isPaused: questDefinitionsTable.isPaused })
-      .from(questDefinitionsTable).where(eq(questDefinitionsTable.id, questId)).limit(1);
-    if (!existing) { res.status(404).json({ error: "Not found" }); return; }
-    await assertLeader(existing.partyId, req.userId!);
-    const [quest] = await db.update(questDefinitionsTable)
-      .set({ isPaused: !existing.isPaused, updatedAt: new Date() })
-      .where(eq(questDefinitionsTable.id, questId)).returning();
-    res.json(quest);
-  } catch (err: any) {
-    res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
-  }
-});
-
-// GET /api/quests/assignments/mine?partyId=
+// GET /api/quests/assignments/mine?partyId= — canonical active assignments for current user
 router.get("/assignments/mine", requireAuth, async (req, res) => {
   try {
     const partyId = parseInt(req.query.partyId as string);
-    const assignments = await db.select({
-      id: questAssignmentsTable.id,
-      questDefinitionId: questAssignmentsTable.questDefinitionId,
-      status: questAssignmentsTable.status,
-      expiresAt: questAssignmentsTable.expiresAt,
-      completedAt: questAssignmentsTable.completedAt,
-      xpAwarded: questAssignmentsTable.xpAwarded,
-      goldAwarded: questAssignmentsTable.goldAwarded,
-      partyGoldAwarded: questAssignmentsTable.partyGoldAwarded,
-      plainTitle: questDefinitionsTable.plainTitle,
-      adventureTitle: questDefinitionsTable.adventureTitle,
-      description: questDefinitionsTable.description,
-      difficulty: questDefinitionsTable.difficulty,
-      isLegendary: questDefinitionsTable.isLegendary,
-      requiresVerification: questDefinitionsTable.requiresVerification,
-      xpReward: questDefinitionsTable.xpReward,
-      goldReward: questDefinitionsTable.goldReward,
-      partyGoldReward: questDefinitionsTable.partyGoldReward,
-      questType: questDefinitionsTable.questType,
-      timeWindowStart: questDefinitionsTable.timeWindowStart,
-      timeWindowEnd: questDefinitionsTable.timeWindowEnd,
-    }).from(questAssignmentsTable)
+    const assignments = await db.select(ASSIGNMENT_SELECT)
+      .from(questAssignmentsTable)
       .innerJoin(questDefinitionsTable, eq(questDefinitionsTable.id, questAssignmentsTable.questDefinitionId))
       .where(and(
         eq(questAssignmentsTable.userId, req.userId!),
         ...(partyId ? [eq(questAssignmentsTable.partyId, partyId)] : []),
+        // Canonical filter: same as Home — only show active/submitted
+        inArray(questAssignmentsTable.status, ["active", "submitted"]),
+        eq(questDefinitionsTable.isArchived, false),
       ));
     res.json(assignments);
   } catch {
@@ -225,13 +172,124 @@ router.get("/assignments/mine", requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/quests/give-me-one?partyId= — assign a random open quest
+// POST /api/quests/assignments/:assignmentId/complete
+router.post("/assignments/:assignmentId/complete", requireAuth, async (req, res) => {
+  try {
+    const assignmentId = parseInt(String(req.params.assignmentId));
+    const [assignment] = await db.select().from(questAssignmentsTable)
+      .where(eq(questAssignmentsTable.id, assignmentId)).limit(1);
+    if (!assignment || assignment.userId !== req.userId) {
+      res.status(403).json({ error: "Not your quest" }); return;
+    }
+    if (assignment.status !== "active") {
+      res.status(400).json({ error: "Quest not active" }); return;
+    }
+    const [quest] = await db.select().from(questDefinitionsTable)
+      .where(eq(questDefinitionsTable.id, assignment.questDefinitionId)).limit(1);
+
+    const newStatus = quest.requiresVerification ? "submitted" : "completed";
+    const now = new Date();
+
+    await db.update(questAssignmentsTable).set({
+      status: newStatus,
+      completedAt: now,
+      verificationNote: req.body.note ?? null,
+      xpAwarded: quest.xpReward,
+      goldAwarded: quest.goldReward,
+      partyGoldAwarded: quest.partyGoldReward,
+    }).where(eq(questAssignmentsTable.id, assignmentId));
+
+    let xpGained = 0;
+    let goldGained = 0;
+    let newLevel: number | undefined;
+    let leveledUp = false;
+
+    if (newStatus === "completed") {
+      const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
+      const newXp = user.lifetimeXp + quest.xpReward;
+      newLevel = levelFromXp(newXp);
+      leveledUp = newLevel > user.currentLevel;
+      xpGained = quest.xpReward;
+      goldGained = quest.goldReward;
+      await db.update(usersTable).set({
+        lifetimeXp: newXp,
+        currentLevel: newLevel,
+        personalGold: user.personalGold + quest.goldReward,
+        ...(quest.isLegendary ? { legendaryCompletions: user.legendaryCompletions + 1 } : {}),
+        updatedAt: now,
+      }).where(eq(usersTable.id, req.userId!));
+
+      const { partiesTable } = await import("@workspace/db/schema");
+      const [party] = await db.select({ partyGoldReserve: partiesTable.partyGoldReserve })
+        .from(partiesTable).where(eq(partiesTable.id, assignment.partyId)).limit(1);
+      if (party) {
+        await db.update(partiesTable).set({
+          partyGoldReserve: party.partyGoldReserve + quest.partyGoldReward,
+          updatedAt: now,
+        }).where(eq(partiesTable.id, assignment.partyId));
+      }
+    }
+
+    res.json({ status: newStatus, xpAwarded: quest.xpReward, goldAwarded: quest.goldReward, xpGained, goldGained, newLevel, leveledUp });
+  } catch {
+    res.status(500).json({ error: "Failed" });
+  }
+});
+
+// POST /api/quests/assignments/:assignmentId/verify (leader verifies submitted quest)
+router.post("/assignments/:assignmentId/verify", requireAuth, async (req, res) => {
+  try {
+    const assignmentId = parseInt(String(req.params.assignmentId));
+    const [assignment] = await db.select().from(questAssignmentsTable)
+      .where(eq(questAssignmentsTable.id, assignmentId)).limit(1);
+    if (!assignment) { res.status(404).json({ error: "Not found" }); return; }
+    if (assignment.status !== "submitted") { res.status(400).json({ error: "Not submitted" }); return; }
+    await assertLeader(assignment.partyId, req.userId!);
+
+    const { approved, note } = req.body;
+    const newStatus = approved ? "completed" : "active";
+    const now = new Date();
+
+    await db.update(questAssignmentsTable).set({
+      status: newStatus,
+      reviewedBy: req.userId!,
+      verificationNote: note ?? assignment.verificationNote,
+    }).where(eq(questAssignmentsTable.id, assignmentId));
+
+    if (approved && assignment.userId) {
+      const [quest] = await db.select().from(questDefinitionsTable)
+        .where(eq(questDefinitionsTable.id, assignment.questDefinitionId)).limit(1);
+      const [user] = await db.select().from(usersTable)
+        .where(eq(usersTable.id, assignment.userId)).limit(1);
+      const newXp = user.lifetimeXp + quest.xpReward;
+      const newLevel = levelFromXp(newXp);
+      await db.update(usersTable).set({
+        lifetimeXp: newXp, currentLevel: newLevel,
+        personalGold: user.personalGold + quest.goldReward,
+        updatedAt: now,
+      }).where(eq(usersTable.id, assignment.userId));
+      const { partiesTable } = await import("@workspace/db/schema");
+      const [party] = await db.select({ partyGoldReserve: partiesTable.partyGoldReserve })
+        .from(partiesTable).where(eq(partiesTable.id, assignment.partyId)).limit(1);
+      if (party) {
+        await db.update(partiesTable).set({
+          partyGoldReserve: party.partyGoldReserve + quest.partyGoldReward,
+          updatedAt: now,
+        }).where(eq(partiesTable.id, assignment.partyId));
+      }
+    }
+    res.json({ status: newStatus });
+  } catch (err: any) {
+    res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
+  }
+});
+
+// POST /api/quests/give-me-one?partyId= — assign a random open quest (if no active assigned quests)
 router.post("/give-me-one", requireAuth, async (req, res) => {
   try {
     const partyId = parseInt(req.query.partyId as string || req.body.partyId);
     if (!partyId) { res.status(400).json({ error: "partyId required" }); return; }
     await assertMember(partyId, req.userId!);
-    // Find open quests with no active assignment
     const openQuests = await db.select(QUEST_SELECT).from(questDefinitionsTable)
       .where(and(
         eq(questDefinitionsTable.partyId, partyId),
@@ -273,113 +331,6 @@ router.get("/open", requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/quests/assignments/:assignmentId/complete
-router.post("/assignments/:assignmentId/complete", requireAuth, async (req, res) => {
-  try {
-    const assignmentId = parseInt(String(req.params.assignmentId));
-    const [assignment] = await db.select().from(questAssignmentsTable)
-      .where(eq(questAssignmentsTable.id, assignmentId)).limit(1);
-    if (!assignment || assignment.userId !== req.userId) {
-      res.status(403).json({ error: "Not your quest" }); return;
-    }
-    if (assignment.status !== "active") {
-      res.status(400).json({ error: "Quest not active" }); return;
-    }
-    const [quest] = await db.select().from(questDefinitionsTable)
-      .where(eq(questDefinitionsTable.id, assignment.questDefinitionId)).limit(1);
-
-    const newStatus = quest.requiresVerification ? "submitted" : "completed";
-    const now = new Date();
-
-    await db.update(questAssignmentsTable).set({
-      status: newStatus,
-      completedAt: now,
-      verificationNote: req.body.note ?? null,
-      xpAwarded: quest.xpReward,
-      goldAwarded: quest.goldReward,
-      partyGoldAwarded: quest.partyGoldReward,
-    }).where(eq(questAssignmentsTable.id, assignmentId));
-
-    if (newStatus === "completed") {
-      // Award XP and gold
-      const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
-      const newXp = user.lifetimeXp + quest.xpReward;
-      const newLevel = levelFromXp(newXp);
-      await db.update(usersTable).set({
-        lifetimeXp: newXp,
-        currentLevel: newLevel,
-        personalGold: user.personalGold + quest.goldReward,
-        ...(quest.isLegendary ? { legendaryCompletions: user.legendaryCompletions + 1 } : {}),
-        updatedAt: now,
-      }).where(eq(usersTable.id, req.userId!));
-
-      // Award party gold
-      const { partiesTable } = await import("@workspace/db/schema");
-      const [party] = await db.select({ partyGoldReserve: partiesTable.partyGoldReserve })
-        .from(partiesTable).where(eq(partiesTable.id, assignment.partyId)).limit(1);
-      if (party) {
-        await db.update(partiesTable).set({
-          partyGoldReserve: party.partyGoldReserve + quest.partyGoldReward,
-          updatedAt: now,
-        }).where(eq(partiesTable.id, assignment.partyId));
-      }
-    }
-
-    res.json({ status: newStatus, xpAwarded: quest.xpReward, goldAwarded: quest.goldReward });
-  } catch {
-    res.status(500).json({ error: "Failed" });
-  }
-});
-
-// POST /api/quests/assignments/:assignmentId/verify (leader verifies submitted quest)
-router.post("/assignments/:assignmentId/verify", requireAuth, async (req, res) => {
-  try {
-    const assignmentId = parseInt(String(req.params.assignmentId));
-    const [assignment] = await db.select().from(questAssignmentsTable)
-      .where(eq(questAssignmentsTable.id, assignmentId)).limit(1);
-    if (!assignment) { res.status(404).json({ error: "Not found" }); return; }
-    if (assignment.status !== "submitted") { res.status(400).json({ error: "Not submitted" }); return; }
-    await assertLeader(assignment.partyId, req.userId!);
-
-    const { approved, note } = req.body;
-    const newStatus = approved ? "completed" : "active";
-    const now = new Date();
-
-    await db.update(questAssignmentsTable).set({
-      status: newStatus,
-      reviewedBy: req.userId!,
-      verificationNote: note ?? assignment.verificationNote,
-    }).where(eq(questAssignmentsTable.id, assignmentId));
-
-    if (approved && assignment.userId) {
-      const [quest] = await db.select().from(questDefinitionsTable)
-        .where(eq(questDefinitionsTable.id, assignment.questDefinitionId)).limit(1);
-      const [user] = await db.select().from(usersTable)
-        .where(eq(usersTable.id, assignment.userId)).limit(1);
-      const newXp = user.lifetimeXp + quest.xpReward;
-      const newLevel = levelFromXp(newXp);
-      await db.update(usersTable).set({
-        lifetimeXp: newXp, currentLevel: newLevel,
-        personalGold: user.personalGold + quest.goldReward,
-        updatedAt: now,
-      }).where(eq(usersTable.id, assignment.userId));
-      // Party gold
-      const { partiesTable } = await import("@workspace/db/schema");
-      const [party] = await db.select({ partyGoldReserve: partiesTable.partyGoldReserve })
-        .from(partiesTable).where(eq(partiesTable.id, assignment.partyId)).limit(1);
-      if (party) {
-        await db.update(partiesTable).set({
-          partyGoldReserve: party.partyGoldReserve + quest.partyGoldReward,
-          updatedAt: now,
-        }).where(eq(partiesTable.id, assignment.partyId));
-      }
-    }
-    res.json({ status: newStatus });
-  } catch (err: any) {
-    res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
-  }
-});
-
 // GET /api/quests/pending-verification?partyId=
 router.get("/pending-verification", requireAuth, async (req, res) => {
   try {
@@ -395,9 +346,14 @@ router.get("/pending-verification", requireAuth, async (req, res) => {
       verificationNote: questAssignmentsTable.verificationNote,
       plainTitle: questDefinitionsTable.plainTitle,
       adventureTitle: questDefinitionsTable.adventureTitle,
+      description: questDefinitionsTable.description,
       difficulty: questDefinitionsTable.difficulty,
+      isLegendary: questDefinitionsTable.isLegendary,
+      requiresVerification: questDefinitionsTable.requiresVerification,
       xpReward: questDefinitionsTable.xpReward,
       goldReward: questDefinitionsTable.goldReward,
+      partyGoldReward: questDefinitionsTable.partyGoldReward,
+      questType: questDefinitionsTable.questType,
     }).from(questAssignmentsTable)
       .innerJoin(questDefinitionsTable, eq(questDefinitionsTable.id, questAssignmentsTable.questDefinitionId))
       .where(and(
@@ -457,7 +413,6 @@ router.post("/proposals/:proposalId/review", requireAuth, async (req, res) => {
       status, reviewedBy: req.userId!, reviewNote: note,
     }).where(eq(questProposalsTable.id, proposalId));
     if (approved) {
-      // Create a quest definition from the proposal
       await db.insert(questDefinitionsTable).values({
         partyId: proposal.partyId,
         creatorId: req.userId!,
@@ -488,10 +443,84 @@ router.get("/quick", requireAuth, async (req, res) => {
   }
 });
 
+// ─── WILD-CARD ROUTES — must come LAST ──────────────────────────────────────
+
+// GET /api/quests/:questId
+router.get("/:questId", requireAuth, async (req, res) => {
+  try {
+    const questId = parseInt(String(req.params.questId));
+    if (isNaN(questId)) { res.status(404).json({ error: "Not found" }); return; }
+    const [quest] = await db.select(QUEST_SELECT).from(questDefinitionsTable)
+      .where(eq(questDefinitionsTable.id, questId)).limit(1);
+    if (!quest) { res.status(404).json({ error: "Not found" }); return; }
+    await assertMember(quest.partyId, req.userId!);
+    res.json(quest);
+  } catch (err: any) {
+    res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
+  }
+});
+
+// PATCH /api/quests/:questId
+router.patch("/:questId", requireAuth, async (req, res) => {
+  try {
+    const questId = parseInt(String(req.params.questId));
+    if (isNaN(questId)) { res.status(404).json({ error: "Not found" }); return; }
+    const [existing] = await db.select({ partyId: questDefinitionsTable.partyId })
+      .from(questDefinitionsTable).where(eq(questDefinitionsTable.id, questId)).limit(1);
+    if (!existing) { res.status(404).json({ error: "Not found" }); return; }
+    await assertLeader(existing.partyId, req.userId!);
+    const allowed = ["plainTitle","adventureTitle","description","difficulty","requiresVerification",
+      "xpReward","goldReward","partyGoldReward","timeWindowStart","timeWindowEnd","routineSchedule"];
+    const updates: any = { updatedAt: new Date() };
+    for (const k of allowed) { if (req.body[k] !== undefined) updates[k] = req.body[k]; }
+    const [quest] = await db.update(questDefinitionsTable).set(updates)
+      .where(eq(questDefinitionsTable.id, questId)).returning();
+    res.json(quest);
+  } catch (err: any) {
+    res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
+  }
+});
+
+// DELETE /api/quests/:questId
+router.delete("/:questId", requireAuth, async (req, res) => {
+  try {
+    const questId = parseInt(String(req.params.questId));
+    if (isNaN(questId)) { res.status(404).json({ error: "Not found" }); return; }
+    const [existing] = await db.select({ partyId: questDefinitionsTable.partyId })
+      .from(questDefinitionsTable).where(eq(questDefinitionsTable.id, questId)).limit(1);
+    if (!existing) { res.status(404).json({ error: "Not found" }); return; }
+    await assertLeader(existing.partyId, req.userId!);
+    await db.update(questDefinitionsTable).set({ isArchived: true, updatedAt: new Date() })
+      .where(eq(questDefinitionsTable.id, questId));
+    res.status(204).send();
+  } catch (err: any) {
+    res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
+  }
+});
+
+// PATCH /api/quests/:questId/pause
+router.patch("/:questId/pause", requireAuth, async (req, res) => {
+  try {
+    const questId = parseInt(String(req.params.questId));
+    if (isNaN(questId)) { res.status(404).json({ error: "Not found" }); return; }
+    const [existing] = await db.select({ partyId: questDefinitionsTable.partyId, isPaused: questDefinitionsTable.isPaused })
+      .from(questDefinitionsTable).where(eq(questDefinitionsTable.id, questId)).limit(1);
+    if (!existing) { res.status(404).json({ error: "Not found" }); return; }
+    await assertLeader(existing.partyId, req.userId!);
+    const [quest] = await db.update(questDefinitionsTable)
+      .set({ isPaused: !existing.isPaused, updatedAt: new Date() })
+      .where(eq(questDefinitionsTable.id, questId)).returning();
+    res.json(quest);
+  } catch (err: any) {
+    res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
+  }
+});
+
 // POST /api/quests/:questId/duplicate
 router.post("/:questId/duplicate", requireAuth, async (req, res) => {
   try {
     const questId = parseInt(String(req.params.questId));
+    if (isNaN(questId)) { res.status(404).json({ error: "Not found" }); return; }
     const [existing] = await db.select().from(questDefinitionsTable)
       .where(eq(questDefinitionsTable.id, questId)).limit(1);
     if (!existing) { res.status(404).json({ error: "Not found" }); return; }

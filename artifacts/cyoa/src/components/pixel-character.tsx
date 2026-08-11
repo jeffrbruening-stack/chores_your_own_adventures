@@ -280,14 +280,15 @@ function renderSpeciesFeatures(species: string, skinCol: string, sdark: string, 
     out.push(R(rbase + 1, ey,     1, 1, sdark));
   }
   if (species === 'orc') {
-    // Heavy brow ridge
+    // Heavy brow ridge — wider brow for a more brutish look
     out.push(R(b.hx + 1, b.hy + 1, b.hw - 2, 2, sdark));
-    // Tusks below mouth
-    out.push(R(b.mouthX + 2, b.mouthY + 1, 2, 4, '#E8E0C0'));
-    out.push(R(b.mouthX + b.mouthW - 4, b.mouthY + 1, 2, 4, '#E8E0C0'));
-    // Tusk tip
-    out.push(R(b.mouthX + 3, b.mouthY + 5, 1, 1, '#E8E0C0'));
-    out.push(R(b.mouthX + b.mouthW - 4, b.mouthY + 5, 1, 1, '#E8E0C0'));
+    // Lower-canine tusks — small 1×2px protrusions at corners of mouth, inside head bounds.
+    // They read as lower teeth/fangs peeking up, not dangling stalactites.
+    const tuskL = b.mouthX + 1;
+    const tuskR = b.mouthX + b.mouthW - 2;
+    const tuskY = b.mouthY - 1; // one row above mouth line = visible as lower canines
+    out.push(R(tuskL, tuskY, 1, 2, '#FFFAEC')); // left tusk
+    out.push(R(tuskR, tuskY, 1, 2, '#FFFAEC')); // right tusk
   }
   if (species === 'goblin') {
     // Large bat-like ears

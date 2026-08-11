@@ -1,27 +1,38 @@
 import { useState } from 'react';
-import { useListOpenQuests, useListMyQuestAssignments, useListPendingVerification, useListQuests, getListMyQuestAssignmentsQueryKey, getListOpenQuestsQueryKey, getListPendingVerificationQueryKey, getListQuestsQueryKey } from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  useListOpenQuests,
+  useListMyQuestAssignments,
+  useListPendingVerification,
+  useListQuests,
+  getListMyQuestAssignmentsQueryKey,
+  getListOpenQuestsQueryKey,
+  getListPendingVerificationQueryKey,
+  getListQuestsQueryKey,
+  getGetHomeDataQueryKey,
+} from '@workspace/api-client-react';
 import { useAuth } from '@/contexts/auth-context';
+import { useToast } from '@/hooks/use-toast';
 import { QuestCard } from '@/components/quest-card';
 import { QuestDetailSheet, type QuestLike } from '@/components/quest-detail-sheet';
 import { Plus } from 'lucide-react';
-import { Link, useLocation } from 'wouter';
+import { Link } from 'wouter';
 import { cn } from '@/lib/utils';
 
 export default function Quests() {
   const { activePartyId, currentUser } = useAuth();
-  const [location] = useLocation();
-  
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
   // Parse tab from search params or default
   const searchParams = new URLSearchParams(window.location.search);
   const defaultTab = searchParams.get('tab') || 'mine';
   const [activeTab, setActiveTab] = useState(defaultTab);
 
-  const isLeader = currentUser?.activePartyId === activePartyId && 
-                  // In a real app we'd check party role from useGetHomeData or similar
-                  // For now, assuming adults are leaders mostly, or we just rely on API rules
-                  currentUser?.userType === 'adult';
+  // Leaders are adults in this context — the party route provides the definitive role check
+  const isLeader = currentUser?.userType === 'adult';
 
-  const { data: myQuests, isLoading: loadingMine } = useListMyQuestAssignments(
+  const { data: myQuests, isLoading: loadingMine, refetch: refetchMine } = useListMyQuestAssignments(
     { partyId: activePartyId! },
     { query: { enabled: !!activePartyId && activeTab === 'mine', queryKey: getListMyQuestAssignmentsQueryKey({ partyId: activePartyId! }) } }
   );
@@ -31,19 +42,68 @@ export default function Quests() {
     { query: { enabled: !!activePartyId && activeTab === 'open', queryKey: getListOpenQuestsQueryKey({ partyId: activePartyId! }) } }
   );
 
-  // For leaders — pending verification
-  const { data: pendingQuests, isLoading: loadingPending } = useListPendingVerification(
+  const { data: pendingQuests, isLoading: loadingPending, refetch: refetchPending } = useListPendingVerification(
     { partyId: activePartyId! },
     { query: { enabled: !!activePartyId && activeTab === 'pending' && isLeader, queryKey: getListPendingVerificationQueryKey({ partyId: activePartyId! }) } }
   );
 
-  // For leaders — all quests in party
   const { data: allQuests, isLoading: loadingAll } = useListQuests(
     { partyId: activePartyId! },
     { query: { enabled: !!activePartyId && activeTab === 'all' && isLeader, queryKey: getListQuestsQueryKey({ partyId: activePartyId! }) } }
   );
 
   const [selectedQuest, setSelectedQuest] = useState<QuestLike | null>(null);
+
+  const handleComplete = async (assignmentId: number) => {
+    try {
+      const token = localStorage.getItem('cyoa_token');
+      const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+      const res = await fetch(`${BASE}/api/quests/assignments/${assignmentId}/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed' }));
+        throw new Error(err.error ?? 'Failed');
+      }
+      const result = await res.json();
+      toast({
+        title: result.leveledUp ? '⚡ LEVEL UP!' : '✅ Quest Complete!',
+        description: result.leveledUp
+          ? `You reached Level ${result.newLevel}!`
+          : `+${result.xpGained ?? result.xpAwarded} XP  +${result.goldGained ?? result.goldAwarded} Gold`,
+        className: result.leveledUp ? 'bg-yellow-500 text-black border-none font-bold' : 'bg-green-600 text-white border-none font-bold',
+      });
+      // Refresh all relevant caches
+      queryClient.invalidateQueries({ queryKey: getListMyQuestAssignmentsQueryKey({ partyId: activePartyId! }) });
+      queryClient.invalidateQueries({ queryKey: getGetHomeDataQueryKey() });
+      refetchMine();
+      setSelectedQuest(null);
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const handleVerify = async (assignmentId: number) => {
+    try {
+      const token = localStorage.getItem('cyoa_token');
+      const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+      const res = await fetch(`${BASE}/api/quests/assignments/${assignmentId}/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ approved: true }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? 'Failed');
+      toast({ title: '✅ Quest Verified!', description: 'Rewards have been awarded.', className: 'bg-green-600 text-white border-none font-bold' });
+      queryClient.invalidateQueries({ queryKey: getListPendingVerificationQueryKey({ partyId: activePartyId! }) });
+      queryClient.invalidateQueries({ queryKey: getGetHomeDataQueryKey() });
+      refetchPending();
+      setSelectedQuest(null);
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
+  };
 
   const tabs = [
     { id: 'mine', label: 'MY QUESTS' },
@@ -61,7 +121,6 @@ export default function Quests() {
       {/* Sticky Header with Tabs */}
       <div className="sticky top-0 z-20 bg-card border-b border-border px-4 pt-4 pb-0">
         <h1 className="text-xl font-pixel text-primary mb-4">QUEST HUB</h1>
-        
         <div className="flex gap-4 overflow-x-auto no-scrollbar">
           {tabs.map(tab => (
             <button
@@ -69,8 +128,8 @@ export default function Quests() {
               onClick={() => setActiveTab(tab.id)}
               className={cn(
                 "pb-3 text-xs font-pixel whitespace-nowrap transition-colors border-b-2",
-                activeTab === tab.id 
-                  ? "text-primary border-primary" 
+                activeTab === tab.id
+                  ? "text-primary border-primary"
                   : "text-muted-foreground border-transparent hover:text-foreground"
               )}
             >
@@ -82,23 +141,38 @@ export default function Quests() {
 
       <div className="p-4 flex flex-col gap-3">
         {activeTab === 'mine' && (
-          loadingMine ? <LoadingState /> : 
+          loadingMine ? <LoadingState /> :
           myQuests?.length
-            ? myQuests.map(q => <QuestCard key={q.id} quest={q as QuestLike} onClick={() => setSelectedQuest(q as QuestLike)} />)
+            ? myQuests.map(q => (
+                <QuestCard
+                  key={q.id}
+                  quest={q as QuestLike}
+                  onComplete={q.status === 'active' ? () => handleComplete(q.id) : undefined}
+                  onClick={() => setSelectedQuest(q as QuestLike)}
+                />
+              ))
             : <EmptyState text="You have no active quests." />
         )}
 
         {activeTab === 'open' && (
-          loadingOpen ? <LoadingState /> : 
+          loadingOpen ? <LoadingState /> :
           openQuests?.length
             ? openQuests.map(q => <QuestCard key={q.id} quest={q as QuestLike} onClick={() => setSelectedQuest(q as QuestLike)} />)
             : <EmptyState text="No open quests available." />
         )}
 
         {activeTab === 'pending' && isLeader && (
-          loadingPending ? <LoadingState /> : 
+          loadingPending ? <LoadingState /> :
           pendingQuests?.length
-            ? pendingQuests.map(q => <QuestCard key={q.id} quest={q as QuestLike} isLeader onClick={() => setSelectedQuest(q as QuestLike)} />)
+            ? pendingQuests.map(q => (
+                <QuestCard
+                  key={q.id}
+                  quest={q as QuestLike}
+                  isLeader
+                  onVerify={() => handleVerify(q.id)}
+                  onClick={() => setSelectedQuest(q as QuestLike)}
+                />
+              ))
             : <EmptyState text="Nothing pending verification." />
         )}
 
@@ -113,6 +187,16 @@ export default function Quests() {
           <QuestDetailSheet
             quest={selectedQuest}
             onClose={() => setSelectedQuest(null)}
+            onComplete={
+              selectedQuest.status === 'active'
+                ? () => handleComplete(selectedQuest.id)
+                : undefined
+            }
+            onVerify={
+              isLeader && (selectedQuest.status === 'submitted' || selectedQuest.status === 'pending_verification')
+                ? () => handleVerify(selectedQuest.id)
+                : undefined
+            }
             isLeader={isLeader}
           />
         )}
@@ -120,7 +204,7 @@ export default function Quests() {
 
       {/* FAB for Leaders */}
       {isLeader && (
-        <Link 
+        <Link
           href="/quest-create"
           className="fixed bottom-20 right-4 w-14 h-14 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform z-30"
         >

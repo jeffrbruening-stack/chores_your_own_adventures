@@ -3,7 +3,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   useGetHomeData, getGetHomeDataQueryKey,
   useCompleteQuest,
-  useGiveMeAQuest, getGiveMeAQuestQueryKey,
   useListMyParties,
   useGetMyCharacter,
   useGetInventory,
@@ -127,10 +126,6 @@ export default function Home() {
   const { data: inventoryData } = useGetInventory();
 
   const completeQuestMutation = useCompleteQuest();
-  const { refetch: giveMeQuest } = useGiveMeAQuest(
-    { partyId: activePartyId! },
-    { query: { enabled: false, gcTime: 0, queryKey: getGiveMeAQuestQueryKey({ partyId: activePartyId! }) } },
-  );
 
   // Build equipped item map with names for PixelCharacter
   const equippedWithNames = useMemo((): EquippedItems => {
@@ -158,14 +153,25 @@ export default function Home() {
 
   const handleGiveMeAQuest = async () => {
     try {
-      const res = await giveMeQuest();
-      if (res.data?.hasQuest) {
-        toast({ title: 'Quest Assigned!', description: res.data.quest?.plainTitle });
+      const token = localStorage.getItem('cyoa_token');
+      const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+      const res = await fetch(`${BASE}/api/home/give-me-a-quest?partyId=${activePartyId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.hasQuest && data.quest) {
         if (currentUser?.hapticsEnabled && 'vibrate' in navigator) navigator.vibrate([100, 50, 100]);
         if (currentUser?.soundEnabled) playSuccessSound();
-        refetch();
+        if (data.newlyAssigned) {
+          // New open quest was assigned — refresh home data
+          refetch();
+          queryClient.invalidateQueries({ queryKey: getGetHomeDataQueryKey() });
+          toast({ title: '⚔️ Quest Assigned!', description: data.quest.plainTitle });
+        }
+        // Always open the quest detail sheet for the surfaced quest
+        setSelectedQuest(data.quest as QuestLike);
       } else {
-        toast({ title: 'All clear!', description: 'No quests available right now. Take a break, hero!' });
+        toast({ title: '🛌 All clear!', description: data.message ?? 'No quests available right now. Take a break, hero!' });
       }
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
@@ -354,7 +360,7 @@ export default function Home() {
           quest={selectedQuest}
           onClose={() => setSelectedQuest(null)}
           onComplete={
-            selectedQuest.status === 'available'
+            selectedQuest.status === 'active'
               ? () => { handleComplete(selectedQuest.id); setSelectedQuest(null); }
               : undefined
           }

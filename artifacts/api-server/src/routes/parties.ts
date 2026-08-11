@@ -29,7 +29,7 @@ router.get("/", requireAuth, async (req, res) => {
     if (partyIds.length === 0) { res.json([]); return; }
 
     const parties = await db.select().from(partiesTable)
-      .where(eq(partiesTable.id, partyIds[0])); // simplified
+      .where(eq(partiesTable.id, partyIds[0]));
 
     res.json(parties.map(p => {
       const role = memberships.find(m => m.partyId === p.id)?.role;
@@ -47,7 +47,6 @@ router.post("/", requireAuth, async (req, res) => {
     const { name } = req.body;
     if (!name) { res.status(400).json({ error: "name required" }); return; }
     let householdCode = generateHouseholdCode();
-    // Ensure unique
     const [existing] = await db.select({ id: partiesTable.id })
       .from(partiesTable).where(eq(partiesTable.householdCode, householdCode)).limit(1);
     if (existing) householdCode = generateHouseholdCode() + Math.floor(Math.random()*9);
@@ -56,16 +55,43 @@ router.post("/", requireAuth, async (req, res) => {
       name, householdCode, founderId: userId,
     }).returning();
 
-    // Add founder as leader
     await db.insert(partyMembersTable).values({
       partyId: party.id, userId, role: "leader",
     });
 
-    // Set as active party
     await db.update(usersTable).set({ activePartyId: party.id, updatedAt: new Date() })
       .where(eq(usersTable.id, userId));
 
     res.status(201).json({ ...party, myRole: "leader" });
+  } catch {
+    res.status(500).json({ error: "Failed" });
+  }
+});
+
+// POST /api/parties/join — join via invite (must come before /:partyId)
+router.post("/join", requireAuth, async (req, res) => {
+  try {
+    const { token } = req.body;
+    const [invite] = await db.select().from(inviteTokensTable)
+      .where(eq(inviteTokensTable.token, token)).limit(1);
+    if (!invite || invite.usedAt || invite.expiresAt < new Date()) {
+      res.status(400).json({ error: "Invalid or expired invite" });
+      return;
+    }
+    const existing = await getMemberRole(invite.partyId, req.userId!);
+    const inviteRole = (invite as any).role ?? "adult";
+    if (!existing) {
+      await db.insert(partyMembersTable).values({
+        partyId: invite.partyId, userId: req.userId!, role: inviteRole,
+      });
+      await db.update(inviteTokensTable).set({ usedBy: req.userId!, usedAt: new Date() })
+        .where(eq(inviteTokensTable.id, invite.id));
+    }
+    await db.update(usersTable).set({ activePartyId: invite.partyId, updatedAt: new Date() })
+      .where(eq(usersTable.id, req.userId!));
+    const [party] = await db.select().from(partiesTable)
+      .where(eq(partiesTable.id, invite.partyId)).limit(1);
+    res.json({ ...party, myRole: existing ?? inviteRole });
   } catch {
     res.status(500).json({ error: "Failed" });
   }
@@ -120,7 +146,7 @@ router.delete("/:partyId", requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/parties/:partyId/members
+// GET /api/parties/:partyId/members — includes cooldownUntil for admin
 router.get("/:partyId/members", requireAuth, async (req, res) => {
   try {
     const partyId = parseInt(String(req.params.partyId));
@@ -134,7 +160,6 @@ router.get("/:partyId/members", requireAuth, async (req, res) => {
       lifetimeXp: usersTable.lifetimeXp,
       role: partyMembersTable.role,
       adventurerName: charactersTable.adventurerName,
-      // Full appearance fields for PixelCharacter rendering
       species: charactersTable.species,
       class: charactersTable.class,
       gender: charactersTable.gender,
@@ -144,6 +169,8 @@ router.get("/:partyId/members", requireAuth, async (req, res) => {
       eyeColor: charactersTable.eyeColor,
       hasGlasses: charactersTable.hasGlasses,
       facialHair: charactersTable.facialHair,
+      // For admin: appearance lock status
+      cooldownUntil: charactersTable.cooldownUntil,
     }).from(partyMembersTable)
       .innerJoin(usersTable, eq(usersTable.id, partyMembersTable.userId))
       .leftJoin(charactersTable, eq(charactersTable.userId, partyMembersTable.userId))
@@ -165,9 +192,7 @@ router.post("/:partyId/members/kid", requireAuth, async (req, res) => {
     const [kid] = await db.insert(usersTable).values({
       displayName, pinHash, userType: "kid", activePartyId: partyId,
     }).returning();
-    // Create character
     await db.insert(charactersTable).values({ userId: kid.id, adventurerName: displayName });
-    // Add to party
     await db.insert(partyMembersTable).values({ partyId, userId: kid.id, role: "kid" });
     res.status(201).json({ id: kid.id, displayName: kid.displayName, role: "kid" });
   } catch (err: any) {
@@ -175,36 +200,81 @@ router.post("/:partyId/members/kid", requireAuth, async (req, res) => {
   }
 });
 
-// PATCH /api/parties/:partyId/members/:userId
+// PATCH /api/parties/:partyId/members/:memberId — role change + PIN reset
 router.patch("/:partyId/members/:memberId", requireAuth, async (req, res) => {
   try {
     const partyId = parseInt(String(req.params.partyId));
     const memberId = parseInt(String(req.params.memberId));
     await assertLeader(partyId, req.userId!);
     const { role, resetPin } = req.body;
+
     if (role) {
+      // Prevent demotion/removal of founder by non-founder
+      const [party] = await db.select({ founderId: partiesTable.founderId })
+        .from(partiesTable).where(eq(partiesTable.id, partyId)).limit(1);
+      if (party?.founderId === memberId && req.userId !== memberId) {
+        res.status(403).json({ error: "Cannot change the founder's role" }); return;
+      }
       await db.update(partyMembersTable).set({ role })
         .where(and(eq(partyMembersTable.partyId, partyId), eq(partyMembersTable.userId, memberId)));
+      console.info(`[ADMIN] ${req.userId} changed role of ${memberId} in party ${partyId} to ${role}`);
     }
+
     if (resetPin) {
       const pinHash = await bcrypt.hash(resetPin, 12);
       await db.update(usersTable).set({ pinHash, pinAttempts: 0, pinLockedUntil: null })
         .where(eq(usersTable.id, memberId));
+      console.info(`[ADMIN] ${req.userId} reset PIN for user ${memberId} in party ${partyId}`);
     }
+
     res.json({ message: "Updated" });
   } catch (err: any) {
     res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
   }
 });
 
-// DELETE /api/parties/:partyId/members/:userId
+// PATCH /api/parties/:partyId/members/:memberId/unlock-appearance — leader clears member's appearance lock
+router.patch("/:partyId/members/:memberId/unlock-appearance", requireAuth, async (req, res) => {
+  try {
+    const partyId = parseInt(String(req.params.partyId));
+    const memberId = parseInt(String(req.params.memberId));
+    await assertLeader(partyId, req.userId!);
+
+    // Verify target is a member of this party
+    const [membership] = await db.select({ role: partyMembersTable.role })
+      .from(partyMembersTable)
+      .where(and(eq(partyMembersTable.partyId, partyId), eq(partyMembersTable.userId, memberId)))
+      .limit(1);
+    if (!membership) { res.status(404).json({ error: "Member not found" }); return; }
+
+    await db.update(charactersTable)
+      .set({ cooldownUntil: null, updatedAt: new Date() })
+      .where(eq(charactersTable.userId, memberId));
+
+    console.info(`[ADMIN] ${req.userId} unlocked appearance for user ${memberId} in party ${partyId}`);
+    res.json({ message: "Appearance lock cleared" });
+  } catch (err: any) {
+    res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
+  }
+});
+
+// DELETE /api/parties/:partyId/members/:memberId
 router.delete("/:partyId/members/:memberId", requireAuth, async (req, res) => {
   try {
     const partyId = parseInt(String(req.params.partyId));
     const memberId = parseInt(String(req.params.memberId));
     await assertLeader(partyId, req.userId!);
+
+    // Prevent removal of founder
+    const [party] = await db.select({ founderId: partiesTable.founderId })
+      .from(partiesTable).where(eq(partiesTable.id, partyId)).limit(1);
+    if (party?.founderId === memberId) {
+      res.status(403).json({ error: "Cannot remove the party founder" }); return;
+    }
+
     await db.delete(partyMembersTable)
       .where(and(eq(partyMembersTable.partyId, partyId), eq(partyMembersTable.userId, memberId)));
+    console.info(`[ADMIN] ${req.userId} removed member ${memberId} from party ${partyId}`);
     res.status(204).send();
   } catch (err: any) {
     res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
@@ -216,45 +286,15 @@ router.post("/:partyId/invite", requireAuth, async (req, res) => {
   try {
     const partyId = parseInt(String(req.params.partyId));
     await assertLeader(partyId, req.userId!);
-    // role: "adult" (adventurer) or "leader"
     const role: string = req.body.role === "leader" ? "leader" : "adult";
     const token = crypto.randomBytes(16).toString("hex");
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await db.insert(inviteTokensTable).values({
       partyId, token, createdBy: req.userId!, expiresAt, role,
     });
     res.json({ token, expiresAt, role, inviteUrl: `https://choresyourownadventure.com/join/${token}` });
   } catch (err: any) {
     res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
-  }
-});
-
-// POST /api/parties/join — join via invite
-router.post("/join", requireAuth, async (req, res) => {
-  try {
-    const { token } = req.body;
-    const [invite] = await db.select().from(inviteTokensTable)
-      .where(eq(inviteTokensTable.token, token)).limit(1);
-    if (!invite || invite.usedAt || invite.expiresAt < new Date()) {
-      res.status(400).json({ error: "Invalid or expired invite" });
-      return;
-    }
-    const existing = await getMemberRole(invite.partyId, req.userId!);
-    const inviteRole = (invite as any).role ?? "adult";
-    if (!existing) {
-      await db.insert(partyMembersTable).values({
-        partyId: invite.partyId, userId: req.userId!, role: inviteRole,
-      });
-      await db.update(inviteTokensTable).set({ usedBy: req.userId!, usedAt: new Date() })
-        .where(eq(inviteTokensTable.id, invite.id));
-    }
-    await db.update(usersTable).set({ activePartyId: invite.partyId, updatedAt: new Date() })
-      .where(eq(usersTable.id, req.userId!));
-    const [party] = await db.select().from(partiesTable)
-      .where(eq(partiesTable.id, invite.partyId)).limit(1);
-    res.json({ ...party, myRole: existing ?? inviteRole });
-  } catch {
-    res.status(500).json({ error: "Failed" });
   }
 });
 
@@ -292,6 +332,7 @@ router.post("/:partyId/transfer-founder", requireAuth, async (req, res) => {
       .where(and(eq(partyMembersTable.partyId, partyId), eq(partyMembersTable.userId, req.userId!)));
     await db.update(partyMembersTable).set({ role: "leader" })
       .where(and(eq(partyMembersTable.partyId, partyId), eq(partyMembersTable.userId, newFounderId)));
+    console.info(`[ADMIN] ${req.userId} transferred founder of party ${partyId} to ${newFounderId}`);
     res.json({ message: "Transferred" });
   } catch {
     res.status(500).json({ error: "Failed" });
@@ -317,7 +358,6 @@ router.post("/:partyId/summon-cat-foley", requireAuth, async (req, res) => {
   try {
     const partyId = parseInt(String(req.params.partyId));
     await assertLeader(partyId, req.userId!);
-    // Cat Foley appears for 48 hours
     const { catFoleyAppearancesTable } = await import("@workspace/db/schema");
     await db.insert(catFoleyAppearancesTable).values({
       partyId,
@@ -343,6 +383,7 @@ router.patch("/:partyId/members/:memberId/adjust", requireAuth, async (req, res)
     if (xpDelta) updates.lifetimeXp = Math.max(0, user.lifetimeXp + xpDelta);
     if (goldDelta) updates.personalGold = Math.max(0, user.personalGold + goldDelta);
     const [updated] = await db.update(usersTable).set(updates).where(eq(usersTable.id, memberId)).returning();
+    if (reason) console.info(`[ADMIN] ${req.userId} adjusted ${memberId} in party ${partyId}: xp=${xpDelta} gold=${goldDelta} reason=${reason}`);
     res.json({ id: updated.id, lifetimeXp: updated.lifetimeXp, personalGold: updated.personalGold });
   } catch (err: any) {
     res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });

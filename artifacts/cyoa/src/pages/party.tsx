@@ -9,9 +9,318 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'wouter';
-import { Shield, Users, Target, Settings as SettingsIcon, Crown, Plus, Coins, X, UserPlus, Lock } from 'lucide-react';
+import {
+  Shield, Users, Target, Settings as SettingsIcon, Crown, Plus,
+  Coins, X, UserPlus, Lock, ChevronRight, AlertTriangle, Key, Unlock,
+} from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { PixelCharacter } from '@/components/pixel-character';
+
+// ─── Manage Party Member Sheet ────────────────────────────────────────────────
+
+interface Member {
+  userId: number;
+  displayName: string;
+  adventurerName?: string | null;
+  userType?: string | null;
+  role?: string | null;
+  currentLevel?: number | null;
+  cooldownUntil?: string | null;
+  species?: string | null;
+  class?: string | null;
+  gender?: string | null;
+  skinTone?: string | null;
+  hairStyle?: string | null;
+  hairColor?: string | null;
+  eyeColor?: string | null;
+  hasGlasses?: boolean | null;
+  facialHair?: string | null;
+}
+
+interface ManageMemberSheetProps {
+  member: Member;
+  partyId: number;
+  onClose: () => void;
+  onRefresh: () => void;
+}
+
+function ManageMemberSheet({ member, partyId, onClose, onRefresh }: ManageMemberSheetProps) {
+  const { toast } = useToast();
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [showPinReset, setShowPinReset] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+  const token = () => localStorage.getItem('cyoa_token') ?? '';
+
+  const isKid = member.userType === 'kid' || member.role === 'kid';
+  const isLocked = member.cooldownUntil && new Date(member.cooldownUntil) > new Date();
+  const lockDate = isLocked ? new Date(member.cooldownUntil!).toLocaleDateString() : null;
+
+  const apiPatch = async (body: Record<string, unknown>) => {
+    const res = await fetch(`${BASE}/api/parties/${partyId}/members/${member.userId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? 'Failed');
+  };
+
+  const handleUnlockAppearance = async () => {
+    setBusy(true);
+    try {
+      const res = await fetch(`${BASE}/api/parties/${partyId}/members/${member.userId}/unlock-appearance`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? 'Failed');
+      toast({ title: '🔓 Appearance Unlocked', description: `${member.adventurerName ?? member.displayName} can now edit their look.` });
+      onRefresh();
+      onClose();
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleResetPin = async () => {
+    if (!/^\d{4}$/.test(newPin)) {
+      toast({ title: 'PIN must be 4 digits', variant: 'destructive' }); return;
+    }
+    if (newPin !== confirmPin) {
+      toast({ title: 'PINs do not match', variant: 'destructive' }); return;
+    }
+    setBusy(true);
+    try {
+      await apiPatch({ resetPin: newPin });
+      toast({ title: '🔑 PIN Reset', description: `New PIN set for ${member.adventurerName ?? member.displayName}.` });
+      setNewPin(''); setConfirmPin(''); setShowPinReset(false);
+      onClose();
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleChangeRole = async (newRole: string) => {
+    setBusy(true);
+    try {
+      await apiPatch({ role: newRole });
+      toast({ title: 'Role Updated', description: `${member.displayName} is now a ${newRole}.` });
+      onRefresh();
+      onClose();
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRemove = async () => {
+    setBusy(true);
+    try {
+      const res = await fetch(`${BASE}/api/parties/${partyId}/members/${member.userId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token()}` },
+      });
+      if (!res.ok && res.status !== 204) throw new Error((await res.json().catch(() => ({}))).error ?? 'Failed');
+      toast({ title: 'Member Removed', description: `${member.displayName} has been removed from the party.` });
+      onRefresh();
+      onClose();
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/60 z-40 animate-in fade-in duration-150" onClick={onClose} />
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t-2 border-border rounded-t-2xl max-h-[90dvh] overflow-y-auto animate-in slide-in-from-bottom-4 duration-200">
+        {/* Drag handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 bg-border rounded-full" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-2 pb-4 border-b border-border">
+          <div className="flex items-center gap-3">
+            <PixelCharacter
+              appearance={{
+                species: member.species ?? 'human',
+                class: member.class ?? 'fighter',
+                gender: member.gender ?? 'any',
+                skinTone: member.skinTone ?? 'medium',
+                hairStyle: member.hairStyle ?? 'short',
+                hairColor: member.hairColor ?? 'brown',
+                eyeColor: member.eyeColor ?? 'brown',
+                hasGlasses: member.hasGlasses ?? false,
+                facialHair: member.facialHair ?? 'none',
+              }}
+              size={60}
+            />
+            <div>
+              <h2 className="font-bold text-base">{member.adventurerName ?? member.displayName}</h2>
+              <p className="text-xs text-muted-foreground">{member.displayName}</p>
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                <span className="font-pixel text-[10px] text-primary">LVL {member.currentLevel ?? 1}</span>
+                <span className="text-[10px] text-muted-foreground capitalize bg-muted px-1.5 py-0.5 rounded">{member.role}</span>
+              </div>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="px-5 py-4 flex flex-col gap-4 pb-10">
+
+          {/* Appearance lock status */}
+          <div className="bg-background rounded-xl border border-border p-4 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Lock className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-bold">Appearance Lock</span>
+              </div>
+              {isLocked
+                ? <span className="text-xs text-orange-400 font-bold bg-orange-400/10 px-2 py-0.5 rounded-full border border-orange-400/20">Locked until {lockDate}</span>
+                : <span className="text-xs text-green-400 font-bold bg-green-400/10 px-2 py-0.5 rounded-full border border-green-400/20">Unlocked</span>
+              }
+            </div>
+            {isLocked && (
+              <button
+                onClick={handleUnlockAppearance}
+                disabled={busy}
+                className="w-full flex items-center justify-center gap-2 bg-orange-500/10 border border-orange-500/30 text-orange-400 font-pixel text-xs py-3 rounded-xl hover:bg-orange-500/20 transition-colors active:scale-98 disabled:opacity-50"
+              >
+                <Unlock className="w-4 h-4" />
+                UNLOCK APPEARANCE NOW
+              </button>
+            )}
+          </div>
+
+          {/* PIN reset (kids only) */}
+          {isKid && (
+            <div className="bg-background rounded-xl border border-border p-4 flex flex-col gap-3">
+              <button
+                onClick={() => setShowPinReset(v => !v)}
+                className="flex items-center justify-between w-full"
+              >
+                <div className="flex items-center gap-2">
+                  <Key className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-bold">Reset PIN</span>
+                </div>
+                <ChevronRight className={`w-4 h-4 text-muted-foreground transition-transform ${showPinReset ? 'rotate-90' : ''}`} />
+              </button>
+              {showPinReset && (
+                <div className="flex flex-col gap-3 pt-2 border-t border-border">
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      placeholder="New 4-digit PIN"
+                      value={newPin}
+                      onChange={e => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                      className="w-full bg-card border-2 border-border rounded-xl pl-10 pr-4 py-3 text-sm font-mono tracking-widest focus:outline-none focus:border-primary transition-colors"
+                      maxLength={4}
+                    />
+                  </div>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      placeholder="Confirm PIN"
+                      value={confirmPin}
+                      onChange={e => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                      className="w-full bg-card border-2 border-border rounded-xl pl-10 pr-4 py-3 text-sm font-mono tracking-widest focus:outline-none focus:border-primary transition-colors"
+                      maxLength={4}
+                    />
+                  </div>
+                  <button
+                    onClick={handleResetPin}
+                    disabled={busy || newPin.length !== 4 || confirmPin.length !== 4}
+                    className="w-full bg-primary text-primary-foreground font-pixel text-xs py-3 rounded-xl disabled:opacity-50 transition-opacity"
+                  >
+                    {busy ? 'SAVING...' : 'SET NEW PIN'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Role change (non-founder members) */}
+          {!isKid && (
+            <div className="bg-background rounded-xl border border-border p-4 flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <Crown className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-bold">Change Role</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  disabled={busy || member.role === 'adult'}
+                  onClick={() => handleChangeRole('adult')}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold border-2 transition-colors disabled:opacity-40 border-border text-muted-foreground hover:border-primary hover:text-primary"
+                >
+                  ⚔️ Adventurer
+                </button>
+                <button
+                  disabled={busy || member.role === 'leader'}
+                  onClick={() => handleChangeRole('leader')}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold border-2 transition-colors disabled:opacity-40 border-border text-muted-foreground hover:border-yellow-400 hover:text-yellow-400"
+                >
+                  👑 Leader
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Remove member */}
+          {!confirmRemove ? (
+            <button
+              onClick={() => setConfirmRemove(true)}
+              className="w-full flex items-center justify-center gap-2 text-red-400 border border-red-400/30 bg-red-400/5 font-pixel text-xs py-3 rounded-xl hover:bg-red-400/10 transition-colors"
+            >
+              <X className="w-4 h-4" />
+              REMOVE FROM PARTY
+            </button>
+          ) : (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex flex-col gap-3">
+              <div className="flex items-center gap-2 text-red-400">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <p className="text-xs font-bold">Remove {member.displayName} from the party? This cannot be undone.</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setConfirmRemove(false)}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold border border-border text-muted-foreground hover:bg-muted transition-colors"
+                >
+                  CANCEL
+                </button>
+                <button
+                  onClick={handleRemove}
+                  disabled={busy}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+                >
+                  {busy ? 'REMOVING...' : 'CONFIRM REMOVE'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── Main Party Page ──────────────────────────────────────────────────────────
 
 export default function Party() {
   const { activePartyId, currentUser } = useAuth();
@@ -22,7 +331,7 @@ export default function Party() {
     activePartyId!,
     { query: { enabled: !!activePartyId, queryKey: getGetPartyQueryKey(activePartyId!) } },
   );
-  const { data: members, isLoading: membersLoading } = useListPartyMembers(
+  const { data: members, isLoading: membersLoading, refetch: refetchMembers } = useListPartyMembers(
     activePartyId!,
     { query: { enabled: !!activePartyId, queryKey: getListPartyMembersQueryKey(activePartyId!) } },
   );
@@ -40,6 +349,8 @@ export default function Party() {
   const [inviteRole, setInviteRole] = useState<'adult' | 'leader'>('adult');
   const [inviteResult, setInviteResult] = useState<{ token: string; inviteUrl: string; role: string } | null>(null);
   const [generatingInvite, setGeneratingInvite] = useState(false);
+  // Manage member state
+  const [managingMember, setManagingMember] = useState<Member | null>(null);
 
   const handleGenerateInvite = async () => {
     setGeneratingInvite(true);
@@ -162,10 +473,9 @@ export default function Party() {
                 )}
               </div>
 
-              {/* Add member form — two tabs: child or adult */}
+              {/* Add member form */}
               {showAddMember && isLeader && (
                 <div className="bg-card border-2 border-primary/40 rounded-xl p-4 mb-4 flex flex-col gap-3 animate-in fade-in slide-in-from-top-2">
-                  {/* Tab selector */}
                   <div className="flex rounded-lg overflow-hidden border border-border">
                     <button
                       onClick={() => { setAddTab('child'); setInviteResult(null); }}
@@ -181,7 +491,6 @@ export default function Party() {
                     </button>
                   </div>
 
-                  {/* Child tab */}
                   {addTab === 'child' && (
                     <>
                       <p className="font-pixel text-[10px] text-primary">NEW ADVENTURER</p>
@@ -205,9 +514,7 @@ export default function Party() {
                           maxLength={4}
                         />
                       </div>
-                      <p className="text-xs text-muted-foreground -mt-1">
-                        They'll use this PIN to log in. Make it easy to remember!
-                      </p>
+                      <p className="text-xs text-muted-foreground -mt-1">They'll use this PIN to log in.</p>
                       <button
                         onClick={handleAddKid}
                         disabled={addingMember || !newDisplayName.trim() || newPin.length !== 4}
@@ -221,11 +528,10 @@ export default function Party() {
                     </>
                   )}
 
-                  {/* Adult invite tab */}
                   {addTab === 'adult' && (
                     <>
                       <p className="font-pixel text-[10px] text-primary">INVITE ADULT</p>
-                      <p className="text-xs text-muted-foreground">Choose the role this adult will have in your party:</p>
+                      <p className="text-xs text-muted-foreground">Choose the role this adult will have:</p>
                       <div className="flex gap-2">
                         <button
                           onClick={() => setInviteRole('adult')}
@@ -240,11 +546,6 @@ export default function Party() {
                           👑 Party Leader
                         </button>
                       </div>
-                      {inviteRole === 'leader' && (
-                        <p className="text-[10px] text-yellow-500 -mt-1">
-                          Party Leaders can create quests, approve completions, and invite others.
-                        </p>
-                      )}
                       {!inviteResult ? (
                         <button
                           onClick={handleGenerateInvite}
@@ -264,13 +565,10 @@ export default function Party() {
                             <p className="text-sm font-mono tracking-widest font-bold text-center">{inviteResult.token}</p>
                           </div>
                           <p className="text-[10px] text-muted-foreground text-center">
-                            This invite expires in 7 days.{' '}
-                            {inviteResult.role === 'leader' && <span className="text-yellow-500">They'll join as <strong>Party Leader</strong>.</span>}
+                            Expires in 7 days.
+                            {inviteResult.role === 'leader' && <span className="text-yellow-500"> They'll join as <strong>Party Leader</strong>.</span>}
                           </p>
-                          <button
-                            onClick={() => { setInviteResult(null); }}
-                            className="text-[10px] text-muted-foreground underline"
-                          >
+                          <button onClick={() => setInviteResult(null)} className="text-[10px] text-muted-foreground underline">
                             Generate a new invite
                           </button>
                         </div>
@@ -290,50 +588,68 @@ export default function Party() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-3">
-                  {members.map((member: any) => (
-                    <div key={member.userId} className="bg-card border border-border rounded-xl flex items-center gap-4 p-3">
-                      {/* Full-appearance pixel character */}
-                      <div className="shrink-0">
-                        <PixelCharacter
-                          appearance={{
-                            species:    member.species    ?? 'human',
-                            class:      member.class      ?? 'fighter',
-                            gender:     member.gender     ?? 'any',
-                            skinTone:   member.skinTone   ?? 'medium',
-                            hairStyle:  member.hairStyle  ?? 'short',
-                            hairColor:  member.hairColor  ?? 'brown',
-                            eyeColor:   member.eyeColor   ?? 'brown',
-                            hasGlasses: member.hasGlasses ?? false,
-                            facialHair: member.facialHair ?? 'none',
-                          }}
-                          size={80}
-                        />
-                      </div>
+                  {members.map((member: any) => {
+                    const isMe = member.userId === currentUser?.id;
+                    const tappable = isLeader && !isMe;
+                    return (
+                      <div
+                        key={member.userId}
+                        onClick={tappable ? () => setManagingMember(member as Member) : undefined}
+                        role={tappable ? 'button' : undefined}
+                        className={`bg-card border border-border rounded-xl flex items-center gap-4 p-3 transition-all ${tappable ? 'cursor-pointer active:scale-[0.99] active:brightness-90 hover:border-primary/40' : ''}`}
+                      >
+                        <div className="shrink-0">
+                          <PixelCharacter
+                            appearance={{
+                              species:    member.species    ?? 'human',
+                              class:      member.class      ?? 'fighter',
+                              gender:     member.gender     ?? 'any',
+                              skinTone:   member.skinTone   ?? 'medium',
+                              hairStyle:  member.hairStyle  ?? 'short',
+                              hairColor:  member.hairColor  ?? 'brown',
+                              eyeColor:   member.eyeColor   ?? 'brown',
+                              hasGlasses: member.hasGlasses ?? false,
+                              facialHair: member.facialHair ?? 'none',
+                            }}
+                            size={80}
+                          />
+                        </div>
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-sm leading-tight truncate">
-                            {member.adventurerName || member.displayName}
-                          </span>
-                          {(member.role === 'leader' || member.role === 'founder') && (
-                            <Crown className="w-3 h-3 text-yellow-400 shrink-0" />
-                          )}
-                        </div>
-                        <div className="text-[10px] text-muted-foreground mt-0.5">{member.displayName}</div>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <span className="font-pixel text-[10px] text-primary">LVL {member.currentLevel ?? 1}</span>
-                          {member.class && (
-                            <span className="text-[10px] text-muted-foreground capitalize">{member.class}</span>
-                          )}
-                          {(member.role === 'leader' || member.role === 'founder') && (
-                            <span className="text-[9px] font-bold bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded">
-                              LEADER
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-sm leading-tight truncate">
+                              {member.adventurerName || member.displayName}
                             </span>
-                          )}
+                            {(member.role === 'leader' || member.role === 'founder') && (
+                              <Crown className="w-3 h-3 text-yellow-400 shrink-0" />
+                            )}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground mt-0.5">{member.displayName}</div>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <span className="font-pixel text-[10px] text-primary">LVL {member.currentLevel ?? 1}</span>
+                            {member.class && (
+                              <span className="text-[10px] text-muted-foreground capitalize">{member.class}</span>
+                            )}
+                            {(member.role === 'leader' || member.role === 'founder') && (
+                              <span className="text-[9px] font-bold bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded">
+                                LEADER
+                              </span>
+                            )}
+                            {/* Appearance lock indicator */}
+                            {member.cooldownUntil && new Date(member.cooldownUntil) > new Date() && (
+                              <span className="text-[9px] font-bold bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                <Lock className="w-2.5 h-2.5" /> LOCKED
+                              </span>
+                            )}
+                          </div>
                         </div>
+
+                        {tappable && (
+                          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -398,6 +714,19 @@ export default function Party() {
           </div>
         )}
       </div>
+
+      {/* Manage Party Member sheet */}
+      {managingMember && activePartyId && (
+        <ManageMemberSheet
+          member={managingMember}
+          partyId={activePartyId}
+          onClose={() => setManagingMember(null)}
+          onRefresh={() => {
+            queryClient.invalidateQueries({ queryKey: getListPartyMembersQueryKey(activePartyId) });
+            refetchMembers();
+          }}
+        />
+      )}
     </div>
   );
 }

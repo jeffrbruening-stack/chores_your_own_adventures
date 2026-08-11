@@ -72,7 +72,7 @@ export function QuestCard({ quest, onComplete, onVerify, isLeader, onClick }: Qu
         </div>
       )}
 
-      {quest.status === 'available' && onComplete && (
+      {quest.status === 'active' && onComplete && (
         <button 
           onClick={onComplete}
           className="mt-2 w-full bg-primary text-primary-foreground font-pixel text-[10px] py-3 rounded-lg active:scale-95 transition-transform"

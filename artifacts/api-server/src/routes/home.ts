@@ -10,8 +10,122 @@ import { eq, and, inArray, count } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { xpForLevel } from "../lib/rewards.js";
 import { toUserProfile } from "./auth.js";
+import { assertMember } from "../lib/party.js";
 
 const router = Router();
+
+// Shared assignment+definition select (canonical — same fields as /assignments/mine)
+const ASSIGNMENT_SELECT = {
+  id: questAssignmentsTable.id,
+  questDefinitionId: questAssignmentsTable.questDefinitionId,
+  status: questAssignmentsTable.status,
+  expiresAt: questAssignmentsTable.expiresAt,
+  completedAt: questAssignmentsTable.completedAt,
+  xpAwarded: questAssignmentsTable.xpAwarded,
+  goldAwarded: questAssignmentsTable.goldAwarded,
+  partyGoldAwarded: questAssignmentsTable.partyGoldAwarded,
+  plainTitle: questDefinitionsTable.plainTitle,
+  adventureTitle: questDefinitionsTable.adventureTitle,
+  description: questDefinitionsTable.description,
+  difficulty: questDefinitionsTable.difficulty,
+  isLegendary: questDefinitionsTable.isLegendary,
+  requiresVerification: questDefinitionsTable.requiresVerification,
+  xpReward: questDefinitionsTable.xpReward,
+  goldReward: questDefinitionsTable.goldReward,
+  partyGoldReward: questDefinitionsTable.partyGoldReward,
+  questType: questDefinitionsTable.questType,
+  timeWindowStart: questDefinitionsTable.timeWindowStart,
+  timeWindowEnd: questDefinitionsTable.timeWindowEnd,
+};
+
+// GET /api/home/give-me-a-quest?partyId=
+// Canonical "Give Me a Quest" endpoint.
+// Priority: existing active/submitted → soon-expiring first → any active → then claim an open quest.
+router.get("/give-me-a-quest", requireAuth, async (req, res) => {
+  try {
+    const partyId = parseInt(req.query.partyId as string);
+    if (!partyId) { res.status(400).json({ error: "partyId required" }); return; }
+    await assertMember(partyId, req.userId!);
+
+    // 1. Check for existing active/submitted assignments (same filter as Home)
+    const activeAssignments = await db.select(ASSIGNMENT_SELECT)
+      .from(questAssignmentsTable)
+      .innerJoin(questDefinitionsTable, eq(questDefinitionsTable.id, questAssignmentsTable.questDefinitionId))
+      .where(and(
+        eq(questAssignmentsTable.userId, req.userId!),
+        eq(questAssignmentsTable.partyId, partyId),
+        inArray(questAssignmentsTable.status, ["active", "submitted"]),
+        eq(questDefinitionsTable.isArchived, false),
+      ));
+
+    if (activeAssignments.length > 0) {
+      // Prioritise: expiring soonest → submitted (needs action) → then any active
+      const sorted = [...activeAssignments].sort((a, b) => {
+        // Timed quests with expiry come first (ascending expiry)
+        if (a.expiresAt && b.expiresAt) return new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime();
+        if (a.expiresAt && !b.expiresAt) return -1;
+        if (!a.expiresAt && b.expiresAt) return 1;
+        // Then submitted (needs leader attention / waiting review)
+        if (a.status === "submitted" && b.status !== "submitted") return -1;
+        if (a.status !== "submitted" && b.status === "submitted") return 1;
+        return 0;
+      });
+      res.json({ hasQuest: true, quest: sorted[0], assignmentId: sorted[0].id, newlyAssigned: false });
+      return;
+    }
+
+    // 2. No active assignments — try to assign an available open quest
+    const openDefs = await db.select().from(questDefinitionsTable)
+      .where(and(
+        eq(questDefinitionsTable.partyId, partyId),
+        eq(questDefinitionsTable.questType, "open"),
+        eq(questDefinitionsTable.isArchived, false),
+        eq(questDefinitionsTable.isPaused, false),
+      ));
+
+    if (openDefs.length === 0) {
+      res.json({ hasQuest: false, message: "All clear! No quests available right now. Take a break, hero!" });
+      return;
+    }
+
+    const questDef = openDefs[Math.floor(Math.random() * openDefs.length)];
+    const [assignment] = await db.insert(questAssignmentsTable).values({
+      questDefinitionId: questDef.id,
+      userId: req.userId!,
+      partyId,
+      status: "active",
+      claimedBy: req.userId!,
+    }).returning();
+
+    // Return the same shape as an assignment+definition join
+    const newQuest = {
+      id: assignment.id,
+      questDefinitionId: questDef.id,
+      status: "active",
+      expiresAt: assignment.expiresAt,
+      completedAt: null,
+      xpAwarded: 0,
+      goldAwarded: 0,
+      partyGoldAwarded: 0,
+      plainTitle: questDef.plainTitle,
+      adventureTitle: questDef.adventureTitle,
+      description: questDef.description,
+      difficulty: questDef.difficulty,
+      isLegendary: questDef.isLegendary,
+      requiresVerification: questDef.requiresVerification,
+      xpReward: questDef.xpReward,
+      goldReward: questDef.goldReward,
+      partyGoldReward: questDef.partyGoldReward,
+      questType: questDef.questType,
+      timeWindowStart: questDef.timeWindowStart,
+      timeWindowEnd: questDef.timeWindowEnd,
+    };
+    res.json({ hasQuest: true, quest: newQuest, assignmentId: assignment.id, newlyAssigned: true });
+  } catch (err: any) {
+    console.error("give-me-a-quest error:", err);
+    res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
+  }
+});
 
 // GET /api/home
 router.get("/", requireAuth, async (req, res) => {
@@ -26,7 +140,7 @@ router.get("/", requireAuth, async (req, res) => {
     const [character] = await db.select().from(charactersTable)
       .where(eq(charactersTable.userId, userId)).limit(1);
 
-    // Active quests for user
+    // Active quests for user — canonical filter (same as /assignments/mine)
     const myQuests = partyId ? await db.select({
       id: questAssignmentsTable.id,
       questDefinitionId: questAssignmentsTable.questDefinitionId,
@@ -38,6 +152,7 @@ router.get("/", requireAuth, async (req, res) => {
       completedAt: questAssignmentsTable.completedAt,
       plainTitle: questDefinitionsTable.plainTitle,
       adventureTitle: questDefinitionsTable.adventureTitle,
+      description: questDefinitionsTable.description,
       difficulty: questDefinitionsTable.difficulty,
       isLegendary: questDefinitionsTable.isLegendary,
       requiresVerification: questDefinitionsTable.requiresVerification,
@@ -45,12 +160,15 @@ router.get("/", requireAuth, async (req, res) => {
       goldReward: questDefinitionsTable.goldReward,
       partyGoldReward: questDefinitionsTable.partyGoldReward,
       questType: questDefinitionsTable.questType,
+      timeWindowStart: questDefinitionsTable.timeWindowStart,
+      timeWindowEnd: questDefinitionsTable.timeWindowEnd,
     }).from(questAssignmentsTable)
       .innerJoin(questDefinitionsTable, eq(questDefinitionsTable.id, questAssignmentsTable.questDefinitionId))
       .where(and(
         eq(questAssignmentsTable.userId, userId),
         eq(questAssignmentsTable.partyId, partyId),
         inArray(questAssignmentsTable.status, ["active", "submitted"]),
+        eq(questDefinitionsTable.isArchived, false),
       )) : [];
 
     // Active party
@@ -83,13 +201,6 @@ router.get("/", requireAuth, async (req, res) => {
       proposedQuestsCount = Number(pc?.count ?? 0);
     }
 
-    // Cat Foley active?
-    const now = new Date();
-    const [catFoley] = partyId ? await db.select().from(catFoleyAppearancesTable)
-      .where(and(
-        eq(catFoleyAppearancesTable.partyId, partyId),
-      )).limit(1) : [null]; // simplified
-
     // XP for next level
     const xpNext = xpForLevel(user.currentLevel + 1) - xpForLevel(user.currentLevel);
 
@@ -104,7 +215,7 @@ router.get("/", requireAuth, async (req, res) => {
       activeGoal: activeGoal ?? null,
       pendingVerificationsCount,
       proposedQuestsCount,
-      catFoleyActive: false, // simplified
+      catFoleyActive: false,
     });
   } catch (err) {
     console.error(err);
