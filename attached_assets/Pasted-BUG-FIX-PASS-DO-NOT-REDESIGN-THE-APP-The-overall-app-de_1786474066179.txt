@@ -1,0 +1,186 @@
+BUG-FIX PASS — DO NOT REDESIGN THE APP
+
+The overall app design is now in a good place. Do not make broad UI changes, reorganize screens, change colors/fonts, or add new features during this pass.
+
+Fix the following specific bugs and verify each one end-to-end.
+
+1. NEWLY CREATED QUESTS ARE NOT APPEARING IN QUEST HUB
+
+This is a functional bug.
+
+Current behavior:
+
+* I create a quest.
+* The quest can appear on the Home screen under “Your Quests.”
+* When I open the Quest Hub, “My Quests” says “You have no active quests.”
+
+Expected behavior:
+
+* Once a quest is successfully created, it should immediately appear everywhere appropriate.
+* An assigned quest should appear for the assigned adventurer(s).
+* An open quest should appear in Open.
+* A party quest should appear for appropriate party members.
+* “All” should show all quests the current user is allowed to see.
+
+Investigate the underlying data flow rather than patching the empty-state UI.
+
+Make sure Create Quest, Home, and Quest Hub all use the same persisted quest records and consistent filtering/status logic.
+
+After creation, invalidate/refetch/update any relevant cached quest data so the new quest appears without requiring logout or some unrelated action.
+
+2. QUEST CARDS MUST BE CLICKABLE
+
+Current behavior:
+
+* A quest card appears on Home.
+* Tapping the quest does nothing.
+
+Expected behavior:
+
+* Tapping anywhere on a quest card should open a Quest Details screen for that specific quest.
+
+Quest Details should show the existing information for that quest, including as applicable:
+
+* quest title
+* quest description
+* difficulty
+* assigned adventurer(s)
+* XP reward
+* gold reward
+* party-gold reward
+* status
+* verification requirements
+* completion/claim controls appropriate for the current user
+
+Do not create duplicate quest data for this screen. Navigate using the quest’s ID and load the actual persisted quest.
+
+3. CHARACTER CHANGES ARE NOT PROPAGATING THROUGH THE APP
+
+This is especially visible between the Character screen and Home screen.
+
+Current behavior:
+
+* The Character screen shows the saved/current avatar.
+* Home can show a different-looking avatar.
+
+There must be ONE canonical avatar configuration for each adventurer.
+
+Do not maintain separate “Home avatar,” “Character avatar,” “Party avatar,” etc.
+
+All avatar renderings should use the same reusable Avatar component/rendering system and the same saved appearance data.
+
+When appearance is saved, every instance of that character throughout the app must reflect:
+
+* race/species
+* skin tone
+* hair
+* hair color
+* eyes
+* facial hair
+* glasses/accessories
+* class
+* class clothing/equipment
+
+The smaller Home avatar should simply be a scaled version of the same character—not a separately generated approximation.
+
+Check Home, Character, Party, quest assignment UI, leaderboards/cards, and anywhere else an avatar appears.
+
+4. FIX THE CHIN/NECK AGAIN
+
+The face still has an unnatural skin-colored projection beneath the center of the chin.
+
+The head should end with a clean horizontal or subtly stepped jawline.
+
+Then create a short centered neck behind the head, not as part of the face silhouette.
+
+Correct layer concept:
+
+body/clothing
+→ neck behind head
+→ head on top
+
+The neck should disappear naturally into the shirt/collar.
+
+It should NOT look like a single skin-colored pixel/block hanging from the chin.
+
+In other words: the chin itself should have nothing dangling from it.
+
+Check this with:
+
+* no beard
+* mustache
+* full beard
+
+A beard can cover the jaw/neck area visually, but it should not be hiding bad underlying face geometry.
+
+5. REPLACE THE “GIVE ME A QUEST!” ICON WITH AN OBVIOUS PIXEL BROOM
+
+The current icon next to “GIVE ME A QUEST!” does not read as a broom. It looks like an abstract arrow/airplane/sparkle.
+
+Replace it with a simple, recognizable pixel-art broom consistent with the fantasy chore theme.
+
+It should have:
+
+* long diagonal wooden handle
+* clearly visible broom/bristle head
+* simple pixel-art construction
+* optional 1–2 tiny magical sparkles
+
+The broom itself must be recognizable even without the sparkles.
+
+Think fantasy chore broom, not wand, sword, airplane, arrow, or magic-star icon.
+
+Use the same broom icon consistently anywhere the “Give Me a Quest” action appears.
+
+6. VERIFY QUEST CREATION END-TO-END
+
+Do not consider this fixed simply because the database insert succeeds.
+
+Manually test this exact sequence:
+
+1. Log in as party leader.
+2. Create an ASSIGNED quest for one adventurer.
+3. Finish the entire creation flow.
+4. Confirm it appears on Home.
+5. Open Quest Hub → My Quests and confirm it appears.
+6. Open Quest Hub → All and confirm it appears.
+7. Tap the quest from Home and confirm Quest Details opens.
+8. Tap the quest from Quest Hub and confirm the SAME Quest Details opens.
+9. Confirm all reward/title/assignment information matches what was created.
+
+Then repeat for:
+
+* Open Quest
+* Party Quest
+
+7. VERIFY AVATAR SYNCHRONIZATION END-TO-END
+
+Test:
+
+1. Open Character.
+2. Change an appearance option.
+3. Save.
+4. Return Home.
+5. Confirm Home immediately shows the same character.
+6. Open Party.
+7. Confirm the same appearance there.
+8. Return to Character.
+9. Confirm nothing reverted.
+
+There should be no screen-specific avatar defaults overriding the saved character.
+
+IMPORTANT
+
+Fix root causes rather than adding screen-specific workarounds.
+
+In particular, look for:
+
+* multiple avatar rendering implementations
+* duplicated avatar state
+* stale React Query/cache data
+* inconsistent quest filtering
+* quest creation writing somewhere different from Quest Hub’s data source
+* navigation handlers missing from quest cards
+* components displaying placeholder/default avatar values instead of persisted values
+
+Do not add new features until these behaviors work reliably.

@@ -1,14 +1,15 @@
 import { format, isPast } from 'date-fns';
-import { QuestAssignment } from '@workspace/api-client-react';
 import { useAuth } from '@/contexts/auth-context';
 import { Clock, Coins, Star, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { QuestLike } from '@/components/quest-detail-sheet';
 
 interface QuestCardProps {
-  quest: QuestAssignment;
+  quest: QuestLike;
   onComplete?: () => void;
   onVerify?: () => void;
   isLeader?: boolean;
+  onClick?: () => void;
 }
 
 const difficultyColors: Record<string, string> = {
@@ -19,18 +20,23 @@ const difficultyColors: Record<string, string> = {
   legendary: 'bg-yellow-500/20 text-yellow-500 border-yellow-500/50',
 };
 
-export function QuestCard({ quest, onComplete, onVerify, isLeader }: QuestCardProps) {
+export function QuestCard({ quest, onComplete, onVerify, isLeader, onClick }: QuestCardProps) {
   const { currentUser } = useAuth();
   
   const title = currentUser?.adventureMode && quest.adventureTitle ? quest.adventureTitle : quest.plainTitle;
   const isExpired = quest.expiresAt && isPast(new Date(quest.expiresAt));
 
   return (
-    <div className={cn(
-      "bg-card border-2 p-4 rounded-xl flex flex-col gap-3 relative overflow-hidden transition-all",
-      quest.isLegendary ? "border-yellow-500/50" : "border-border",
-      isExpired && quest.status !== 'completed' ? "opacity-75" : ""
-    )}>
+    <div
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      className={cn(
+        "bg-card border-2 p-4 rounded-xl flex flex-col gap-3 relative overflow-hidden transition-all",
+        quest.isLegendary ? "border-yellow-500/50" : "border-border",
+        isExpired && quest.status !== 'completed' ? "opacity-75" : "",
+        onClick ? "cursor-pointer active:scale-[0.98] active:brightness-90" : ""
+      )}
+    >
       {quest.isLegendary && (
         <div className="absolute top-0 right-0 bg-yellow-500 text-yellow-950 text-[10px] font-pixel px-2 py-1 rounded-bl-lg">
           LEGENDARY

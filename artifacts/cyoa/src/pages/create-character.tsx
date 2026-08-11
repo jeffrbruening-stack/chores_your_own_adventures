@@ -1,5 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useLocation } from 'wouter';
+import { useQueryClient } from '@tanstack/react-query';
+import { getGetMyCharacterQueryKey, getGetHomeDataQueryKey } from '@workspace/api-client-react';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { PixelCharacter, type CharacterAppearance } from '@/components/pixel-character';
@@ -39,6 +41,7 @@ export default function CreateCharacter() {
   const { refreshUser, hasCharacter } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const [adventurerName, setAdventurerName] = useState('');
   const [appearance, setAppearance] = useState<CharacterAppearance>({ ...DEFAULTS });
@@ -118,8 +121,10 @@ export default function CreateCharacter() {
         const err = await res.json().catch(() => ({ error: 'Save failed' }));
         throw new Error(err.error ?? 'Save failed');
       }
-      // Refresh /me so hasCharacter updates in context
+      // Refresh auth context and invalidate character/home caches so every screen shows the new appearance
       await refreshUser();
+      queryClient.invalidateQueries({ queryKey: getGetMyCharacterQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getGetHomeDataQueryKey() });
       toast({
         title: 'ADVENTURE BEGINS!',
         description: `Welcome, ${adventurerName.trim()}!`,

@@ -11,12 +11,41 @@ import {
 import { useAuth } from '@/contexts/auth-context';
 import { Progress } from '@/components/ui/progress';
 import { QuestCard } from '@/components/quest-card';
+import { QuestDetailSheet, type QuestLike } from '@/components/quest-detail-sheet';
 import { PixelCharacter, type EquippedItems } from '@/components/pixel-character';
-import { Sword, Coins, Bell, ChevronDown, Sparkles, Plus } from 'lucide-react';
+import { Sword, Coins, Bell, ChevronDown, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'wouter';
 import { playSuccessSound, playLevelUpSound } from '@/lib/sounds';
 import { cn } from '@/lib/utils';
+
+// Pixel-art broom SVG — used for the "Give Me a Quest!" action
+function BroomIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} style={{ imageRendering: 'pixelated' }}>
+      {/* Wooden handle — diagonal from top-right to lower-left */}
+      <rect x="14" y="1" width="2" height="2" fill="#A0522D"/>
+      <rect x="12" y="3" width="2" height="2" fill="#A0522D"/>
+      <rect x="10" y="5" width="2" height="2" fill="#9B4D1E"/>
+      <rect x="8"  y="7" width="2" height="2" fill="#9B4D1E"/>
+      <rect x="6"  y="9" width="2" height="2" fill="#8B4513"/>
+      {/* Binding band */}
+      <rect x="1"  y="10" width="8" height="2" fill="#5C2E0A"/>
+      {/* Bristles — fanned straw strips */}
+      <rect x="0"  y="12" width="2" height="4" fill="#D4A017"/>
+      <rect x="2"  y="12" width="2" height="6" fill="#D4A017"/>
+      <rect x="4"  y="12" width="2" height="5" fill="#D4A017"/>
+      <rect x="6"  y="12" width="2" height="6" fill="#D4A017"/>
+      <rect x="8"  y="12" width="2" height="4" fill="#D4A017"/>
+      {/* Sparkle 1 — gold cross near handle top */}
+      <rect x="16" y="3" width="1" height="3" fill="#FFD700"/>
+      <rect x="15" y="4" width="3" height="1" fill="#FFD700"/>
+      {/* Sparkle 2 — purple cross near handle/bristle join */}
+      <rect x="13" y="7" width="1" height="3" fill="#C084FC"/>
+      <rect x="12" y="8" width="3" height="1" fill="#C084FC"/>
+    </svg>
+  );
+}
 
 // Inline party-creation screen shown when user has no party
 function SetupPartyScreen({ onPartyCreated }: { onPartyCreated: (id: number) => void }) {
@@ -88,6 +117,7 @@ export default function Home() {
   const { activePartyId, currentUser, setActivePartyId } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [selectedQuest, setSelectedQuest] = useState<QuestLike | null>(null);
 
   const { data: homeData, isLoading, refetch } = useGetHomeData({
     query: { enabled: !!activePartyId, queryKey: getGetHomeDataQueryKey() },
@@ -269,7 +299,7 @@ export default function Home() {
         onClick={handleGiveMeAQuest}
         className="w-full bg-primary text-primary-foreground font-pixel py-5 rounded-xl pixel-corners border-b-4 border-r-4 border-black active:border-b-0 active:border-r-0 active:translate-y-1 active:translate-x-1 transition-all flex items-center justify-center gap-3 shadow-[0_0_15px_rgba(250,204,21,0.3)] text-sm"
       >
-        <Sparkles className="w-5 h-5" />
+        <BroomIcon className="w-5 h-5" />
         GIVE ME A QUEST!
       </button>
 
@@ -318,6 +348,20 @@ export default function Home() {
         </div>
       )}
 
+      {/* Quest detail sheet */}
+      {selectedQuest && (
+        <QuestDetailSheet
+          quest={selectedQuest}
+          onClose={() => setSelectedQuest(null)}
+          onComplete={
+            selectedQuest.status === 'available'
+              ? () => { handleComplete(selectedQuest.id); setSelectedQuest(null); }
+              : undefined
+          }
+          isLeader={isLeader}
+        />
+      )}
+
       {/* Your quests */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
@@ -351,8 +395,9 @@ export default function Home() {
             {myQuests.map((quest: any) => (
               <QuestCard
                 key={quest.id}
-                quest={quest}
+                quest={quest as QuestLike}
                 onComplete={() => handleComplete(quest.id)}
+                onClick={() => setSelectedQuest(quest as QuestLike)}
               />
             ))}
           </div>

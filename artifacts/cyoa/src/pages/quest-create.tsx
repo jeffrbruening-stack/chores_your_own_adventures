@@ -1,11 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
+import { useQueryClient } from '@tanstack/react-query';
 import { 
   useCreateQuest, 
   useGenerateAdventureSpeak, 
   useSuggestDifficulty,
   useListPartyMembers,
-  getListPartyMembersQueryKey
+  getListPartyMembersQueryKey,
+  getListMyQuestAssignmentsQueryKey,
+  getListOpenQuestsQueryKey,
+  getGetHomeDataQueryKey,
+  getListQuestsQueryKey,
 } from '@workspace/api-client-react';
 import { useAuth } from '@/contexts/auth-context';
 import { ArrowLeft, Sparkles, BrainCircuit } from 'lucide-react';
@@ -16,6 +21,7 @@ export default function QuestCreate() {
   const [, setLocation] = useLocation();
   const { activePartyId } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const [step, setStep] = useState(1);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -86,6 +92,11 @@ export default function QuestCreate() {
       }
     }, {
       onSuccess: () => {
+        // Invalidate all quest and home caches so new quest appears immediately
+        queryClient.invalidateQueries({ queryKey: getListMyQuestAssignmentsQueryKey({ partyId: activePartyId! }) });
+        queryClient.invalidateQueries({ queryKey: getListOpenQuestsQueryKey({ partyId: activePartyId! }) });
+        queryClient.invalidateQueries({ queryKey: getGetHomeDataQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListQuestsQueryKey({ partyId: activePartyId! }) });
         toast({ title: 'Quest Created!' });
         setLocation('/quests');
       },

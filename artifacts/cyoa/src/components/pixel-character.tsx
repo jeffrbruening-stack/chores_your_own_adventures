@@ -375,13 +375,11 @@ function renderBody(
     out.push(R(tx, b.ty + Math.floor(b.th * 0.5), tw, 2, shadeColor(outfitColor, 12)));
   }
 
-  // Neck
-  out.push(R(b.nx, b.ny, b.nw, b.nh, skinCol));
+  // Neck — rendered before head so the head covers its top row; neck flows cleanly into shirt below chin
+  out.push(R(b.nx, b.ny - 1, b.nw, b.nh + 1, skinCol));
 
-  // Head — tapered chin to avoid the rectangular "jaw block" appearance
-  out.push(R(b.hx,     b.hy,              b.hw,     b.hh - 2, skinCol)); // main head
-  out.push(R(b.hx + 1, b.hy + b.hh - 2,  b.hw - 2, 1,        skinCol)); // chin taper (1px in)
-  out.push(R(b.hx + 2, b.hy + b.hh - 1,  b.hw - 4, 1,        skinCol)); // chin bottom (2px in)
+  // Head — clean flat rectangle drawn on top of neck; no chin taper or dangling pixels
+  out.push(R(b.hx, b.hy, b.hw, b.hh, skinCol));
   // Head top highlight
   out.push(R(b.hx + 1, b.hy, b.hw - 2, 1, '#FFFFFF20'));
 

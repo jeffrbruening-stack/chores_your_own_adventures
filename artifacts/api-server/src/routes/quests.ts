@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import {
   questDefinitionsTable, questAssignmentsTable, questProposalsTable,
-  usersTable, quickQuestsTable,
+  usersTable, quickQuestsTable, partyMembersTable,
 } from "@workspace/db/schema";
 import { eq, and, inArray, count, asc } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
@@ -85,7 +85,7 @@ router.post("/", requireAuth, async (req, res) => {
       schoolCalendarId: schoolCalendarId ?? null,
     }).returning();
 
-    // If individual quest, create assignment(s)
+    // If individual quest, create assignment(s) for each assigned user
     if (questType === "individual" && Array.isArray(assignedUserIds) && assignedUserIds.length > 0) {
       for (const uid of assignedUserIds) {
         await db.insert(questAssignmentsTable).values({
@@ -94,6 +94,24 @@ router.post("/", requireAuth, async (req, res) => {
           partyId,
           status: "active",
         });
+      }
+    }
+
+    // If party quest, create an active assignment for every current party member
+    if (questType === "party") {
+      const members = await db
+        .select({ userId: partyMembersTable.userId })
+        .from(partyMembersTable)
+        .where(eq(partyMembersTable.partyId, partyId));
+      if (members.length > 0) {
+        await db.insert(questAssignmentsTable).values(
+          members.map((m) => ({
+            questDefinitionId: quest.id,
+            userId: m.userId,
+            partyId,
+            status: "active" as const,
+          }))
+        );
       }
     }
 
@@ -185,6 +203,7 @@ router.get("/assignments/mine", requireAuth, async (req, res) => {
       partyGoldAwarded: questAssignmentsTable.partyGoldAwarded,
       plainTitle: questDefinitionsTable.plainTitle,
       adventureTitle: questDefinitionsTable.adventureTitle,
+      description: questDefinitionsTable.description,
       difficulty: questDefinitionsTable.difficulty,
       isLegendary: questDefinitionsTable.isLegendary,
       requiresVerification: questDefinitionsTable.requiresVerification,
@@ -192,6 +211,8 @@ router.get("/assignments/mine", requireAuth, async (req, res) => {
       goldReward: questDefinitionsTable.goldReward,
       partyGoldReward: questDefinitionsTable.partyGoldReward,
       questType: questDefinitionsTable.questType,
+      timeWindowStart: questDefinitionsTable.timeWindowStart,
+      timeWindowEnd: questDefinitionsTable.timeWindowEnd,
     }).from(questAssignmentsTable)
       .innerJoin(questDefinitionsTable, eq(questDefinitionsTable.id, questAssignmentsTable.questDefinitionId))
       .where(and(

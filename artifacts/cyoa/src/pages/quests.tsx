@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { useListOpenQuests, useListMyQuestAssignments, useListPendingVerification, getListMyQuestAssignmentsQueryKey, getListOpenQuestsQueryKey, getListPendingVerificationQueryKey } from '@workspace/api-client-react';
+import { useListOpenQuests, useListMyQuestAssignments, useListPendingVerification, useListQuests, getListMyQuestAssignmentsQueryKey, getListOpenQuestsQueryKey, getListPendingVerificationQueryKey, getListQuestsQueryKey } from '@workspace/api-client-react';
 import { useAuth } from '@/contexts/auth-context';
 import { QuestCard } from '@/components/quest-card';
+import { QuestDetailSheet, type QuestLike } from '@/components/quest-detail-sheet';
 import { Plus } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { cn } from '@/lib/utils';
@@ -30,11 +31,19 @@ export default function Quests() {
     { query: { enabled: !!activePartyId && activeTab === 'open', queryKey: getListOpenQuestsQueryKey({ partyId: activePartyId! }) } }
   );
 
-  // For leaders
+  // For leaders — pending verification
   const { data: pendingQuests, isLoading: loadingPending } = useListPendingVerification(
     { partyId: activePartyId! },
     { query: { enabled: !!activePartyId && activeTab === 'pending' && isLeader, queryKey: getListPendingVerificationQueryKey({ partyId: activePartyId! }) } }
   );
+
+  // For leaders — all quests in party
+  const { data: allQuests, isLoading: loadingAll } = useListQuests(
+    { partyId: activePartyId! },
+    { query: { enabled: !!activePartyId && activeTab === 'all' && isLeader, queryKey: getListQuestsQueryKey({ partyId: activePartyId! }) } }
+  );
+
+  const [selectedQuest, setSelectedQuest] = useState<QuestLike | null>(null);
 
   const tabs = [
     { id: 'mine', label: 'MY QUESTS' },
@@ -74,23 +83,38 @@ export default function Quests() {
       <div className="p-4 flex flex-col gap-3">
         {activeTab === 'mine' && (
           loadingMine ? <LoadingState /> : 
-          myQuests?.length ? myQuests.map(q => <QuestCard key={q.id} quest={q} />) : <EmptyState text="You have no active quests." />
+          myQuests?.length
+            ? myQuests.map(q => <QuestCard key={q.id} quest={q as QuestLike} onClick={() => setSelectedQuest(q as QuestLike)} />)
+            : <EmptyState text="You have no active quests." />
         )}
 
         {activeTab === 'open' && (
           loadingOpen ? <LoadingState /> : 
-          openQuests?.length ? openQuests.map(q => <QuestCard key={q.id} quest={q} />) : <EmptyState text="No open quests available." />
+          openQuests?.length
+            ? openQuests.map(q => <QuestCard key={q.id} quest={q as QuestLike} onClick={() => setSelectedQuest(q as QuestLike)} />)
+            : <EmptyState text="No open quests available." />
         )}
 
         {activeTab === 'pending' && isLeader && (
           loadingPending ? <LoadingState /> : 
-          pendingQuests?.length ? pendingQuests.map(q => <QuestCard key={q.id} quest={q} isLeader={true} />) : <EmptyState text="Nothing pending verification." />
+          pendingQuests?.length
+            ? pendingQuests.map(q => <QuestCard key={q.id} quest={q as QuestLike} isLeader onClick={() => setSelectedQuest(q as QuestLike)} />)
+            : <EmptyState text="Nothing pending verification." />
         )}
-        
+
         {activeTab === 'all' && isLeader && (
-          <div className="text-center text-muted-foreground py-8">
-            Filter all quests (Coming soon)
-          </div>
+          loadingAll ? <LoadingState /> :
+          allQuests?.length
+            ? allQuests.map(q => <QuestCard key={q.id} quest={q as QuestLike} isLeader onClick={() => setSelectedQuest(q as QuestLike)} />)
+            : <EmptyState text="No quests yet. Create one!" />
+        )}
+
+        {selectedQuest && (
+          <QuestDetailSheet
+            quest={selectedQuest}
+            onClose={() => setSelectedQuest(null)}
+            isLeader={isLeader}
+          />
         )}
       </div>
 

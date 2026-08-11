@@ -3,3 +3,5 @@
 - [CYOA core game loop](cyoa-core-loop.md) — character creation, equipped items, shop tabs, PixelCharacter component, DB schema additions for core loop
 - [CYOA pixel character v2](cyoa-pixel-character-v2.md) — 32×48 SVG canvas, 7 species with distinct body templates, layered render order, equipment changes outfit color
 - [CYOA quest field alignment](cyoa-quest-fields.md) — frontend+OpenAPI types use assignedUserIds; backend quests.ts must also use assignedUserIds (not assignedToUserIds)
+- [CYOA quest data flow](cyoa-quest-data-flow.md) — party quests need assignment records at creation time; /assignments/mine drives Quest Hub "My Quests"; cache must be invalidated on creation
+- [CYOA pixel character chin](cyoa-pixel-character-chin.md) — head must be flat rect; neck drawn before head shifted up 1px so head covers its top; taper creates visible dangling projection
