@@ -1,0 +1,180 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card-border: hsl(var(--card-border));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover-border: hsl(var(--popover-border));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary-border: var(--primary-border);
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-secondary-border: var(--secondary-border);
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-muted-border: var(--muted-border);
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-accent-border: var(--accent-border);
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-destructive-border: var(--destructive-border);
+
+  --color-easy: hsl(var(--easy));
+  --color-normal: hsl(var(--normal));
+  --color-hard: hsl(var(--hard));
+  --color-epic: hsl(var(--epic));
+  --color-legendary: hsl(var(--legendary));
+
+  --font-sans: var(--app-font-sans);
+  --font-pixel: var(--app-font-pixel);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --button-outline: rgba(0, 0, 0, 0.1);
+  --badge-outline: rgba(0, 0, 0, 0.05);
+  --opaque-button-border-intensity: -8;
+  --elevate-1: rgba(0, 0, 0, 0.03);
+  --elevate-2: rgba(0, 0, 0, 0.08);
+
+  /* Light Theme for Forms/Management */
+  --background: 260 20% 98%;
+  --foreground: 260 40% 10%;
+  --border: 260 20% 90%;
+  --card: 0 0% 100%;
+  --card-foreground: 260 40% 10%;
+  --card-border: 260 20% 90%;
+  
+  --popover: 0 0% 100%;
+  --popover-foreground: 260 40% 10%;
+  --popover-border: 260 20% 90%;
+  
+  /* Primary: Warm Gold */
+  --primary: 45 93% 47%;
+  --primary-foreground: 26 83% 14%;
+  
+  /* Secondary: Deep Purple */
+  --secondary: 262 68% 30%;
+  --secondary-foreground: 0 0% 100%;
+  
+  --muted: 260 20% 94%;
+  --muted-foreground: 260 10% 40%;
+  
+  --accent: 262 68% 30%;
+  --accent-foreground: 0 0% 100%;
+  
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  
+  --input: 260 20% 90%;
+  --ring: 45 93% 47%;
+
+  /* Quest Difficulty Colors */
+  --easy: 142 71% 45%;      /* Green */
+  --normal: 217 91% 60%;    /* Blue */
+  --hard: 24 95% 53%;       /* Orange */
+  --epic: 271 91% 65%;      /* Purple */
+  --legendary: 45 93% 47%;  /* Gold */
+
+  --app-font-sans: 'Inter', sans-serif;
+  --app-font-pixel: 'Press Start 2P', system-ui;
+  --radius: 0.75rem;
+}
+
+.dark, .game-theme {
+  --button-outline: rgba(255, 255, 255, 0.1);
+  --badge-outline: rgba(255, 255, 255, 0.05);
+  --opaque-button-border-intensity: 9;
+  --elevate-1: rgba(255, 255, 255, 0.04);
+  --elevate-2: rgba(255, 255, 255, 0.09);
+
+  /* SNES RPG Dark Theme for Game Sections */
+  --background: 262 68% 12%; /* Very dark purple */
+  --foreground: 45 93% 90%;
+  --border: 262 68% 25%;
+  --card: 262 68% 18%;
+  --card-foreground: 45 93% 90%;
+  --card-border: 262 68% 30%;
+  
+  --popover: 262 68% 15%;
+  --popover-foreground: 45 93% 90%;
+  --popover-border: 262 68% 30%;
+  
+  --primary: 45 93% 47%; /* Warm Gold */
+  --primary-foreground: 262 68% 12%;
+  
+  --secondary: 262 68% 30%;
+  --secondary-foreground: 45 93% 90%;
+  
+  --muted: 262 68% 20%;
+  --muted-foreground: 262 20% 70%;
+  
+  --accent: 142 71% 35%; /* Forest Green */
+  --accent-foreground: 0 0% 100%;
+  
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  
+  --input: 262 68% 25%;
+  --ring: 45 93% 47%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+
+  h1, h2, h3, h4, h5, h6, .font-pixel {
+    font-family: var(--app-font-pixel);
+    line-height: 1.5;
+  }
+}
+
+/* Pixel Art utilities */
+.pixel-corners {
+  clip-path: polygon(
+    4px 0, calc(100% - 4px) 0,
+    100% 4px, 100% calc(100% - 4px),
+    calc(100% - 4px) 100%, 4px 100%,
+    0 calc(100% - 4px), 0 4px
+  );
+}
+
+.pixel-border {
+  box-shadow: 
+    inset 0 0 0 2px hsl(var(--border)),
+    inset 4px 4px 0 rgba(255,255,255,0.1),
+    inset -4px -4px 0 rgba(0,0,0,0.3);
+}
+
+.pixel-avatar {
+  image-rendering: pixelated;
+}

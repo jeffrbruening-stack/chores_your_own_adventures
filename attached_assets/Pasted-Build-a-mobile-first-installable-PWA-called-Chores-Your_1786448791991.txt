@@ -1,0 +1,2197 @@
+Build a mobile-first installable PWA called Chores Your Own Adventure.
+
+This is a family chore/task app wrapped in a retro fantasy RPG. Adults and kids complete real-life chores and responsibilities as “quests,” earn XP and Gold, level up persistent pixel-art characters, unlock equipment and pets, participate in shared Party Goals, and occasionally fight household “Bosses.”
+
+The app should feel fun, lightweight, and fast. It should NOT feel like a corporate task manager wearing a fantasy skin.
+
+The visual direction is a polished modern mobile UI combined with old-school 8-bit/16-bit fantasy RPG aesthetics inspired by early console RPGs. Use original pixel-art styling and generic fantasy concepts; do not copy protected Final Fantasy or D&D assets, names, artwork, or lore.
+
+The product name is:
+
+Chores Your Own Adventure
+
+Use CYOA as an internal shorthand where useful.
+
+The primary branding icon should be a pixel-art crossed sword and broom crest.
+
+⸻
+
+CORE PRODUCT PHILOSOPHY
+
+The app is designed around positive reinforcement.
+
+Do not implement punishment mechanics.
+
+There should be:
+
+* no XP loss;
+* no Gold loss for missed chores;
+* no level loss;
+* no streak-breaking punishment;
+* no “failure” fanfare;
+* no giant backlog when recurring chores are paused or missed.
+
+If a timed quest expires, it simply becomes unavailable.
+
+The core loop is:
+
+Complete real-life quest → earn XP + Personal Gold + Party Gold → level up → unlock equipment/pets → customize character → progress toward Party Goals.
+
+Keep interactions short and satisfying.
+
+⸻
+
+TECHNICAL DIRECTION
+
+Build this as a proper full-stack PWA with persistent backend storage.
+
+Use a robust relational data model.
+
+Use server-side validation and server-side reward calculations for anything involving:
+
+* XP;
+* Gold;
+* Party Gold;
+* purchases;
+* quest completion;
+* verification;
+* Legendary completion;
+* Boss bonuses;
+* Party Goal progress.
+
+Never trust the browser/client to award its own currency.
+
+All important reward/purchase operations must be atomic and idempotent.
+
+Double taps, retries, reloads, or poor connectivity must never award rewards twice.
+
+True real-time multiplayer updates are NOT required in V1.
+
+Refresh relevant data when:
+
+* a page loads;
+* the user navigates;
+* an action completes;
+* the app regains focus where practical.
+
+Design the schema so future expansion is easy.
+
+⸻
+
+PWA REQUIREMENTS
+
+Build Chores Your Own Adventure as a true installable Progressive Web App from the start.
+
+Include:
+
+* valid web app manifest;
+* standalone display mode;
+* proper app name and short name;
+* favicon;
+* multiple icon sizes;
+* Apple Touch Icon;
+* iOS PWA metadata;
+* theme/background metadata;
+* responsive mobile-first layout;
+* appropriate splash/startup branding where supported.
+
+When added to an iPhone Home Screen, the app should use the crossed sword + broom pixel-art icon and launch in standalone mode rather than looking like a Safari bookmark.
+
+⸻
+
+USER TYPES AND PARTY ROLES
+
+There are system-level users and Party memberships.
+
+A user can belong to multiple Parties.
+
+Party roles:
+
+Party Founder
+
+The user who creates a Party starts as Founder.
+
+Founder has all Party Leader permissions plus the ability to:
+
+* delete the Party;
+* remove/demote another Party Leader;
+* transfer Founder status.
+
+Founder status must be transferable to another Party Leader.
+
+Party Leader
+
+Adult/admin role.
+
+Can:
+
+* create quests;
+* assign quests;
+* manage recurring quests;
+* verify quest completion;
+* approve Adventurer-proposed quests;
+* create Projects;
+* create Boss Battles;
+* create Party Goals;
+* manage members;
+* create/manage school calendars;
+* pause recurring quests;
+* perform administrative corrections;
+* summon Cat Foley;
+* access Party settings.
+
+Party Leaders are still normal players themselves and can receive and complete quests.
+
+Do not create a separate boring parent-only interface.
+
+Adventurer
+
+Standard non-admin role.
+
+Can:
+
+* complete assigned quests;
+* claim Open Quests;
+* participate in Party Quests;
+* participate in Boss Battles;
+* propose their own Individual Quests;
+* earn XP;
+* earn Personal Gold;
+* contribute automatic Party Gold;
+* shop;
+* equip items;
+* customize their character;
+* use pets;
+* participate in Party Goals.
+
+⸻
+
+APP ADMIN ROLE
+
+Create a separate protected App Admin role.
+
+This is system-level and completely separate from Party Founder/Party Leader.
+
+Party Leaders cannot promote themselves to App Admin.
+
+App Admin status should only be assignable through protected backend/environment configuration.
+
+App Admin manages global game content and troubleshooting.
+
+⸻
+
+AUTHENTICATION
+
+Adult accounts
+
+Adults use normal email/password authentication.
+
+Required features:
+
+* create account;
+* sign in;
+* forgot password;
+* password reset link by email;
+* change password;
+* password confirmation where appropriate;
+* clear inline password requirements;
+* show/hide password visibility toggle on all password inputs.
+
+Do not invent a custom insecure auth system if a standard secure approach is available.
+
+Adventurer/kid login
+
+Kids should NOT require email accounts.
+
+Kid login flow:
+
+1. Enter a six-digit Household Code.
+2. Show that Party’s Adventurer profiles as large character/name cards.
+3. Kid taps their profile.
+4. Enter four-digit PIN.
+5. Login.
+
+A device that has successfully joined a Household Code should remember it locally so next time the screen can go directly to:
+
+Who’s adventuring?
+
+Party Leaders can reset an Adventurer PIN.
+
+Adventurers can change their own PIN after logging in by entering the old PIN first.
+
+Provide a PIN visibility toggle.
+
+After repeated incorrect PIN attempts, temporarily lock PIN attempts for a short period.
+
+⸻
+
+FIRST-LAUNCH EXPERIENCE
+
+The first screen should be clean and simple:
+
+CHORES YOUR OWN ADVENTURE
+
+with the sword + broom pixel-art crest.
+
+Then two large options:
+
+CREATE A PARTY
+
+JOIN A PARTY
+
+Do not build a long onboarding marketing carousel.
+
+⸻
+
+PARTY CREATION AND INVITES
+
+Adults can create Parties.
+
+Party should have:
+
+* Party name;
+* Household Code;
+* Founder;
+* members;
+* settings.
+
+Adults may belong to multiple Parties.
+
+Adults can join another Party with:
+
+* invite link;
+* invite code.
+
+An inviter can invite someone as:
+
+* Adventurer;
+* Party Leader.
+
+Kids are created directly inside a Party by a Party Leader.
+
+The Party Leader creates:
+
+* kid/display name;
+* PIN;
+* membership.
+
+The kid creates their own fantasy character on first login.
+
+⸻
+
+MULTIPLE PARTY SUPPORT
+
+This is a core architectural requirement.
+
+Adult users can belong to multiple Parties simultaneously.
+
+The interface should have a clear Party switcher near the top of the app.
+
+Example:
+
+The Bruening Fellowship ▾
+
+The user’s last active Party should be remembered.
+
+Kid PIN login can remain Party-specific through Household Code rather than showing a complicated adult-style Party switcher.
+
+An Adventurer may claim one Open Quest per Party, not globally.
+
+⸻
+
+GLOBAL CHARACTER AND PROGRESSION
+
+A user’s RPG character belongs to the USER, not the Party.
+
+The following are global across Parties:
+
+* Display Name;
+* Adventurer Name;
+* character appearance;
+* species;
+* class;
+* level;
+* XP;
+* Personal Gold;
+* inventory;
+* equipped items;
+* pets;
+* equipped pet;
+* Legendary completion count;
+* Adventure Mode preference;
+* sound preference;
+* haptic preference.
+
+Party-specific data includes:
+
+* Party membership/role;
+* quests;
+* Open Quest claims;
+* Party Gold;
+* Party Goals;
+* Party Projects/Bosses;
+* Party approvals;
+* school calendar assignment.
+
+If a user earns XP in multiple Parties, it all advances the same global character.
+
+⸻
+
+CROSS-PARTY PRIVACY
+
+Other Party members may see another user’s:
+
+* Display Name;
+* Adventurer Name;
+* character;
+* species;
+* class;
+* level;
+* equipped gear;
+* equipped pet.
+
+Do NOT expose:
+
+* Personal Gold;
+* full inventory;
+* other Party memberships;
+* quests from other Parties;
+* school information from other Parties;
+* Party Goal contribution history elsewhere;
+* admin records.
+
+Adventurers should NOT see another Adventurer’s Individual Quest list.
+
+Party Leaders can see what they need for administration.
+
+⸻
+
+CHARACTER CREATION
+
+Keep character creation simple and fun.
+
+Allow selection of:
+
+* gender;
+* species;
+* class;
+* skin tone;
+* hair style;
+* hair color;
+* eye color;
+* glasses;
+* optional facial hair where applicable.
+
+Include a prominent:
+
+RANDOMIZE
+
+button.
+
+Randomize should generate a complete valid character.
+
+Use generic original fantasy species such as:
+
+* Human;
+* Elf;
+* Dwarf;
+* Gnome;
+* Halfling;
+* Orc;
+* Goblin;
+* other original fantasy races.
+
+Avoid protected D&D-specific names/artwork where necessary.
+
+Species is cosmetic only.
+
+Class is cosmetic only.
+
+Class must never restrict equipment.
+
+⸻
+
+USER NAMES
+
+Each user has:
+
+Display Name
+
+Example:
+
+Jensen
+
+Adventurer Name
+
+Example:
+
+Thornblade
+
+During Adventure Mode, Adventurer Name may be emphasized.
+
+During Plain Mode, Display Name may be emphasized.
+
+Character creation should include:
+
+Generate Fantasy Name
+
+Party Leaders can change/reset inappropriate Adventurer Names.
+
+⸻
+
+CHARACTER CHANGE COOLDOWN
+
+Base character settings may be changed no more than once every seven days.
+
+Cooldown applies to:
+
+* gender;
+* species;
+* class;
+* skin tone;
+* hair;
+* eyes;
+* glasses;
+* facial hair;
+* Adventurer Name.
+
+Saving a base-character change starts the seven-day cooldown.
+
+Show remaining cooldown clearly.
+
+Example:
+
+Character change available in 4 days.
+
+Party Leaders can override this cooldown if necessary.
+
+Equipment changes do NOT have a cooldown.
+
+⸻
+
+VISUAL STYLE
+
+Use original pixel-art fantasy visuals.
+
+Game objects should feel like 8-bit/16-bit console RPG sprites:
+
+* characters;
+* equipment;
+* pets;
+* bosses;
+* backgrounds;
+* coins;
+* shop items;
+* Cat Foley.
+
+The interface itself should remain modern and highly usable:
+
+* large buttons;
+* large tap targets;
+* cards;
+* readable text;
+* responsive phone-first design.
+
+Do not make the entire interface use an unreadable pixel font.
+
+Pixel-style fonts are appropriate for headings, level indicators, shop headers, and other game UI.
+
+Use a readable normal font for forms and longer text.
+
+⸻
+
+IDLE CHARACTER PRESENTATION
+
+On the Home and Character screens, support a simple animated pixel character presentation where practical.
+
+Use small, lightweight 2–4 frame animations such as:
+
+* breathing/bobbing;
+* pet idle movement;
+* subtle equipment effects.
+
+Do not make this technically heavy.
+
+Respect prefers-reduced-motion.
+
+⸻
+
+SOUND AND HAPTICS
+
+Use short retro RPG sound effects.
+
+Examples:
+
+* quest completion;
+* Gold earned;
+* item equipped;
+* item purchased;
+* level-up;
+* Legendary completion;
+* Boss defeat;
+* Cat Foley merchant jingle.
+
+Do not use continuous background music.
+
+Each user has:
+
+Sound Effects ON/OFF
+
+Haptics ON/OFF
+
+Use browser/device support where available.
+
+⸻
+
+ADVENTURE MODE / PLAIN MODE
+
+Every Quest stores two titles:
+
+Plain Title
+
+Example:
+
+Unload the dishwasher
+
+Adventure Title
+
+Example:
+
+Clear the Porcelain Armory
+
+Adventure Speak must be:
+
+* short;
+* humorous;
+* understandable;
+* usually one phrase or short sentence.
+
+Do not generate multi-paragraph fantasy narration.
+
+Each user has a global toggle:
+
+Adventure Mode ON/OFF
+
+The same underlying quest is shown differently based on the user preference.
+
+Party Leaders may edit generated Adventure titles.
+
+Adventure translation should be generated once and saved.
+
+Do not regenerate it on every screen view.
+
+⸻
+
+QUEST DIFFICULTY AND STANDARD REWARDS
+
+Use this initial standard reward table:
+
+| Difficulty | XP | Personal Gold | Party Gold |
+| Easy | 10 | 10 | 2 |
+| Normal | 25 | 20 | 5 |
+| Hard | 50 | 40 | 10 |
+| Epic | 100 | 75 | 20 |
+| Legendary | 300 | 200 | 50 |
+
+Legendary is special and should NOT appear as ordinary difficulty option #5.
+
+The system should suggest difficulty based on task description.
+
+Party Leaders and Adventurers can select a different normal difficulty.
+
+⸻
+
+PARTY LEADER CUSTOM REWARD OVERRIDES
+
+For Party-Leader-created Easy/Normal/Hard/Epic quests, Party Leaders may optionally override:
+
+* XP;
+* Personal Gold.
+
+Party Gold must always remain the standard system amount for the selected difficulty.
+
+Do not allow Party Gold overrides.
+
+Do not allow reward overrides for:
+
+* Adventurer-created quests;
+* Legendary quests.
+
+⸻
+
+QUEST TYPES
+
+Support three core quest types.
+
+1. Individual Quest
+
+Assigned to one user.
+
+Allow a Party Leader to select multiple users when creating an Individual Quest.
+
+If multiple users are selected, create independent quest assignments for each user.
+
+Do NOT turn this into a Party Quest.
+
+Example:
+
+Brush Teeth assigned to Jensen and Juliette creates two independent quest instances.
+
+2. Open Quest
+
+Visible to eligible Party members.
+
+An Adventurer can claim only one Open Quest at a time per Party.
+
+Once claimed, it becomes unavailable to others.
+
+The Adventurer may release it freely before completion/submission.
+
+No penalty for release.
+
+Party Leaders do not need the same one-claim restriction.
+
+3. Party Quest
+
+A shared task with multiple assigned participants.
+
+Each participant marks their own part complete independently.
+
+Each participant receives normal individual rewards when they complete their own part.
+
+The Party Quest completes once all required participants complete their portions.
+
+Optionally award a small Party Quest completion Party Gold bonus when everyone finishes.
+
+Verification, if enabled, is handled by Party Leaders.
+
+⸻
+
+QUEST CREATION FLOW
+
+Party Leader taps:
+
++ QUEST
+
+Build a simple creation wizard.
+
+Step 1: What needs to be done?
+
+Allow:
+
+* free text;
+* Quick Quest selection.
+
+Generate short Adventure Speak automatically.
+
+Step 2: Who?
+
+Options:
+
+* Individual;
+* Open Quest;
+* Party Quest.
+
+Individual supports multiple selected users.
+
+Step 3: Difficulty
+
+Options:
+
+* Easy;
+* Normal;
+* Hard;
+* Epic.
+
+Show system-recommended difficulty.
+
+Show standard XP/Gold/Party Gold.
+
+Step 4: When?
+
+Options:
+
+* Anytime/Open;
+* specific date;
+* recurring.
+
+Recurring options:
+
+* Daily;
+* Weekly;
+* Specific Weekdays;
+* School Days;
+* Non-School Days.
+
+Optional time window:
+
+* Morning;
+* Afternoon;
+* Evening;
+* Custom.
+
+Step 5: More Options
+
+Collapsed by default.
+
+Options:
+
+* Require Verification;
+* Rotation;
+* Save as Quick Quest;
+* Custom XP/Personal Gold for eligible Party-Leader-created quests.
+
+Then show a compact final preview before creation.
+
+⸻
+
+QUEST COMPLETION
+
+Do not implement a Start Quest/In Progress workflow in V1.
+
+Normal quest button:
+
+COMPLETE QUEST
+
+One tap should complete it.
+
+For quests requiring verification:
+
+SUBMIT FOR VERIFICATION
+
+Do not award rewards until verified.
+
+Timed quests that expire should become unavailable.
+
+Do not create a failure state.
+
+Recurring quest occurrences may only pay rewards once.
+
+⸻
+
+VERIFICATION
+
+Verification is a per-quest Party Leader setting.
+
+When verification is enabled:
+
+Adventurer submits completion.
+
+Party Leader sees:
+
+* quest name;
+* user;
+* difficulty;
+* rewards.
+
+Actions:
+
+APPROVE
+
+NOT YET
+
+Approve
+
+Award rewards.
+
+Allow an optional short positive comment.
+
+Generate 2–3 suggested context-aware comments.
+
+Example for Clean Room:
+
+* Your room looks so neat and tidy. Great job, buddy!
+* Awesome job getting everything put away!
+* That looks fantastic. Nice work!
+
+Also allow:
+
+* Write my own;
+* No note.
+
+Not Yet
+
+Require a short reason.
+
+Provide suggested feedback where possible.
+
+Example:
+
+* Almost there! Please pick up the clothes on the floor.
+* Good start. The desk still needs to be cleared.
+
+Return the quest to active state.
+
+No penalty.
+
+⸻
+
+ADVENTURER-CREATED QUESTS
+
+Adventurers can propose their own Individual Quests.
+
+They cannot propose Projects or Bosses in V1.
+
+Adventurer enters:
+
+* task;
+* proposed schedule;
+* selected difficulty.
+
+App also recommends a difficulty.
+
+Adventurer cannot type custom XP or Gold values.
+
+Party Leader review should show:
+
+Adventurer selected: Epic
+
+App recommendation: Hard
+
+Party Leader actions:
+
+* Approve;
+* Change Difficulty;
+* Decline.
+
+Approved quest always uses the standard reward table for the approved difficulty.
+
+Decline requires a short reason.
+
+Provide suggested reasons such as:
+
+* This is already part of another quest.
+* This isn’t something that earns quest rewards.
+* Let’s talk about this one.
+
+Allow custom reason.
+
+⸻
+
+LEGENDARY QUESTS
+
+Legendary quests are special.
+
+Do not place Legendary next to Easy/Normal/Hard/Epic.
+
+Party Leader gets a separate control:
+
+MAKE LEGENDARY QUEST
+
+Rules:
+
+* Party-Leader-only;
+* one active Legendary Quest per Adventurer;
+* one completed Legendary Quest per Adventurer per calendar month;
+* monthly limit is based on successful completion, not assignment;
+* unfinished Legendary Quest can be canceled and replaced;
+* once completed, no additional Legendary completion until next month;
+* fixed reward only.
+
+Legendary completion should grant:
+
+* 300 XP;
+* 200 Personal Gold;
+* 50 Party Gold;
+* +1 permanent Legendary completion count.
+
+Certain shop content may later require:
+
+* minimum level;
+* Gold;
+* minimum Legendary completion count.
+
+Legendary completion count is not spendable.
+
+⸻
+
+QUEST TIMING
+
+Support:
+
+Open/Anytime
+
+Remains available until completed or removed.
+
+Day-based
+
+Available on a specific date/day.
+
+Timed
+
+Available within a time window.
+
+Example:
+
+Morning Brush Teeth:
+
+Available 6:00 AM–12:00 PM.
+
+If time expires, quietly remove it from active availability.
+
+Do not punish the user.
+
+Recurring
+
+Generate a new eligible occurrence based on the schedule.
+
+Each occurrence can only be completed once.
+
+⸻
+
+OPTIONAL ROTATION
+
+Support rotation as an optional scheduling capability.
+
+Do not make rotation part of the default chore flow.
+
+⸻
+
+SCHOOL CALENDARS
+
+Support multiple School Calendars per Party.
+
+Multiple Adventurers may share one calendar.
+
+A School Calendar should contain:
+
+* name;
+* school-year start;
+* school-year end;
+* normal school weekdays;
+* no-school dates;
+* holidays;
+* teacher workdays;
+* break ranges.
+
+V1 should use manual calendar configuration.
+
+Do NOT implement district scraping or automatic school-calendar import.
+
+Each Adventurer can be linked to a School Calendar.
+
+Quest recurrence options should include:
+
+* Every Day;
+* School Days;
+* Non-School Days;
+* Specific Weekdays.
+
+For multi-assignment quests, evaluate School Day status separately per Adventurer.
+
+⸻
+
+PAUSE ROUTINE QUESTS
+
+Party Leaders can pause individual recurring quests.
+
+Also create a Party-wide control:
+
+PAUSE ROUTINE QUESTS
+
+Options:
+
+* Until I turn them back on;
+* Resume on selected date.
+
+While paused:
+
+* recurring quests do not generate;
+* no backlog accumulates;
+* one-time quests remain;
+* Projects remain;
+* Boss Battles remain.
+
+When resumed, only the next scheduled occurrence should appear.
+
+⸻
+
+QUICK QUESTS
+
+Seed a small starter Quick Quest library.
+
+Examples:
+
+* Brush Teeth;
+* Make Bed;
+* Feed Pet;
+* Unload Dishwasher;
+* Clean Room;
+* Take Out Trash.
+
+Do not create a giant chore database.
+
+Party Leaders can save household-specific custom quests as Quick Quests.
+
+⸻
+
+GIVE ME A QUEST
+
+Home screen should have:
+
+GIVE ME A QUEST
+
+This does not create new work.
+
+It selects one currently eligible quest for the user.
+
+Priority:
+
+1. timed quest nearing expiration;
+2. due-today quest;
+3. other assigned quest;
+4. available Open Quest if the user has no claimed Open Quest in that Party.
+
+If nothing is available, show something like:
+
+Your quest log is clear. Go be free.
+
+⸻
+
+XP AND LEVELS
+
+XP is global and permanent.
+
+Never spend XP.
+
+Never lose XP.
+
+Maximum V1 level:
+
+100
+
+Target pacing:
+
+* first levels should come quickly;
+* Level 10 approximately first month;
+* Level 20 approximately 2–3 months;
+* Level 50 approximately 8–12 months;
+* Level 100 approximately 18–24 months of consistent participation.
+
+Assume an active user may complete approximately 30–45 quests per week.
+
+Expected approximate XP earning:
+
+700–1,000 XP/week.
+
+Create a configurable level curve.
+
+Do not hard-code a brittle formula into UI components.
+
+Store lifetime XP.
+
+Store highest level achieved.
+
+If the XP curve is later rebalanced, never reduce someone below their highest level previously achieved.
+
+At Level 100:
+
+Show:
+
+LEVEL 100 — MAX LEVEL
+
+Continue accumulating lifetime XP internally.
+
+Gold rewards continue normally.
+
+⸻
+
+SHOP UNLOCK VISIBILITY
+
+Normal shop items are level gated.
+
+Users cannot buy something they have not unlocked.
+
+Standard Shop should display:
+
+* currently unlocked items;
+* previews from approximately the next one or two levels.
+
+Do not show the entire Level 1–100 catalog.
+
+Major milestone levels should have stronger unlocks.
+
+Suggested milestone levels:
+
+5, 10, 20, 30, 50, 75, 100.
+
+⸻
+
+PERSONAL GOLD
+
+Personal Gold is global to the user.
+
+Used for virtual purchases.
+
+Do not allow Adventurer-to-Adventurer Gold transfers in V1.
+
+Do not allow item gifting in V1.
+
+⸻
+
+PARTY GOLD
+
+Party Gold is generated automatically from quest completion IN ADDITION TO Personal Gold.
+
+Do not deduct Party Gold from the user’s Personal Gold.
+
+Example reward display:
+
++25 XP
++20 Gold for you
++5 Gold toward the Party Goal
+
+No manual Party Gold donation.
+
+No Adventurer can contribute more/less than another by choice.
+
+This is intentional to avoid sibling fairness disputes.
+
+⸻
+
+PARTY GOALS
+
+Party Leaders create available shared real-world Party Goals.
+
+Examples:
+
+* Ice Cream;
+* Movie Night;
+* Bowling;
+* Pizza Night;
+* Family Outing.
+
+Only one Party Goal can be active at a time.
+
+Adventurers may choose/propose one of the Party Leader-created available goals.
+
+Party Leader must approve activation.
+
+Once active, only Party Leader can change/cancel it.
+
+⸻
+
+PARTY GOAL PRICING
+
+When Party Leader creates a goal, suggest a Party Gold price based on expected earning capacity.
+
+Suggested conceptual tiers:
+
+* Small ≈ 1 week;
+* Medium ≈ 2 weeks;
+* Large ≈ 3–4 weeks;
+* Epic ≈ 6–8 weeks.
+
+Party Leader may override the suggested price.
+
+Once created, the price is fixed.
+
+Do not recalculate it because members later join/leave.
+
+⸻
+
+PARTY RESERVE
+
+Party Gold must never disappear.
+
+If no active goal exists, new Party Gold enters a Party Reserve.
+
+When a goal becomes active, Reserve automatically applies toward it.
+
+If a goal is canceled, its progress moves to Reserve.
+
+If completion overshoots a goal target, excess Party Gold moves to Reserve.
+
+⸻
+
+PARTY GOAL COMPLETION
+
+When a Party Goal reaches its target:
+
+Show a celebratory:
+
+PARTY GOAL ACHIEVED!
+
+Mark goal:
+
+AWAITING REDEMPTION
+
+Continue sending new Party Gold to Reserve.
+
+Party Leader later taps:
+
+MARK REDEEMED
+
+After redemption, the Party can select another goal.
+
+⸻
+
+INVENTORY AND EQUIPMENT
+
+Owned items go into permanent Inventory.
+
+Owning an item does not automatically display it.
+
+Users must explicitly EQUIP items.
+
+Equipment is not restricted by class.
+
+Suggested slots:
+
+* Outfit;
+* Head;
+* Main Hand;
+* Off Hand;
+* Pet;
+* Pet Accessory;
+* Background;
+* Effect.
+
+Only one item per slot is displayed.
+
+Allow Clear Slot.
+
+⸻
+
+SHOP PURCHASES
+
+No resale.
+
+No trading.
+
+No loot boxes.
+
+No randomized purchase outcomes.
+
+Users always know exactly what they are buying.
+
+Purchased items remain permanently owned.
+
+Provide a brief Undo Purchase window for accidental taps.
+
+Party Leader/App Admin correction tools can handle genuine mistakes.
+
+⸻
+
+INITIAL SHOP PRICE GUIDELINES
+
+Use configurable price data.
+
+Initial approximate ranges:
+
+* small cosmetics: 100–250;
+* standard gear: 300–600;
+* cool gear/normal pets: 750–1,500;
+* premium gear: 2,000–4,000;
+* major/evolving pets: 4,000–8,000+;
+* endgame: 10,000+ plus progression requirements if desired.
+
+Do not overbuild the initial economy.
+
+⸻
+
+PETS
+
+Most pets are simple cosmetic companions.
+
+A user may own many pets but equip one at a time.
+
+Equipped pet appears beside the character.
+
+⸻
+
+EVOLVING PETS
+
+A small number of special higher-level pets are Evolving Pets.
+
+Each has 2–4 visual stages.
+
+Evolution is based on quests completed while that pet is equipped.
+
+Example:
+
+Dragon Egg → Dragon Hatchling → Young Dragon → Ancient Dragon.
+
+Show progress such as:
+
+37 / 50 adventures until next evolution
+
+Do not add:
+
+* pet food;
+* pet hunger;
+* pet health;
+* pet chores;
+* separate pet XP currency.
+
+⸻
+
+PET ACCESSORIES
+
+Pets have one accessory slot.
+
+Examples:
+
+* Bow;
+* Bandana;
+* Tiny Crown;
+* Sunglasses;
+* Glowing Collar;
+* Tiny Wings;
+* Wizard Hat.
+
+Some are regular shop items.
+
+Some may be Cat Foley exclusives.
+
+⸻
+
+CAT FOLEY
+
+Create a recurring Traveling Merchant named:
+
+CAT FOLEY
+
+Cat Foley is a pixel-art cat-person wandering merchant.
+
+His running flavor text is that he has:
+
+“various arcane needs down by the river.”
+
+Keep Cat Foley dialogue short, strange, and funny.
+
+Do not generate paragraphs of merchant lore.
+
+Possible arrival copy:
+
+A familiar wagon has appeared down by the river…
+
+⸻
+
+CAT FOLEY APPEARANCES
+
+Cat Foley should randomly visit approximately once per month.
+
+Typical duration:
+
+3–5 days.
+
+Do not announce his inventory in advance.
+
+Party Leaders also have a hidden/Party Settings action:
+
+SUMMON CAT FOLEY
+
+Summoning should cause a visit.
+
+Do not allow summon while he is already present.
+
+A manual summon should not destroy the concept of normal random visits.
+
+⸻
+
+CAT FOLEY INVENTORY
+
+Cat Foley carries a small rotating inventory.
+
+Possible categories:
+
+* exclusive weapon;
+* shield;
+* staff;
+* pet variant;
+* pet accessory;
+* novelty item;
+* occasional exclusive pet.
+
+Example:
+
+Normal shop:
+
+Brown Puppy
+Black Puppy
+Spotted Puppy
+
+Cat Foley:
+
+Pink Enchanted Puppy
+
+Limited Cat Foley items may be marked NEVER RETURN.
+
+If marked retired after the event, never place them back into future merchant inventory.
+
+Existing owners retain them.
+
+⸻
+
+CAT FOLEY ELIGIBILITY
+
+Cat Foley should only show a user items they are currently eligible to obtain.
+
+Eligibility can be data-driven using criteria such as:
+
+* minimum level;
+* Legendary completion count;
+* owning a specific pet/item;
+* other progression requirements.
+
+If a user qualifies but does not have enough Gold, they should still see the item and its price.
+
+If they do not qualify, do not reveal that item.
+
+Different users may see different Cat Foley inventory during the same visit.
+
+⸻
+
+PROJECTS
+
+Only Party Leaders can create Projects in V1.
+
+Projects are multi-step household jobs.
+
+Creation methods:
+
+Manual
+
+Party Leader creates tasks/sub-quests.
+
+Help Me Break It Down
+
+Party Leader enters a large goal such as:
+
+Clean and organize the garage.
+
+AI suggests smaller practical tasks and possible difficulties.
+
+Photo-Assisted Assessment
+
+Party Leader uploads one or more images plus a short instruction.
+
+AI suggests manageable tasks visible/relevant from the photos.
+
+All AI-created tasks are suggestions only.
+
+Party Leader must review/edit/delete/assign/approve before publishing.
+
+⸻
+
+BOSS BATTLES
+
+When creating a multi-step project, Party Leader chooses:
+
+NORMAL PROJECT
+
+or:
+
+BOSS BATTLE
+
+Do NOT automatically make every Project a Boss because Adventure Mode is on.
+
+Boss Battle is an explicit project type.
+
+⸻
+
+BOSS HP AND DAMAGE
+
+Do not make Party Leaders configure combat statistics.
+
+Automatically derive Boss HP/progress from the component tasks.
+
+Quest difficulty affects visual damage.
+
+Easy = small hit.
+
+Normal = medium hit.
+
+Hard = large hit.
+
+Epic = very large hit.
+
+Legendary components, if ever allowed inside a Boss, should be handled carefully and still use deterministic logic.
+
+Occasionally display cosmetic:
+
+CRITICAL HIT!
+
+This should not secretly alter rewards.
+
+⸻
+
+BOSS ART
+
+Use a reusable preset pixel-art Boss library.
+
+Party Leader may:
+
+CHOOSE BOSS
+
+or:
+
+SURPRISE ME
+
+System/AI may suggest a short contextual Boss name.
+
+Allow Party Leader to edit name.
+
+Do NOT implement AI-generated custom Boss art in V1.
+
+⸻
+
+BOSS REWARDS
+
+Every component quest pays its normal reward.
+
+Anyone who completes at least one component counts as a Boss participant.
+
+When Boss is defeated, every participant gets the same Boss completion bonus.
+
+Do not calculate proportional rewards.
+
+A user who contributed zero components receives no Boss completion bonus.
+
+⸻
+
+BUILD A PLAN
+
+Party Leaders need:
+
+BUILD A PLAN
+
+This supports bulk household planning.
+
+Examples:
+
+* weekend chores;
+* getting ready for company;
+* vacation preparation;
+* moving;
+* Saturday reset.
+
+Party Leader can brain-dump multiple tasks rapidly.
+
+The app helps suggest:
+
+* task breakdown;
+* difficulty;
+* possible assignments.
+
+Party Leader reviews everything.
+
+Then allow publishing as:
+
+* independent quests;
+* Normal Project;
+* Boss Battle.
+
+⸻
+
+AI FEATURES
+
+AI is used only where it provides meaningful assistance.
+
+V1 AI features:
+
+Adventure Speak
+
+Short fantasy translation.
+
+Project/Plan Breakdown
+
+Break a large task into practical sub-tasks.
+
+Photo-Assisted Project Assessment
+
+Suggest tasks based on uploaded Project photos.
+
+AI suggestions must be saved.
+
+Core app must still function if AI is unavailable.
+
+If Adventure translation fails, temporarily use Plain Title as fallback.
+
+Do not make API availability necessary for login, chores, rewards, purchases, or scheduling.
+
+⸻
+
+AI MUST NOT CONTROL ECONOMY OR STATE
+
+Do NOT use AI to determine:
+
+* actual XP payout;
+* Gold payout;
+* Party Gold payout;
+* level;
+* shop eligibility;
+* purchase success;
+* Legendary limits;
+* quest completion;
+* Party Goal accounting;
+* Boss rewards;
+* scheduling logic.
+
+Those must be deterministic code and database rules.
+
+⸻
+
+HOME SCREEN
+
+Home should be personal, game-like, and concise.
+
+Top section:
+
+* Adventurer Name;
+* Level;
+* Class;
+* pixel character;
+* equipped gear;
+* equipped pet;
+* XP progress bar;
+* Personal Gold.
+
+Then:
+
+GIVE ME A QUEST
+
+Then:
+
+YOUR QUESTS
+
+Then, when relevant:
+
+* Active Project/Boss;
+* Party Goal progress.
+
+Do not show every family member’s chores on another user’s Home.
+
+⸻
+
+PARTY LEADER HOME
+
+Party Leaders should see the same RPG experience as everyone else.
+
+Add a compact:
+
+NEEDS ATTENTION
+
+section when action is required.
+
+Examples:
+
+* quest awaiting verification;
+* Adventurer-proposed quest.
+
+Add a prominent Create button.
+
+Do not make Party Leader Home into a management dashboard first and game second.
+
+⸻
+
+BOTTOM NAVIGATION
+
+Use five primary tabs:
+
+HOME
+
+QUESTS
+
+CHARACTER
+
+SHOP
+
+PARTY
+
+Keep navigation phone-friendly.
+
+⸻
+
+PARTY LEADER CREATE MENU
+
+Party Leader gets a prominent:
+
++ CREATE
+
+with options:
+
+* New Quest;
+* Build a Plan;
+* New Project/Boss;
+* New Party Goal.
+
+⸻
+
+QUEST LIST VISIBILITY
+
+Adventurers cannot see another Adventurer’s Individual Quests.
+
+They can see:
+
+* shared Party Quests;
+* Open Quests they are eligible for;
+* shared Project/Boss progress;
+* visible character/profile information.
+
+Party Leaders may see the full task structure needed for management.
+
+⸻
+
+NOTIFICATIONS
+
+Do not make push notifications a dependency in V1.
+
+Do NOT implement routine recurring chore reminders.
+
+Do NOT send notifications for each recurring occurrence.
+
+Design the app so notifications can be added later.
+
+Inside the app, clearly surface:
+
+* genuinely new assigned quests;
+* Cat Foley arrival;
+* Party Goal achieved.
+
+If implementing one simple notification type is easy and reliable, “New Quest Added” is the priority, but V1 must work perfectly without push notifications.
+
+⸻
+
+DUPLICATION
+
+Party Leaders can Duplicate:
+
+* Quests;
+* Projects;
+* Boss Battles.
+
+Duplicate should open an editable copy before publishing.
+
+⸻
+
+PARTY LEADER QUEST MANAGEMENT
+
+Create a manageable Party Leader quest-definition screen.
+
+Show reusable quest definitions rather than every generated recurring occurrence.
+
+Allow:
+
+* Edit;
+* Pause;
+* Duplicate;
+* Delete.
+
+Use categories/filtering such as:
+
+* Recurring;
+* One-Time;
+* Paused.
+
+⸻
+
+ADMIN CORRECTIONS
+
+Party Leaders need a tucked-away administrative adjustment function.
+
+Allow correction of:
+
+* XP;
+* Personal Gold;
+* Legendary completion count;
+* mistaken completion;
+* accidental item ownership/purchase issues.
+
+Require a short reason.
+
+Store the adjustment in audit logs.
+
+If the adjustment affects a user’s XP/Gold/item state, allow the affected user to see a simple explanation.
+
+Example:
+
+Party Leader Adjustment
+
++50 Gold
+
+Missing reward corrected.
+
+⸻
+
+LEAVING A PARTY
+
+If a user leaves or is removed:
+
+Do not touch global:
+
+* XP;
+* level;
+* Personal Gold;
+* inventory;
+* character;
+* pets.
+
+Cancel unfinished Individual Quests in that Party.
+
+Release any claimed Open Quest back into the Party pool.
+
+Remove them from unfinished Party activities appropriately.
+
+Previously generated Party Gold stays with the Party.
+
+Do not claw back rewards.
+
+A Party Founder must transfer Founder status before leaving.
+
+⸻
+
+APP ADMIN CONTENT MANAGEMENT
+
+Build a functional but utilitarian App Admin content-management area.
+
+App Admin should be able to create/edit/retire:
+
+* standard shop items;
+* Cat Foley items;
+* weapons;
+* off-hand items;
+* outfits;
+* headgear;
+* pets;
+* pet accessories;
+* backgrounds;
+* effects;
+* Boss assets;
+* Quick Quest starter content.
+
+Each item should be data-driven with fields such as:
+
+* name;
+* description;
+* category;
+* asset;
+* Gold price;
+* minimum level;
+* eligibility requirements;
+* standard vs. Cat Foley;
+* active/retired;
+* never-return flag if applicable.
+
+Retiring an item prevents future purchases but does not remove existing ownership.
+
+⸻
+
+APP ADMIN ECONOMY MANAGEMENT
+
+App Admin can manage global system configuration such as:
+
+* default XP reward table;
+* default Personal Gold table;
+* Party Gold table;
+* level curve;
+* milestone configuration;
+* Cat Foley visit configuration.
+
+Keep all of these in data/configuration rather than scattered hard-coded UI constants where practical.
+
+⸻
+
+APP ADMIN TROUBLESHOOTING
+
+Create a Support/Troubleshooting area.
+
+App Admin should be able to search:
+
+* user;
+* Party.
+
+Inspect relevant technical state such as:
+
+* lifetime XP;
+* current/highest level;
+* Gold;
+* inventory ownership;
+* equipment;
+* quest state;
+* reward transaction state;
+* Party memberships;
+* roles;
+* Cat Foley eligibility;
+* School Calendar evaluation;
+* recent errors;
+* Legendary state.
+
+Include:
+
+VIEW AS USER — READ ONLY
+
+Clearly show a banner while active.
+
+Example:
+
+VIEWING AS JENSEN — READ ONLY
+
+In View As mode, App Admin must NOT be able to:
+
+* complete quests;
+* buy items;
+* spend Gold;
+* verify quests;
+* change user state;
+* act as the user.
+
+Corrections happen through explicit admin tools.
+
+⸻
+
+AUDIT LOGGING
+
+Create backend audit records for important state changes.
+
+At minimum log:
+
+* reward payouts;
+* manual XP adjustments;
+* Gold adjustments;
+* item corrections;
+* purchases;
+* purchase undo;
+* Legendary completion;
+* role changes;
+* Founder transfers;
+* PIN resets;
+* App Admin content/config changes.
+
+Include who/what performed the action, timestamp, affected user/Party, and reason where applicable.
+
+⸻
+
+DESTRUCTIVE ACTIONS
+
+Important destructive actions require confirmation.
+
+Examples:
+
+* delete quest;
+* delete recurring definition;
+* delete Project;
+* cancel Party Goal;
+* remove Party member;
+* delete Party.
+
+No recycle bin in V1.
+
+⸻
+
+BAD CONNECTION HANDLING
+
+If connection is unavailable, do not fake successful completion.
+
+Show a concise error such as:
+
+Can’t reach the realm right now. Check your connection and try again.
+
+Do not queue risky financial/reward actions blindly.
+
+Ensure retries remain idempotent.
+
+⸻
+
+ACCESSIBILITY
+
+Respect browser/system:
+
+prefers-reduced-motion
+
+If enabled:
+
+* suppress unnecessary bounce/shake effects;
+* reduce animated transitions;
+* preserve full information and functionality.
+
+Use accessible contrast, readable text, large touch targets, and proper form labels.
+
+⸻
+
+INITIAL CONTENT SEED
+
+START SMALL.
+
+Do not spend the build creating dozens of final art assets.
+
+Seed a small but complete catalog sufficient to test every system.
+
+Approximately:
+
+* 5 weapons;
+* 5 off-hand items;
+* 5 outfits;
+* 5 headgear items;
+* 5 normal pets;
+* 2 Evolving Pets;
+* 5 pet accessories;
+* 5 backgrounds;
+* several effects;
+* 6–8 Bosses;
+* a small Cat Foley limited pool.
+
+Distribute enough content across early/mid levels to test locked/unlocked behavior.
+
+Use simple original pixel-art placeholders if needed.
+
+Make the content easy to replace/add later through App Admin.
+
+⸻
+
+DEFERRED — DO NOT BUILD IN V1
+
+Do not overbuild these yet:
+
+* personal real-world rewards purchased with Personal Gold;
+* achievement/badge system;
+* streaks;
+* weekly consistency bonuses;
+* detailed analytics/history dashboards;
+* photo proof for quest completion;
+* Adventurer-created Projects/Bosses;
+* Adventurer-to-Adventurer Gold transfers;
+* item gifting;
+* item resale;
+* loot boxes;
+* real-time multiplayer synchronization;
+* AI-generated custom Boss artwork;
+* celebration-intensity settings;
+* school-district calendar imports;
+* prestige system beyond Level 100;
+* continuous background music.
+
+Structure the data cleanly enough that future features can be added later.
+
+⸻
+
+V1 BUILD PRIORITY
+
+Do not attempt to perfect everything simultaneously.
+
+Build in this order:
+
+Phase 1 — Core framework
+
+* authentication;
+* adult/kid login;
+* Parties and roles;
+* multiple Party membership;
+* global character;
+* basic character creation;
+* PWA setup;
+* bottom navigation.
+
+Phase 2 — Core quest loop
+
+* quest creation;
+* Individual/Open/Party Quest types;
+* recurrence;
+* scheduling;
+* School Calendar conditions;
+* quest completion;
+* verification;
+* XP;
+* Gold;
+* Party Gold;
+* level progression;
+* Give Me a Quest.
+
+Phase 3 — Game layer
+
+* Inventory;
+* equipment;
+* shop;
+* level-gated unlocks;
+* pets;
+* Evolving Pets;
+* pixel visuals;
+* sound effects.
+
+Phase 4 — Party systems
+
+* Party Goals;
+* Party Reserve;
+* Projects;
+* Boss Battles;
+* Build a Plan.
+
+Phase 5 — Special systems
+
+* Adventure Speak AI;
+* AI task breakdown;
+* photo-assisted Project breakdown;
+* Cat Foley;
+* Legendary quests.
+
+Phase 6 — Administration
+
+* Party Leader corrections;
+* App Admin catalog;
+* App Admin economy configuration;
+* audit logs;
+* View As User troubleshooting.
+
+Do not skip architecture needed by later phases, but get the basic quest/reward loop working early.
+
+⸻
+
+ACCEPTANCE TESTS
+
+Before considering V1 functional, verify at minimum:
+
+1. An adult can create an account and create a Party.
+2. Party Leader can create a kid Adventurer with PIN.
+3. Kid can log in with Household Code → name → PIN.
+4. Kid can create their character on first login.
+5. Adult can belong to multiple Parties and switch Parties.
+6. Character XP/Gold/inventory remain global across Parties.
+7. Individual Quests work.
+8. Multi-user Individual Quest assignment creates separate instances.
+9. Open Quest claiming works and limits Adventurers to one per Party.
+10. Open Quest can be released.
+11. Party Quest participant completion works independently.
+12. Recurring quests generate correctly.
+13. School Day/Non-School Day filtering works.
+14. Timed quests quietly expire.
+15. Verification-required quests do not pay before approval.
+16. “Not Yet” returns quest without penalty.
+17. Adventurer-created quest approval works.
+18. Fixed standard rewards are enforced for Adventurer-created quests.
+19. Reward payouts cannot occur twice.
+20. XP levels correctly.
+21. Personal Gold persists globally.
+22. Party Gold progresses active Party Goal.
+23. Party Reserve never loses Gold.
+24. Party Goal completion/awaiting-redemption flow works.
+25. Standard shop level locks work.
+26. Locked shop items cannot be purchased.
+27. Inventory/equip system works.
+28. Pets can be equipped.
+29. Evolving Pet progress increases only while equipped.
+30. Legendary monthly completion limit works.
+31. Boss components deal progress/damage correctly.
+32. Boss participants get equal completion bonus.
+33. Cat Foley only shows currently eligible items.
+34. Retired Cat Foley item remains owned by previous buyer.
+35. Party Leader can Pause Routine Quests without creating backlog.
+36. App Admin can inspect but not act in View As User mode.
+37. PWA installs correctly to iPhone Home Screen with sword+broom icon.
+38. Password reset and password visibility controls work.
+39. PIN reset/change works.
+40. Destructive actions ask for confirmation.
+
+⸻
+
+IMPORTANT UX RULE
+
+Whenever choosing between a clever fantasy mechanic and a simpler user interaction, favor the simpler interaction.
+
+This is a chore app first and an RPG layer second.
+
+The game should make chores easier to engage with, not make managing chores harder.
+
+The tone should be playful and mildly ridiculous.
+
+Cat Foley is allowed to be especially suspicious.

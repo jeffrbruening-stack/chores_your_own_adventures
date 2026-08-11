@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Chores Your Own Adventure"
+description = "A mobile-first installable PWA that wraps family chore management in a retro fantasy RPG. Adults and kids complete real-life chores as 'quests,' earn XP and Gold, level up pixel-art characters, unlock equipment and pets, and work toward shared Party Goals. Features dual auth (adult email/password + kid household-code/PIN), party system with roles, quest types (Individual/Open/Party), shop, inventory, boss battles, projects, Cat Foley merchant, and AI-powered Adventure Speak translation."
+version = "1.0.0"
+id = "artifacts/cyoa"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24141
+
+[services.development]
+run = "pnpm --filter @workspace/cyoa run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/cyoa", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/cyoa/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24141"
+BASE_PATH = "/"

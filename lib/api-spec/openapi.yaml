@@ -3,20 +3,46 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Chores Your Own Adventure API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: parties
+    description: Party management
+  - name: characters
+    description: Character creation and customization
+  - name: quests
+    description: Quest management
+  - name: shop
+    description: Shop and purchases
+  - name: inventory
+    description: Inventory and equipment
+  - name: partyGoals
+    description: Party goals and party gold
+  - name: projects
+    description: Projects and boss battles
+  - name: catFoley
+    description: Cat Foley merchant
+  - name: schoolCalendars
+    description: School calendars
+  - name: ai
+    description: AI features
+  - name: admin
+    description: Admin tools
+  - name: home
+    description: Home dashboard
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +50,3121 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ─── AUTH ────────────────────────────────────────────────────────────────────
+  /auth/register:
+    post:
+      operationId: registerAdult
+      tags: [auth]
+      summary: Register adult account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResult"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Email already in use
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: loginAdult
+      tags: [auth]
+      summary: Login adult account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResult"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout current session
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/forgot-password:
+    post:
+      operationId: forgotPassword
+      tags: [auth]
+      summary: Send password reset email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPasswordInput"
+      responses:
+        "200":
+          description: Reset email sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/reset-password:
+    post:
+      operationId: resetPassword
+      tags: [auth]
+      summary: Reset password with token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordInput"
+      responses:
+        "200":
+          description: Password reset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/change-password:
+    post:
+      operationId: changePassword
+      tags: [auth]
+      summary: Change current user password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordInput"
+      responses:
+        "200":
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          description: Invalid current password
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/household/{code}/adventurers:
+    get:
+      operationId: getHouseholdAdventurers
+      tags: [auth]
+      summary: Get adventurers for a household code
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of adventurers in household
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdventurerCard"
+        "404":
+          description: Household code not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/kid-login:
+    post:
+      operationId: loginKid
+      tags: [auth]
+      summary: Login kid with household code and PIN
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KidLoginInput"
+      responses:
+        "200":
+          description: Kid logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResult"
+        "401":
+          description: Invalid PIN or locked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: PIN attempts locked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PinLockResponse"
+
+  /auth/change-pin:
+    post:
+      operationId: changePIN
+      tags: [auth]
+      summary: Change kid PIN
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePINInput"
+      responses:
+        "200":
+          description: PIN changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          description: Invalid old PIN
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── HOME ────────────────────────────────────────────────────────────────────
+  /home:
+    get:
+      operationId: getHomeData
+      tags: [home]
+      summary: Get home screen data for current user and active party
+      responses:
+        "200":
+          description: Home data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HomeData"
+
+  /home/give-me-a-quest:
+    get:
+      operationId: giveMeAQuest
+      tags: [home]
+      summary: Get the highest priority quest for the current user
+      parameters:
+        - name: partyId
+          in: query
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Suggested quest or empty
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GiveMeAQuestResult"
+
+  # ─── PARTIES ─────────────────────────────────────────────────────────────────
+  /parties:
+    get:
+      operationId: listMyParties
+      tags: [parties]
+      summary: List parties the current user belongs to
+      responses:
+        "200":
+          description: List of parties
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PartyOverview"
+    post:
+      operationId: createParty
+      tags: [parties]
+      summary: Create a new party
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PartyInput"
+      responses:
+        "201":
+          description: Created party
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Party"
+
+  /parties/{partyId}:
+    get:
+      operationId: getParty
+      tags: [parties]
+      summary: Get party details
+      parameters:
+        - name: partyId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Party details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Party"
+    patch:
+      operationId: updateParty
+      tags: [parties]
+      summary: Update party settings
+      parameters:
+        - name: partyId
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PartyUpdate"
+      responses:
+        "200":
+          description: Updated party
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Party"
+    delete:
+      operationId: deleteParty
+      tags: [parties]
+      summary: Delete a party (founder only)
+      parameters:
+        - name: partyId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "204":
+          description: Party deleted
+
+  /parties/{partyId}/members:
+    get:
+      operationId: listPartyMembers
+      tags: [parties]
+      summary: List party members
+      parameters:
+        - name: partyId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: List of members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PartyMember"
+    post:
+      operationId: addKidMember
+      tags: [parties]
+      summary: Add a kid adventurer to a party (leader only)
+      parameters:
+        - name: partyId
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KidMemberInput"
+      responses:
+        "201":
+          description: Kid member created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartyMember"
+
+  /parties/{partyId}/members/{userId}:
+    patch:
+      operationId: updatePartyMember
+      tags: [parties]
+      summary: Update member role or PIN reset
+      parameters:
+        - name: partyId
+          in: path
+          required: true
+          schema:
+            type: number
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemberUpdate"
+      responses:
+        "200":
+          description: Updated member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartyMember"
+    delete:
+      operationId: removePartyMember
+      tags: [parties]
+      summary: Remove member from party
+      parameters:
+        - name: partyId
+          in: path
+          required: true
+          schema:
+            type: number
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "204":
+          description: Member removed
+
+  /parties/{partyId}/invite:
+    post:
+      operationId: createInvite
+      tags: [parties]
+      summary: Create an invite link or code
+      parameters:
+        - name: partyId
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteInput"
+      responses:
+        "201":
+          description: Invite created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invite"
+
+  /parties/{partyId}/pause-routines:
+    post:
+      operationId: pauseRoutineQuests
+      tags: [parties]
+      summary: Pause or resume all routine quests for a party
+      parameters:
+        - name: partyId
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PauseRoutinesInput"
+      responses:
+        "200":
+          description: Paused/resumed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /parties/{partyId}/summon-cat-foley:
+    post:
+      operationId: summonCatFoley
+      tags: [catFoley]
+      summary: Summon Cat Foley (leader only)
+      parameters:
+        - name: partyId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Cat Foley summoned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatFoleyVisit"
+        "409":
+          description: Already visiting
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /parties/{partyId}/transfer-founder:
+    post:
+      operationId: transferFounder
+      tags: [parties]
+      summary: Transfer founder status to another leader
+      parameters:
+        - name: partyId
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransferFounderInput"
+      responses:
+        "200":
+          description: Founder transferred
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /parties/{partyId}/leave:
+    post:
+      operationId: leaveParty
+      tags: [parties]
+      summary: Leave a party
+      parameters:
+        - name: partyId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Left party
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /parties/join:
+    post:
+      operationId: joinParty
+      tags: [parties]
+      summary: Join a party via invite code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JoinPartyInput"
+      responses:
+        "200":
+          description: Joined party
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Party"
+
+  # ─── CHARACTER ───────────────────────────────────────────────────────────────
+  /character:
+    get:
+      operationId: getMyCharacter
+      tags: [characters]
+      summary: Get current user's character
+      responses:
+        "200":
+          description: Character
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Character"
+    put:
+      operationId: saveCharacter
+      tags: [characters]
+      summary: Create or update character
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CharacterInput"
+      responses:
+        "200":
+          description: Saved character
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Character"
+        "429":
+          description: Cooldown active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CooldownResponse"
+
+  /character/users/{userId}:
+    get:
+      operationId: getUserCharacter
+      tags: [characters]
+      summary: Get another user's public character
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Character
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Character"
+
+  # ─── QUESTS ──────────────────────────────────────────────────────────────────
+  /quests:
+    get:
+      operationId: listQuests
+      tags: [quests]
+      summary: List quest definitions for a party
+      parameters:
+        - name: partyId
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [individual, open, party, recurring, one_time, paused, pending_verification, legendary]
+      responses:
+        "200":
+          description: List of quest definitions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QuestDefinition"
+    post:
+      operationId: createQuest
+      tags: [quests]
+      summary: Create a quest definition (leader only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuestDefinitionInput"
+      responses:
+        "201":
+          description: Quest created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestDefinition"
+
+  /quests/{questId}:
+    get:
+      operationId: getQuest
+      tags: [quests]
+      summary: Get quest definition
+      parameters:
+        - name: questId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Quest definition
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestDefinition"
+    patch:
+      operationId: updateQuest
+      tags: [quests]
+      summary: Update a quest definition
+      parameters:
+        - name: questId
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuestDefinitionUpdate"
+      responses:
+        "200":
+          description: Updated quest
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestDefinition"
+    delete:
+      operationId: deleteQuest
+      tags: [quests]
+      summary: Delete a quest definition
+      parameters:
+        - name: questId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "204":
+          description: Deleted
+
+  /quests/{questId}/pause:
+    post:
+      operationId: toggleQuestPause
+      tags: [quests]
+      summary: Toggle pause on a recurring quest
+      parameters:
+        - name: questId
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PauseQuestInput"
+      responses:
+        "200":
+          description: Pause toggled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestDefinition"
+
+  /quest-assignments:
+    get:
+      operationId: listMyQuestAssignments
+      tags: [quests]
+      summary: List active quest assignments for current user in a party
+      parameters:
+        - name: partyId
+          in: query
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Active quest assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QuestAssignment"
+
+  /quest-assignments/{assignmentId}/complete:
+    post:
+      operationId: completeQuest
+      tags: [quests]
+      summary: Mark a quest assignment as complete
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Quest completed with reward summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestRewardResult"
+        "409":
+          description: Already completed or not eligible
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /quest-assignments/{assignmentId}/submit-verification:
+    post:
+      operationId: submitVerification
+      tags: [quests]
+      summary: Submit quest for leader verification
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Submitted for verification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestAssignment"
+
+  /quest-assignments/{assignmentId}/verify:
+    post:
+      operationId: verifyQuest
+      tags: [quests]
+      summary: Approve or reject a quest verification (leader)
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyQuestInput"
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestRewardResult"
+
+  /open-quests:
+    get:
+      operationId: listOpenQuests
+      tags: [quests]
+      summary: List available open quests in a party
+      parameters:
+        - name: partyId
+          in: query
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Open quests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QuestAssignment"
+
+  /open-quests/{assignmentId}/claim:
+    post:
+      operationId: claimOpenQuest
+      tags: [quests]
+      summary: Claim an open quest
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Quest claimed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestAssignment"
+        "409":
+          description: Already have a claimed quest
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /open-quests/{assignmentId}/release:
+    post:
+      operationId: releaseOpenQuest
+      tags: [quests]
+      summary: Release a claimed open quest
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Quest released
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /quests/pending-verification:
+    get:
+      operationId: listPendingVerification
+      tags: [quests]
+      summary: List quests awaiting verification (leader only)
+      parameters:
+        - name: partyId
+          in: query
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Pending verifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QuestAssignment"
+
+  /quests/proposed:
+    get:
+      operationId: listProposedQuests
+      tags: [quests]
+      summary: List adventurer-proposed quests (leader view)
+      parameters:
+        - name: partyId
+          in: query
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Proposed quests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QuestDefinition"
+
+  /quests/propose:
+    post:
+      operationId: proposeQuest
+      tags: [quests]
+      summary: Adventurer proposes a new quest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuestProposalInput"
+      responses:
+        "201":
+          description: Quest proposed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestDefinition"
+
+  /quests/{questId}/review-proposal:
+    post:
+      operationId: reviewQuestProposal
+      tags: [quests]
+      summary: Leader approves/declines/changes difficulty of proposed quest
+      parameters:
+        - name: questId
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuestProposalReview"
+      responses:
+        "200":
+          description: Reviewed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestDefinition"
+
+  /quests/{questId}/duplicate:
+    post:
+      operationId: duplicateQuest
+      tags: [quests]
+      summary: Duplicate a quest definition
+      parameters:
+        - name: questId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "201":
+          description: Duplicated quest (draft)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestDefinition"
+
+  /quick-quests:
+    get:
+      operationId: listQuickQuests
+      tags: [quests]
+      summary: List available quick quest templates
+      parameters:
+        - name: partyId
+          in: query
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Quick quests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QuickQuest"
+
+  # ─── SHOP ────────────────────────────────────────────────────────────────────
+  /shop/items:
+    get:
+      operationId: listShopItems
+      tags: [shop]
+      summary: List shop items visible to current user (level-gated)
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [weapon, off_hand, outfit, head, pet, pet_accessory, background, effect]
+      responses:
+        "200":
+          description: Shop items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShopCatalog"
+
+  /shop/purchase:
+    post:
+      operationId: purchaseItem
+      tags: [shop]
+      summary: Purchase a shop item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PurchaseInput"
+      responses:
+        "200":
+          description: Purchase result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseResult"
+        "402":
+          description: Not enough gold
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Item locked (level requirement)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Already owned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /shop/undo-purchase/{transactionId}:
+    post:
+      operationId: undoPurchase
+      tags: [shop]
+      summary: Undo a recent purchase (brief window)
+      parameters:
+        - name: transactionId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Purchase undone
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "409":
+          description: Undo window expired
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── INVENTORY / EQUIPMENT ───────────────────────────────────────────────────
+  /inventory:
+    get:
+      operationId: getInventory
+      tags: [inventory]
+      summary: Get current user's inventory and equipped items
+      responses:
+        "200":
+          description: Inventory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Inventory"
+
+  /equipment/{slot}:
+    put:
+      operationId: equipItem
+      tags: [inventory]
+      summary: Equip an item to a slot
+      parameters:
+        - name: slot
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [outfit, head, main_hand, off_hand, pet, pet_accessory, background, effect]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EquipInput"
+      responses:
+        "200":
+          description: Item equipped
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Inventory"
+    delete:
+      operationId: unequipSlot
+      tags: [inventory]
+      summary: Clear an equipment slot
+      parameters:
+        - name: slot
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [outfit, head, main_hand, off_hand, pet, pet_accessory, background, effect]
+      responses:
+        "200":
+          description: Slot cleared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Inventory"
+
+  # ─── PARTY GOALS ─────────────────────────────────────────────────────────────
+  /party-goals:
+    get:
+      operationId: listPartyGoals
+      tags: [partyGoals]
+      summary: List party goals (active, available, completed)
+      parameters:
+        - name: partyId
+          in: query
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Party goals
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartyGoalSummary"
+    post:
+      operationId: createPartyGoal
+      tags: [partyGoals]
+      summary: Create a new party goal (leader only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PartyGoalInput"
+      responses:
+        "201":
+          description: Created goal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartyGoal"
+
+  /party-goals/{goalId}/activate:
+    post:
+      operationId: activatePartyGoal
+      tags: [partyGoals]
+      summary: Activate a party goal (leader approval)
+      parameters:
+        - name: goalId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Goal activated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartyGoal"
+
+  /party-goals/{goalId}/propose-activation:
+    post:
+      operationId: proposeGoalActivation
+      tags: [partyGoals]
+      summary: Adventurer proposes a goal for activation
+      parameters:
+        - name: goalId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Proposal submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /party-goals/{goalId}/redeem:
+    post:
+      operationId: redeemPartyGoal
+      tags: [partyGoals]
+      summary: Mark completed party goal as redeemed (leader)
+      parameters:
+        - name: goalId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Goal redeemed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartyGoal"
+
+  /party-goals/{goalId}/cancel:
+    post:
+      operationId: cancelPartyGoal
+      tags: [partyGoals]
+      summary: Cancel active party goal (leader)
+      parameters:
+        - name: goalId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Goal cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # ─── PROJECTS / BOSS BATTLES ─────────────────────────────────────────────────
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List projects/bosses in a party
+      parameters:
+        - name: partyId
+          in: query
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Create a project or boss battle (leader only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectInput"
+      responses:
+        "201":
+          description: Created project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+
+  /projects/{projectId}:
+    get:
+      operationId: getProject
+      tags: [projects]
+      summary: Get project details with tasks
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+    patch:
+      operationId: updateProject
+      tags: [projects]
+      summary: Update project
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectUpdate"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+    delete:
+      operationId: deleteProject
+      tags: [projects]
+      summary: Delete project
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "204":
+          description: Deleted
+
+  /projects/{projectId}/duplicate:
+    post:
+      operationId: duplicateProject
+      tags: [projects]
+      summary: Duplicate a project
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "201":
+          description: Duplicated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+
+  # ─── CAT FOLEY ───────────────────────────────────────────────────────────────
+  /cat-foley:
+    get:
+      operationId: getCatFoley
+      tags: [catFoley]
+      summary: Get current Cat Foley visit and eligible inventory for user
+      parameters:
+        - name: partyId
+          in: query
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Cat Foley visit info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatFoleyVisit"
+
+  # ─── SCHOOL CALENDARS ─────────────────────────────────────────────────────────
+  /school-calendars:
+    get:
+      operationId: listSchoolCalendars
+      tags: [schoolCalendars]
+      summary: List school calendars in a party
+      parameters:
+        - name: partyId
+          in: query
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: School calendars
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SchoolCalendar"
+    post:
+      operationId: createSchoolCalendar
+      tags: [schoolCalendars]
+      summary: Create a school calendar (leader only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SchoolCalendarInput"
+      responses:
+        "201":
+          description: Created calendar
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchoolCalendar"
+
+  /school-calendars/{calendarId}:
+    patch:
+      operationId: updateSchoolCalendar
+      tags: [schoolCalendars]
+      summary: Update a school calendar
+      parameters:
+        - name: calendarId
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SchoolCalendarUpdate"
+      responses:
+        "200":
+          description: Updated calendar
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchoolCalendar"
+    delete:
+      operationId: deleteSchoolCalendar
+      tags: [schoolCalendars]
+      summary: Delete a school calendar
+      parameters:
+        - name: calendarId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── AI ──────────────────────────────────────────────────────────────────────
+  /ai/adventure-speak:
+    post:
+      operationId: generateAdventureSpeak
+      tags: [ai]
+      summary: Generate a short fantasy translation for a plain quest title
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdventureSpeakInput"
+      responses:
+        "200":
+          description: Fantasy title
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdventureSpeakResult"
+
+  /ai/project-breakdown:
+    post:
+      operationId: generateProjectBreakdown
+      tags: [ai]
+      summary: AI-suggest sub-tasks for a large project goal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectBreakdownInput"
+      responses:
+        "200":
+          description: Suggested tasks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectBreakdownResult"
+
+  /ai/suggest-difficulty:
+    post:
+      operationId: suggestDifficulty
+      tags: [ai]
+      summary: Suggest a quest difficulty based on description
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuggestDifficultyInput"
+      responses:
+        "200":
+          description: Suggested difficulty
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuggestDifficultyResult"
+
+  # ─── ADMIN ───────────────────────────────────────────────────────────────────
+  /admin/users:
+    get:
+      operationId: adminListUsers
+      tags: [admin]
+      summary: App Admin - search users
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminUserRecord"
+
+  /admin/users/{userId}:
+    get:
+      operationId: adminGetUser
+      tags: [admin]
+      summary: App Admin - get full user record
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: User record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserRecord"
+
+  /admin/users/{userId}/adjust:
+    post:
+      operationId: adminAdjustUser
+      tags: [admin]
+      summary: App Admin - correct XP, gold, inventory for a user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminAdjustInput"
+      responses:
+        "200":
+          description: Adjustment applied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /admin/shop-items:
+    get:
+      operationId: adminListShopItems
+      tags: [admin]
+      summary: App Admin - list all shop items
+      responses:
+        "200":
+          description: All shop items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ShopItem"
+    post:
+      operationId: adminCreateShopItem
+      tags: [admin]
+      summary: App Admin - create shop item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShopItemInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShopItem"
+
+  /admin/shop-items/{itemId}:
+    patch:
+      operationId: adminUpdateShopItem
+      tags: [admin]
+      summary: App Admin - update shop item
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShopItemUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShopItem"
+
+  /admin/config:
+    get:
+      operationId: adminGetConfig
+      tags: [admin]
+      summary: App Admin - get economy config
+      responses:
+        "200":
+          description: Config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameConfig"
+    patch:
+      operationId: adminUpdateConfig
+      tags: [admin]
+      summary: App Admin - update economy config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GameConfigUpdate"
+      responses:
+        "200":
+          description: Updated config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameConfig"
+
+  /admin/audit-logs:
+    get:
+      operationId: adminGetAuditLogs
+      tags: [admin]
+      summary: App Admin - get audit logs
+      parameters:
+        - name: userId
+          in: query
+          schema:
+            type: number
+        - name: partyId
+          in: query
+          schema:
+            type: number
+        - name: limit
+          in: query
+          schema:
+            type: number
+            default: 50
+      responses:
+        "200":
+          description: Audit logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditLog"
+
+  /party-leader/adjustments:
+    post:
+      operationId: leaderAdjustMember
+      tags: [admin]
+      summary: Party Leader - correct XP/Gold for a party member
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeaderAdjustInput"
+      responses:
+        "200":
+          description: Adjustment applied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+
+    # ─── AUTH SCHEMAS ──────────────────────────────────────────────────────────
+    RegisterInput:
+      type: object
+      required: [email, password, displayName]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+          minLength: 8
+        displayName:
+          type: string
+          minLength: 1
+
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+
+    KidLoginInput:
+      type: object
+      required: [householdCode, userId, pin]
+      properties:
+        householdCode:
+          type: string
+        userId:
+          type: number
+        pin:
+          type: string
+          minLength: 4
+          maxLength: 4
+
+    ForgotPasswordInput:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+
+    ResetPasswordInput:
+      type: object
+      required: [token, password]
+      properties:
+        token:
+          type: string
+        password:
+          type: string
+          minLength: 8
+
+    ChangePasswordInput:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+        newPassword:
+          type: string
+          minLength: 8
+
+    ChangePINInput:
+      type: object
+      required: [oldPin, newPin]
+      properties:
+        oldPin:
+          type: string
+          minLength: 4
+          maxLength: 4
+        newPin:
+          type: string
+          minLength: 4
+          maxLength: 4
+
+    AuthResult:
+      type: object
+      required: [user, token]
+      properties:
+        user:
+          $ref: "#/components/schemas/UserProfile"
+        token:
+          type: string
+
+    UserProfile:
+      type: object
+      required: [id, displayName, userType, isAppAdmin, lifetimeXp, currentLevel, personalGold, adventureMode, soundEnabled, hapticsEnabled]
+      properties:
+        id:
+          type: number
+        email:
+          type: ["string", "null"]
+        displayName:
+          type: string
+        adventurerName:
+          type: ["string", "null"]
+        userType:
+          type: string
+          enum: [adult, kid]
+        isAppAdmin:
+          type: boolean
+        lifetimeXp:
+          type: number
+        currentLevel:
+          type: number
+        highestLevel:
+          type: number
+        personalGold:
+          type: number
+        legendaryCompletions:
+          type: number
+        adventureMode:
+          type: boolean
+        soundEnabled:
+          type: boolean
+        hapticsEnabled:
+          type: boolean
+        characterCooldownUntil:
+          type: ["string", "null"]
+        activePartyId:
+          type: ["number", "null"]
+        createdAt:
+          type: string
+
+    AdventurerCard:
+      type: object
+      required: [id, displayName, level]
+      properties:
+        id:
+          type: number
+        displayName:
+          type: string
+        adventurerName:
+          type: ["string", "null"]
+        level:
+          type: number
+        species:
+          type: ["string", "null"]
+        class:
+          type: ["string", "null"]
+        avatarColor:
+          type: ["string", "null"]
+
+    PinLockResponse:
+      type: object
+      required: [error, lockedUntil]
+      properties:
+        error:
+          type: string
+        lockedUntil:
+          type: string
+
+    # ─── HOME SCHEMAS ──────────────────────────────────────────────────────────
+    HomeData:
+      type: object
+      required: [user, character, activeParty, myQuests, xpForNextLevel, partyGoldReserve]
+      properties:
+        user:
+          $ref: "#/components/schemas/UserProfile"
+        character:
+          $ref: "#/components/schemas/Character"
+        activeParty:
+          $ref: "#/components/schemas/PartyOverview"
+        myQuests:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuestAssignment"
+        activeProject:
+          $ref: "#/components/schemas/Project"
+        activePartyGoal:
+          $ref: "#/components/schemas/PartyGoal"
+        xpForNextLevel:
+          type: number
+        partyGoldReserve:
+          type: number
+        needsAttention:
+          $ref: "#/components/schemas/NeedsAttention"
+        catFoleyActive:
+          type: boolean
+
+    NeedsAttention:
+      type: object
+      required: [pendingVerifications, proposedQuests]
+      properties:
+        pendingVerifications:
+          type: number
+        proposedQuests:
+          type: number
+
+    GiveMeAQuestResult:
+      type: object
+      required: [hasQuest]
+      properties:
+        hasQuest:
+          type: boolean
+        quest:
+          $ref: "#/components/schemas/QuestAssignment"
+        message:
+          type: string
+
+    # ─── PARTY SCHEMAS ─────────────────────────────────────────────────────────
+    PartyInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+
+    PartyUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        routinesPaused:
+          type: boolean
+        routinesPausedUntil:
+          type: ["string", "null"]
+
+    Party:
+      type: object
+      required: [id, name, householdCode, founderId, memberCount, routinesPaused, createdAt]
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        householdCode:
+          type: string
+        founderId:
+          type: number
+        memberCount:
+          type: number
+        routinesPaused:
+          type: boolean
+        routinesPausedUntil:
+          type: ["string", "null"]
+        partyGoldReserve:
+          type: number
+        myRole:
+          type: ["string", "null"]
+          enum: [founder, leader, adventurer, null]
+        createdAt:
+          type: string
+
+    PartyOverview:
+      type: object
+      required: [id, name, householdCode, myRole, memberCount]
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        householdCode:
+          type: string
+        myRole:
+          type: string
+          enum: [founder, leader, adventurer]
+        memberCount:
+          type: number
+        partyGoldReserve:
+          type: number
+        routinesPaused:
+          type: boolean
+
+    PartyMember:
+      type: object
+      required: [userId, displayName, role, userType, level]
+      properties:
+        userId:
+          type: number
+        displayName:
+          type: string
+        adventurerName:
+          type: ["string", "null"]
+        role:
+          type: string
+          enum: [founder, leader, adventurer]
+        userType:
+          type: string
+          enum: [adult, kid]
+        level:
+          type: number
+        species:
+          type: ["string", "null"]
+        class:
+          type: ["string", "null"]
+        joinedAt:
+          type: string
+
+    KidMemberInput:
+      type: object
+      required: [displayName, pin]
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+        pin:
+          type: string
+          minLength: 4
+          maxLength: 4
+
+    MemberUpdate:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [leader, adventurer]
+        resetPin:
+          type: string
+          minLength: 4
+          maxLength: 4
+        adventurerName:
+          type: string
+
+    InviteInput:
+      type: object
+      required: [inviteeRole]
+      properties:
+        inviteeRole:
+          type: string
+          enum: [leader, adventurer]
+
+    Invite:
+      type: object
+      required: [id, code, inviteeRole, expiresAt]
+      properties:
+        id:
+          type: number
+        code:
+          type: string
+        inviteeRole:
+          type: string
+        expiresAt:
+          type: string
+
+    JoinPartyInput:
+      type: object
+      required: [inviteCode]
+      properties:
+        inviteCode:
+          type: string
+
+    PauseRoutinesInput:
+      type: object
+      required: [pause]
+      properties:
+        pause:
+          type: boolean
+        resumeOn:
+          type: ["string", "null"]
+
+    TransferFounderInput:
+      type: object
+      required: [newFounderUserId]
+      properties:
+        newFounderUserId:
+          type: number
+
+    # ─── CHARACTER SCHEMAS ─────────────────────────────────────────────────────
+    CharacterInput:
+      type: object
+      required: [species, class, gender, skinTone, hairStyle, hairColor, eyeColor]
+      properties:
+        adventurerName:
+          type: string
+        species:
+          type: string
+        class:
+          type: string
+        gender:
+          type: string
+        skinTone:
+          type: string
+        hairStyle:
+          type: string
+        hairColor:
+          type: string
+        eyeColor:
+          type: string
+        hasGlasses:
+          type: boolean
+        facialHair:
+          type: ["string", "null"]
+
+    Character:
+      type: object
+      required: [userId, species, class, gender, skinTone, hairStyle, hairColor, eyeColor, hasGlasses, createdAt]
+      properties:
+        userId:
+          type: number
+        adventurerName:
+          type: ["string", "null"]
+        species:
+          type: string
+        class:
+          type: string
+        gender:
+          type: string
+        skinTone:
+          type: string
+        hairStyle:
+          type: string
+        hairColor:
+          type: string
+        eyeColor:
+          type: string
+        hasGlasses:
+          type: boolean
+        facialHair:
+          type: ["string", "null"]
+        cooldownUntil:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    CooldownResponse:
+      type: object
+      required: [error, cooldownUntil]
+      properties:
+        error:
+          type: string
+        cooldownUntil:
+          type: string
+
+    # ─── QUEST SCHEMAS ─────────────────────────────────────────────────────────
+    QuestDefinitionInput:
+      type: object
+      required: [partyId, plainTitle, questType, difficulty]
+      properties:
+        partyId:
+          type: number
+        plainTitle:
+          type: string
+          minLength: 1
+        adventureTitle:
+          type: ["string", "null"]
+        questType:
+          type: string
+          enum: [individual, open, party]
+        difficulty:
+          type: string
+          enum: [easy, normal, hard, epic, legendary]
+        isLegendary:
+          type: boolean
+        assignedUserIds:
+          type: array
+          items:
+            type: number
+        scheduleType:
+          type: string
+          enum: [anytime, date, recurring]
+        scheduledDate:
+          type: ["string", "null"]
+        recurrencePattern:
+          type: ["string", "null"]
+          enum: [daily, weekly, weekdays, school_days, non_school_days, null]
+        recurrenceDays:
+          type: array
+          items:
+            type: number
+        timeWindow:
+          type: ["string", "null"]
+          enum: [morning, afternoon, evening, custom, null]
+        timeWindowStart:
+          type: ["string", "null"]
+        timeWindowEnd:
+          type: ["string", "null"]
+        requiresVerification:
+          type: boolean
+        customXp:
+          type: ["number", "null"]
+        customGold:
+          type: ["number", "null"]
+        rotationEnabled:
+          type: boolean
+        schoolCalendarId:
+          type: ["number", "null"]
+        saveAsQuickQuest:
+          type: boolean
+        projectId:
+          type: ["number", "null"]
+
+    QuestDefinitionUpdate:
+      type: object
+      properties:
+        plainTitle:
+          type: string
+        adventureTitle:
+          type: string
+        difficulty:
+          type: string
+          enum: [easy, normal, hard, epic, legendary]
+        requiresVerification:
+          type: boolean
+        scheduleType:
+          type: string
+        scheduledDate:
+          type: ["string", "null"]
+        recurrencePattern:
+          type: ["string", "null"]
+        recurrenceDays:
+          type: array
+          items:
+            type: number
+        timeWindowStart:
+          type: ["string", "null"]
+        timeWindowEnd:
+          type: ["string", "null"]
+        customXp:
+          type: ["number", "null"]
+        customGold:
+          type: ["number", "null"]
+
+    QuestDefinition:
+      type: object
+      required: [id, partyId, plainTitle, questType, difficulty, status, xpReward, goldReward, partyGoldReward, createdAt]
+      properties:
+        id:
+          type: number
+        partyId:
+          type: number
+        plainTitle:
+          type: string
+        adventureTitle:
+          type: ["string", "null"]
+        questType:
+          type: string
+          enum: [individual, open, party]
+        difficulty:
+          type: string
+          enum: [easy, normal, hard, epic, legendary]
+        isLegendary:
+          type: boolean
+        status:
+          type: string
+          enum: [active, paused, draft, proposed, declined, archived]
+        requiresVerification:
+          type: boolean
+        scheduleType:
+          type: string
+          enum: [anytime, date, recurring]
+        scheduledDate:
+          type: ["string", "null"]
+        recurrencePattern:
+          type: ["string", "null"]
+        recurrenceDays:
+          type: array
+          items:
+            type: number
+        timeWindowStart:
+          type: ["string", "null"]
+        timeWindowEnd:
+          type: ["string", "null"]
+        xpReward:
+          type: number
+        goldReward:
+          type: number
+        partyGoldReward:
+          type: number
+        assignedUsers:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdventurerCard"
+        projectId:
+          type: ["number", "null"]
+        proposedByUserId:
+          type: ["number", "null"]
+        proposedDifficulty:
+          type: ["string", "null"]
+        recommendedDifficulty:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    QuestAssignment:
+      type: object
+      required: [id, questDefinitionId, userId, status, plainTitle, difficulty, xpReward, goldReward, partyGoldReward]
+      properties:
+        id:
+          type: number
+        questDefinitionId:
+          type: number
+        userId:
+          type: number
+        partyId:
+          type: number
+        plainTitle:
+          type: string
+        adventureTitle:
+          type: ["string", "null"]
+        questType:
+          type: string
+          enum: [individual, open, party]
+        difficulty:
+          type: string
+          enum: [easy, normal, hard, epic, legendary]
+        isLegendary:
+          type: boolean
+        status:
+          type: string
+          enum: [available, claimed, pending_verification, completed, expired, cancelled]
+        requiresVerification:
+          type: boolean
+        xpReward:
+          type: number
+        goldReward:
+          type: number
+        partyGoldReward:
+          type: number
+        availableFrom:
+          type: ["string", "null"]
+        expiresAt:
+          type: ["string", "null"]
+        timeWindowStart:
+          type: ["string", "null"]
+        timeWindowEnd:
+          type: ["string", "null"]
+        completedAt:
+          type: ["string", "null"]
+        verifiedAt:
+          type: ["string", "null"]
+        verifiedByUserId:
+          type: ["number", "null"]
+        verificationNote:
+          type: ["string", "null"]
+        assignedUserDisplayName:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    QuestRewardResult:
+      type: object
+      required: [assignment, rewarded]
+      properties:
+        assignment:
+          $ref: "#/components/schemas/QuestAssignment"
+        rewarded:
+          type: boolean
+        xpGained:
+          type: number
+        goldGained:
+          type: number
+        partyGoldGained:
+          type: number
+        newLevel:
+          type: ["number", "null"]
+        leveledUp:
+          type: boolean
+        verificationComment:
+          type: ["string", "null"]
+        suggestedComments:
+          type: array
+          items:
+            type: string
+
+    VerifyQuestInput:
+      type: object
+      required: [approved]
+      properties:
+        approved:
+          type: boolean
+        comment:
+          type: ["string", "null"]
+        reason:
+          type: ["string", "null"]
+
+    QuestProposalInput:
+      type: object
+      required: [partyId, plainTitle, difficulty]
+      properties:
+        partyId:
+          type: number
+        plainTitle:
+          type: string
+          minLength: 1
+        difficulty:
+          type: string
+          enum: [easy, normal, hard, epic]
+        scheduleType:
+          type: string
+          enum: [anytime, date, recurring]
+        scheduledDate:
+          type: ["string", "null"]
+        recurrencePattern:
+          type: ["string", "null"]
+
+    QuestProposalReview:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [approve, decline, change_difficulty]
+        difficulty:
+          type: ["string", "null"]
+          enum: [easy, normal, hard, epic, null]
+        reason:
+          type: ["string", "null"]
+
+    PauseQuestInput:
+      type: object
+      required: [paused]
+      properties:
+        paused:
+          type: boolean
+
+    QuickQuest:
+      type: object
+      required: [id, plainTitle, difficulty]
+      properties:
+        id:
+          type: number
+        plainTitle:
+          type: string
+        adventureTitle:
+          type: ["string", "null"]
+        difficulty:
+          type: string
+        isGlobal:
+          type: boolean
+        partyId:
+          type: ["number", "null"]
+
+    # ─── SHOP SCHEMAS ──────────────────────────────────────────────────────────
+    ShopItem:
+      type: object
+      required: [id, name, category, goldPrice, minLevel, active]
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        category:
+          type: string
+          enum: [weapon, off_hand, outfit, head, pet, pet_accessory, background, effect]
+        goldPrice:
+          type: number
+        minLevel:
+          type: number
+        minLegendaryCompletions:
+          type: number
+        isLocked:
+          type: boolean
+        isOwned:
+          type: boolean
+        isCatFoleyExclusive:
+          type: boolean
+        neverReturn:
+          type: boolean
+        active:
+          type: boolean
+        isEvolvingPet:
+          type: boolean
+        evolutionStages:
+          type: array
+          items:
+            type: string
+        assetKey:
+          type: ["string", "null"]
+        emoji:
+          type: ["string", "null"]
+
+    ShopCatalog:
+      type: object
+      required: [owned, unlocked, comingSoon]
+      properties:
+        owned:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShopItem"
+        unlocked:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShopItem"
+        comingSoon:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShopItem"
+
+    ShopItemInput:
+      type: object
+      required: [name, category, goldPrice, minLevel]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          enum: [weapon, off_hand, outfit, head, pet, pet_accessory, background, effect]
+        goldPrice:
+          type: number
+        minLevel:
+          type: number
+        minLegendaryCompletions:
+          type: number
+        isCatFoleyExclusive:
+          type: boolean
+        neverReturn:
+          type: boolean
+        isEvolvingPet:
+          type: boolean
+        evolutionStages:
+          type: array
+          items:
+            type: string
+        assetKey:
+          type: string
+        emoji:
+          type: string
+
+    ShopItemUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        goldPrice:
+          type: number
+        minLevel:
+          type: number
+        active:
+          type: boolean
+        neverReturn:
+          type: boolean
+        emoji:
+          type: string
+
+    PurchaseInput:
+      type: object
+      required: [itemId]
+      properties:
+        itemId:
+          type: number
+
+    PurchaseResult:
+      type: object
+      required: [item, goldRemaining, transactionId]
+      properties:
+        item:
+          $ref: "#/components/schemas/ShopItem"
+        goldRemaining:
+          type: number
+        transactionId:
+          type: number
+
+    # ─── INVENTORY SCHEMAS ─────────────────────────────────────────────────────
+    InventoryItem:
+      type: object
+      required: [shopItemId, name, category, acquiredAt]
+      properties:
+        shopItemId:
+          type: number
+        name:
+          type: string
+        category:
+          type: string
+        assetKey:
+          type: ["string", "null"]
+        emoji:
+          type: ["string", "null"]
+        isEquipped:
+          type: boolean
+        equippedSlot:
+          type: ["string", "null"]
+        isEvolvingPet:
+          type: boolean
+        evolutionStage:
+          type: number
+        questsWhileEquipped:
+          type: number
+        nextEvolutionAt:
+          type: ["number", "null"]
+        acquiredAt:
+          type: string
+
+    Inventory:
+      type: object
+      required: [items, equipped]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/InventoryItem"
+        equipped:
+          type: object
+          properties:
+            outfit:
+              $ref: "#/components/schemas/InventoryItem"
+            head:
+              $ref: "#/components/schemas/InventoryItem"
+            main_hand:
+              $ref: "#/components/schemas/InventoryItem"
+            off_hand:
+              $ref: "#/components/schemas/InventoryItem"
+            pet:
+              $ref: "#/components/schemas/InventoryItem"
+            pet_accessory:
+              $ref: "#/components/schemas/InventoryItem"
+            background:
+              $ref: "#/components/schemas/InventoryItem"
+            effect:
+              $ref: "#/components/schemas/InventoryItem"
+
+    EquipInput:
+      type: object
+      required: [shopItemId]
+      properties:
+        shopItemId:
+          type: number
+
+    # ─── PARTY GOALS SCHEMAS ───────────────────────────────────────────────────
+    PartyGoalInput:
+      type: object
+      required: [partyId, name, targetGold]
+      properties:
+        partyId:
+          type: number
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        targetGold:
+          type: number
+
+    PartyGoal:
+      type: object
+      required: [id, partyId, name, targetGold, currentGold, status, createdAt]
+      properties:
+        id:
+          type: number
+        partyId:
+          type: number
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        targetGold:
+          type: number
+        currentGold:
+          type: number
+        status:
+          type: string
+          enum: [available, proposed, active, completed, redeemed, cancelled]
+        activatedAt:
+          type: ["string", "null"]
+        completedAt:
+          type: ["string", "null"]
+        redeemedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    PartyGoalSummary:
+      type: object
+      required: [reserve, goals]
+      properties:
+        reserve:
+          type: number
+        activeGoal:
+          $ref: "#/components/schemas/PartyGoal"
+        goals:
+          type: array
+          items:
+            $ref: "#/components/schemas/PartyGoal"
+
+    # ─── PROJECT SCHEMAS ───────────────────────────────────────────────────────
+    ProjectInput:
+      type: object
+      required: [partyId, name, projectType]
+      properties:
+        partyId:
+          type: number
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        projectType:
+          type: string
+          enum: [normal, boss]
+        bossName:
+          type: ["string", "null"]
+        bossAssetKey:
+          type: ["string", "null"]
+
+    ProjectUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        bossName:
+          type: ["string", "null"]
+
+    Project:
+      type: object
+      required: [id, partyId, name, projectType, status, completedTaskCount, totalTaskCount, createdAt]
+      properties:
+        id:
+          type: number
+        partyId:
+          type: number
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        projectType:
+          type: string
+          enum: [normal, boss]
+        bossName:
+          type: ["string", "null"]
+        bossAssetKey:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [active, completed, cancelled]
+        completedTaskCount:
+          type: number
+        totalTaskCount:
+          type: number
+        hpMax:
+          type: ["number", "null"]
+        hpCurrent:
+          type: ["number", "null"]
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuestAssignment"
+        participants:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdventurerCard"
+        createdAt:
+          type: string
+
+    # ─── CAT FOLEY SCHEMAS ─────────────────────────────────────────────────────
+    CatFoleyVisit:
+      type: object
+      required: [isActive]
+      properties:
+        isActive:
+          type: boolean
+        visitId:
+          type: ["number", "null"]
+        startDate:
+          type: ["string", "null"]
+        endDate:
+          type: ["string", "null"]
+        dialogue:
+          type: ["string", "null"]
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShopItem"
+
+    # ─── SCHOOL CALENDAR SCHEMAS ───────────────────────────────────────────────
+    SchoolCalendarInput:
+      type: object
+      required: [partyId, name, yearStart, yearEnd, normalWeekdays]
+      properties:
+        partyId:
+          type: number
+        name:
+          type: string
+          minLength: 1
+        yearStart:
+          type: string
+        yearEnd:
+          type: string
+        normalWeekdays:
+          type: array
+          items:
+            type: number
+        noSchoolDates:
+          type: array
+          items:
+            type: string
+        assignedUserIds:
+          type: array
+          items:
+            type: number
+
+    SchoolCalendarUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        yearStart:
+          type: string
+        yearEnd:
+          type: string
+        normalWeekdays:
+          type: array
+          items:
+            type: number
+        noSchoolDates:
+          type: array
+          items:
+            type: string
+        assignedUserIds:
+          type: array
+          items:
+            type: number
+
+    SchoolCalendar:
+      type: object
+      required: [id, partyId, name, yearStart, yearEnd, normalWeekdays, createdAt]
+      properties:
+        id:
+          type: number
+        partyId:
+          type: number
+        name:
+          type: string
+        yearStart:
+          type: string
+        yearEnd:
+          type: string
+        normalWeekdays:
+          type: array
+          items:
+            type: number
+        noSchoolDates:
+          type: array
+          items:
+            type: string
+        assignedUserIds:
+          type: array
+          items:
+            type: number
+        createdAt:
+          type: string
+
+    # ─── AI SCHEMAS ────────────────────────────────────────────────────────────
+    AdventureSpeakInput:
+      type: object
+      required: [plainTitle]
+      properties:
+        plainTitle:
+          type: string
+
+    AdventureSpeakResult:
+      type: object
+      required: [adventureTitle]
+      properties:
+        adventureTitle:
+          type: string
+
+    ProjectBreakdownInput:
+      type: object
+      required: [goal]
+      properties:
+        goal:
+          type: string
+        context:
+          type: string
+
+    ProjectBreakdownResult:
+      type: object
+      required: [tasks]
+      properties:
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/SuggestedTask"
+
+    SuggestedTask:
+      type: object
+      required: [plainTitle, suggestedDifficulty]
+      properties:
+        plainTitle:
+          type: string
+        adventureTitle:
+          type: ["string", "null"]
+        suggestedDifficulty:
+          type: string
+          enum: [easy, normal, hard, epic]
+
+    SuggestDifficultyInput:
+      type: object
+      required: [taskDescription]
+      properties:
+        taskDescription:
+          type: string
+
+    SuggestDifficultyResult:
+      type: object
+      required: [difficulty]
+      properties:
+        difficulty:
+          type: string
+          enum: [easy, normal, hard, epic]
+        reasoning:
+          type: string
+
+    # ─── ADMIN SCHEMAS ─────────────────────────────────────────────────────────
+    AdminUserRecord:
+      type: object
+      required: [id, displayName, userType, lifetimeXp, currentLevel, personalGold, createdAt]
+      properties:
+        id:
+          type: number
+        email:
+          type: ["string", "null"]
+        displayName:
+          type: string
+        adventurerName:
+          type: ["string", "null"]
+        userType:
+          type: string
+        isAppAdmin:
+          type: boolean
+        lifetimeXp:
+          type: number
+        currentLevel:
+          type: number
+        highestLevel:
+          type: number
+        personalGold:
+          type: number
+        legendaryCompletions:
+          type: number
+        parties:
+          type: array
+          items:
+            $ref: "#/components/schemas/PartyOverview"
+        createdAt:
+          type: string
+
+    AdminAdjustInput:
+      type: object
+      required: [reason]
+      properties:
+        xpDelta:
+          type: ["number", "null"]
+        goldDelta:
+          type: ["number", "null"]
+        legendaryDelta:
+          type: ["number", "null"]
+        reason:
+          type: string
+          minLength: 1
+
+    LeaderAdjustInput:
+      type: object
+      required: [partyId, targetUserId, reason]
+      properties:
+        partyId:
+          type: number
+        targetUserId:
+          type: number
+        xpDelta:
+          type: ["number", "null"]
+        goldDelta:
+          type: ["number", "null"]
+        reason:
+          type: string
+          minLength: 1
+
+    GameConfig:
+      type: object
+      required: [rewardTable, levelCurve, catFoleyConfig]
+      properties:
+        rewardTable:
+          type: object
+          additionalProperties: true
+        levelCurve:
+          type: array
+          items:
+            type: number
+        catFoleyConfig:
+          type: object
+          additionalProperties: true
+
+    GameConfigUpdate:
+      type: object
+      properties:
+        rewardTable:
+          type: object
+          additionalProperties: true
+        levelCurve:
+          type: array
+          items:
+            type: number
+        catFoleyConfig:
+          type: object
+          additionalProperties: true
+
+    AuditLog:
+      type: object
+      required: [id, action, actorId, createdAt]
+      properties:
+        id:
+          type: number
+        action:
+          type: string
+        actorId:
+          type: number
+        actorDisplayName:
+          type: string
+        targetUserId:
+          type: ["number", "null"]
+        targetPartyId:
+          type: ["number", "null"]
+        details:
+          type: object
+          additionalProperties: true
+        reason:
+          type: ["string", "null"]
+        createdAt:
+          type: string

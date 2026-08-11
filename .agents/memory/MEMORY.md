@@ -1,0 +1,2 @@
+- [CYOA auth architecture](cyoa-auth.md) — custom JWT auth (no Clerk); token in localStorage "cyoa_token"; bcrypt for adults, 4-digit PIN for kids
+- [CYOA codegen fix](cyoa-codegen.md) — Orval 8.x generates Zod v4 syntax; fix by removing type:integer→number, format:email, bare type:object→additionalProperties:true in openapi.yaml
