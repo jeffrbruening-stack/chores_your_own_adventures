@@ -1,0 +1,1482 @@
+CHORES YOUR OWN ADVENTURE — V1 CORE EXPERIENCE CORRECTION PASS
+
+The initial build is a good structural start, and the overall purple/gold visual direction and bottom navigation are generally good.
+
+However, the current implementation has several major problems that need to be corrected BEFORE adding more advanced V1 features.
+
+Current observed problems:
+
+1. Character creation is completely missing.
+2. New users are automatically assigned an emoji instead of creating a character.
+3. The Home screen is essentially blank after login.
+4. The Party screen is essentially blank.
+5. The Shop contains no items.
+6. The intro logo is visually wrong for the intended style.
+7. The intro logo continuously bounces up and down.
+8. Several screens appear to exist as routes/layouts but do not yet provide a functional game experience.
+
+STOP adding advanced features for now.
+
+Do not prioritize Cat Foley, AI planning, Boss Battles, Legendary Quests, notifications, or other later systems until the basic game loop described at the end of this prompt is working.
+
+The immediate goal is:
+
+CREATE CHARACTER → SEE QUEST → COMPLETE QUEST → EARN XP/GOLD → SHOP → BUY ITEM → EQUIP ITEM → SEE CHARACTER CHANGE
+
+That loop must feel like an actual game.
+
+⸻
+
+1. CRITICAL — ADD THE MISSING CHARACTER CREATION FLOW
+
+The current build skips character creation entirely.
+
+This is incorrect.
+
+Every USER has one global RPG character that follows them across all Parties.
+
+A new user must intentionally create that character before entering the normal application.
+
+Do not automatically assign an emoji avatar.
+
+ADULT FIRST-TIME FLOW
+
+For a brand-new adult:
+
+Create Account
+→ Create Party OR Join Party
+→ CREATE YOUR ADVENTURER
+→ Home
+
+If the adult creates a Party, creating the Party must NOT automatically create a generic character for them.
+
+KID FIRST-TIME FLOW
+
+Kids are initially created by a Party Leader with:
+
+* Display Name
+* 4-digit PIN
+* Party membership
+
+The Party Leader does NOT design the kid’s character.
+
+That is intentionally left to the kid because creating their own character is part of the fun.
+
+Kid flow:
+
+Enter Household Code
+→ Select Kid/Adventurer
+→ Enter PIN
+→ if character has never been created: CREATE YOUR ADVENTURER
+→ Home
+
+On subsequent logins, character creation is skipped because the character already exists.
+
+EXISTING TEST USERS
+
+Existing accounts created by the current version may already have an automatically generated emoji/default avatar.
+
+Do NOT treat that as completed character creation.
+
+If an existing user does not have a valid completed character configuration, redirect them through Create Your Adventurer the next time they enter the app.
+
+This first intentional creation does NOT trigger the seven-day character-change cooldown.
+
+⸻
+
+2. BUILD A REAL CHARACTER CREATOR
+
+Create a polished mobile-friendly character creation flow.
+
+The title should feel like an RPG:
+
+CREATE YOUR ADVENTURER
+
+Show a large LIVE PREVIEW of the full-body pixel character.
+
+As the user changes options, update the preview immediately.
+
+Required selections:
+
+ADVENTURER NAME
+
+User enters a fantasy/adventure character name.
+
+Also include:
+
+🎲 GENERATE NAME
+
+Generate an appropriate short fantasy name.
+
+The user’s normal Display Name remains separate.
+
+Example:
+
+Display Name: Jensen
+Adventurer Name: Thornblade
+
+GENDER / BODY PRESENTATION
+
+Provide simple character presentation options.
+
+Do not make this mechanically significant.
+
+SPECIES
+
+Use generic/original fantasy species.
+
+Start with a small useful set such as:
+
+* Human
+* Elf
+* Dwarf
+* Gnome
+* Halfling
+* Orc
+* Goblin
+
+Species is cosmetic only.
+
+Do not use protected D&D-specific artwork or lore.
+
+CLASS
+
+Start with familiar generic fantasy archetypes such as:
+
+* Fighter
+* Ranger
+* Wizard
+* Rogue
+* Cleric
+* Barbarian
+
+Class is cosmetic only.
+
+Class NEVER restricts equipment.
+
+A Wizard can equip an axe.
+
+A Fighter can equip a spellbook.
+
+That is intentional.
+
+APPEARANCE
+
+Allow:
+
+* Skin tone
+* Hair style
+* Hair color
+* Eye color
+* Glasses
+* Optional facial hair where applicable
+
+Do not overcomplicate the first asset set.
+
+A small number of GOOD options is better than dozens of bad ones.
+
+RANDOMIZE
+
+Include a prominent:
+
+🎲 RANDOMIZE
+
+Randomize should generate a complete valid character:
+
+* species;
+* class;
+* appearance;
+* Adventurer Name.
+
+The user can then change any selections before saving.
+
+FINISH
+
+Final button:
+
+BEGIN ADVENTURE
+
+Saving creates the global character profile.
+
+Only after that should normal app navigation become available.
+
+⸻
+
+3. REMOVE EMOJI CHARACTER ART
+
+The current Character screen displays an emoji face.
+
+Remove this.
+
+Do not use emoji as player-character artwork anywhere in the application.
+
+The user’s character must be an original full-body pixel-art RPG sprite.
+
+The sprite should visually resemble an early-console fantasy RPG character while still being readable on a modern phone.
+
+Think deliberate 8-bit/16-bit RPG sprite artwork, NOT:
+
+* emoji;
+* Bitmoji;
+* modern cartoon avatar;
+* clip art;
+* photorealistic character;
+* generic circular profile picture.
+
+⸻
+
+4. BUILD THE CHARACTER AS A LAYERED SPRITE
+
+The character system must support visible customization and equipment.
+
+Use a layered sprite/avatar architecture so the rendered character can combine:
+
+* base body;
+* skin tone;
+* species features;
+* hair;
+* hair color;
+* facial features;
+* base clothing/outfit;
+* head equipment;
+* main-hand equipment;
+* off-hand equipment;
+* optional visual effect;
+* equipped pet beside the character.
+
+For V1, these can be simple original pixel-art assets.
+
+They do NOT need to be final production-quality artwork.
+
+However, they must be cohesive and intentionally designed.
+
+Do not substitute emoji or generic icon libraries.
+
+⸻
+
+5. EQUIPMENT MUST VISIBLY CHANGE THE CHARACTER
+
+This is a critical part of the reward loop.
+
+When equipment is equipped, the character sprite must visually change.
+
+Examples:
+
+Equip:
+
+Iron Sword
+
+→ sword visibly appears in the character’s Main Hand.
+
+Equip:
+
+Wizard Hat
+
+→ hat visibly appears on the character.
+
+Equip:
+
+Wooden Shield
+
+→ shield visibly appears in Off Hand.
+
+Equip:
+
+Brown Puppy
+
+→ puppy appears beside the character.
+
+Equip:
+
+Ridiculous Feathered Hat
+
+→ the character visibly wears the ridiculous feathered hat.
+
+Owning an item does NOT automatically display it.
+
+Only EQUIPPED items appear.
+
+⸻
+
+6. STARTER CHARACTER EQUIPMENT
+
+A new character should not appear naked or visually unfinished.
+
+Every new character gets a basic starter outfit automatically.
+
+This starter outfit should have:
+
+* zero Gold cost;
+* no level requirement;
+* automatically owned;
+* automatically equipped.
+
+Optional slots begin empty.
+
+Starting state:
+
+Level: 1
+XP: 0
+Personal Gold: 0
+Legendary Completions: 0
+
+Starter clothing equipped.
+
+Do not give the player purchased weapons/items automatically.
+
+⸻
+
+7. CHARACTER EDITING AND COOLDOWN
+
+After initial character creation, base-character changes are subject to the previously specified seven-day cooldown.
+
+Cooldown applies to:
+
+* gender/body presentation;
+* species;
+* class;
+* skin tone;
+* hair;
+* eye configuration;
+* glasses;
+* facial hair;
+* Adventurer Name.
+
+Initial character creation does NOT trigger the cooldown.
+
+Later edits do.
+
+Equipment can be changed at any time and does NOT trigger the cooldown.
+
+Party Leaders can override the cooldown when necessary.
+
+⸻
+
+8. FIX THE INTRO/LOGIN LOGO
+
+The current intro graphic is visually wrong for this product.
+
+It currently resembles an elaborate medieval heraldic coat of arms.
+
+Remove it.
+
+Specifically, remove the current:
+
+* crown;
+* shield;
+* laurels;
+* banners;
+* Latin text;
+* ornate heraldic ornamentation.
+
+The intended logo is much simpler.
+
+Create an ORIGINAL PIXEL-ART emblem consisting primarily of:
+
+CROSSED SWORD + BROOM
+
+The sword and household broom should cross like two RPG weapons/tools.
+
+Visual direction:
+
+* early console RPG;
+* intentionally pixelated;
+* approximately 16-bit aesthetic;
+* clean silhouette;
+* readable at app-icon size;
+* fantasy-flavored without excessive ornamentation;
+* purple/gold accents where appropriate;
+* transparent background.
+
+Think:
+
+an item/quest emblem from an old-school fantasy video game
+
+NOT:
+
+a medieval family’s coat of arms.
+
+This same visual concept should ultimately support:
+
+* landing-page branding;
+* favicon;
+* PWA icon;
+* Apple Touch Icon;
+* Home Screen icon.
+
+⸻
+
+9. REMOVE THE CONTINUOUS LOGO BOUNCING
+
+The intro logo currently continuously moves/bounces vertically.
+
+Remove that animation.
+
+The landing page should be visually stable.
+
+A short ONE-TIME entrance animation is acceptable.
+
+Do not continuously:
+
+* bounce;
+* float;
+* pulse;
+* shake;
+* zoom.
+
+The user should not feel like the logo is trying to escape the screen.
+
+Respect prefers-reduced-motion.
+
+⸻
+
+10. KEEP THE GOOD PARTS OF THE CURRENT VISUAL DIRECTION
+
+Do NOT unnecessarily redesign everything.
+
+The current:
+
+* dark purple background;
+* gold accent;
+* retro heading typography;
+* bottom navigation;
+* general RPG menu direction
+
+are broadly appropriate.
+
+Refine them rather than replacing them.
+
+The goal is:
+
+modern usable mobile interface + classic pixel RPG flavor
+
+Do not turn the whole application into a fake CRT or make normal text difficult to read.
+
+⸻
+
+11. FIX THE HOME SCREEN
+
+The Home screen currently appears essentially blank after login.
+
+This is a major problem.
+
+Home should ALWAYS contain useful content.
+
+Build the actual Home experience.
+
+At the top show:
+
+* active Party name / Party switcher where applicable;
+* full-body character sprite;
+* Adventurer Name;
+* Display Name where useful;
+* Class;
+* Level;
+* XP progress bar;
+* Personal Gold.
+
+Then prominently show:
+
+🎲 GIVE ME A QUEST
+
+Then:
+
+YOUR QUESTS
+
+Then, when applicable:
+
+* Active Project/Boss;
+* Party Goal progress.
+
+For Party Leaders also show:
+
+* ●	CREATE;
+* NEEDS ATTENTION if approvals are waiting.
+
+⸻
+
+12. HOME EMPTY STATE
+
+A user with zero quests should NOT see a blank purple screen.
+
+Show an intentional empty state.
+
+Example:
+
+YOUR QUEST LOG IS CLEAR
+
+No adventures await you right now.
+
+For Party Leaders add:
+
++ CREATE YOUR FIRST QUEST
+
+For Adventurers, do not create work automatically.
+
+Give Me a Quest should only select from existing eligible quests.
+
+If none exist:
+
+Your quest log is clear. Go be free.
+
+⸻
+
+13. FIX THE PARTY SCREEN
+
+The Party screen currently appears essentially blank.
+
+Build a useful Party screen.
+
+At minimum show:
+
+PARTY NAME
+
+Then:
+
+PARTY MEMBERS
+
+Display members with:
+
+* pixel character;
+* Adventurer Name;
+* Display Name;
+* Level;
+* Party role where appropriate.
+
+Do NOT show other Adventurers’ Individual Quest lists.
+
+Then:
+
+PARTY GOAL
+
+If active, show:
+
+* Goal name;
+* current Party Gold;
+* target;
+* progress bar.
+
+If none exists:
+
+NO ACTIVE PARTY GOAL
+
+For Party Leader:
+
+CREATE PARTY GOAL
+
+For Adventurer:
+
+Your Party Leader hasn’t chosen the next adventure yet.
+
+Then:
+
+PROJECTS & BOSSES
+
+Show active shared activities.
+
+If none:
+
+No active Party adventures.
+
+Party Leaders should have access to Party management/settings.
+
+Do not render unexplained blank space.
+
+⸻
+
+14. FIX THE QUESTS SCREEN
+
+The Quest screen must be useful even before quests exist.
+
+Sections/tabs should support:
+
+* My Quests;
+* Open Quests;
+* Party Quests.
+
+If empty:
+
+YOUR QUEST LOG IS CLEAR
+
+For Party Leader:
+
+CREATE YOUR FIRST QUEST
+
+Do not leave blank pages.
+
+⸻
+
+15. IMPLEMENT THE BASIC QUEST CREATION FLOW NOW
+
+The Party Leader needs to be able to create a real quest so the game can be tested.
+
+At minimum implement:
+
+1. Plain task title.
+2. Adventure title.
+3. Assignment.
+4. Difficulty.
+5. Timing.
+6. Verification toggle.
+7. Save.
+
+Difficulty rewards:
+
+Easy:
+10 XP
+10 Personal Gold
+2 Party Gold
+
+Normal:
+25 XP
+20 Personal Gold
+5 Party Gold
+
+Hard:
+50 XP
+40 Personal Gold
+10 Party Gold
+
+Epic:
+100 XP
+75 Personal Gold
+20 Party Gold
+
+Legendary remains a separate later/special flow.
+
+For the current core pass, prioritize Easy–Epic.
+
+⸻
+
+16. ADVENTURE TITLE
+
+Every quest should store:
+
+* Plain Title
+* Adventure Title
+
+Example:
+
+Plain:
+
+Unload Dishwasher
+
+Adventure:
+
+Clear the Porcelain Armory
+
+If AI integration is not ready, use simple seed/demo Adventure titles or fall back to Plain Title.
+
+Do NOT block core quest creation because AI is unavailable.
+
+⸻
+
+17. IMPLEMENT QUEST COMPLETION
+
+Do not implement Start Quest or In Progress.
+
+Normal quest:
+
+COMPLETE QUEST
+
+One tap completes it.
+
+Backend/server awards the correct rewards.
+
+Display a short satisfying reward result such as:
+
+QUEST COMPLETE!
+
++25 XP
+
++20 Gold
+
++5 Party Gold
+
+Then update the interface immediately.
+
+Prevent double reward payouts.
+
+⸻
+
+18. IMPLEMENT VERIFICATION BASICS
+
+If Require Verification is enabled:
+
+button becomes:
+
+SUBMIT FOR VERIFICATION
+
+Do not award XP or Gold yet.
+
+Party Leader sees the submission.
+
+Actions:
+
+APPROVE
+
+NOT YET
+
+Approve awards rewards exactly once.
+
+Not Yet requires a short reason and returns the quest to active state.
+
+No penalty.
+
+Suggested approval/Not Yet comments can be expanded later if necessary.
+
+⸻
+
+19. SEED THE ITEM SHOP
+
+The current Item Shop is completely empty.
+
+Populate the database/catalog with a small initial set NOW.
+
+The Shop must be functional enough to test the reward loop.
+
+Do not merely hard-code cards into the UI.
+
+Create actual catalog records.
+
+⸻
+
+20. INITIAL WEAPONS
+
+Seed approximately:
+
+Wooden Sword
+
+Level 1
+Price: 100 Gold
+
+Apprentice Staff
+
+Level 1
+Price: 125 Gold
+
+Hunter’s Bow
+
+Level 2
+Price: 250 Gold
+
+Iron Sword
+
+Level 3
+Price: 400 Gold
+
+Small Battle Axe
+
+Level 4
+Price: 550 Gold
+
+Create simple original pixel-art assets for each.
+
+⸻
+
+21. INITIAL OFF-HAND ITEMS
+
+Seed:
+
+Wooden Shield
+
+Level 1
+Price: 100 Gold
+
+Torch
+
+Level 1
+Price: 75 Gold
+
+Spellbook
+
+Level 2
+Price: 225 Gold
+
+Adventurer’s Buckler
+
+Level 3
+Price: 350 Gold
+
+Iron Shield
+
+Level 4
+Price: 550 Gold
+
+⸻
+
+22. INITIAL OUTFITS
+
+Seed:
+
+Traveler’s Tunic
+
+Starter/default or Level 1
+
+Apprentice Robes
+
+Level 1
+Price: 150 Gold
+
+Ranger Gear
+
+Level 2
+Price: 300 Gold
+
+Fancy Adventurer Clothes
+
+Level 3
+Price: 450 Gold
+
+Knight Armor
+
+Level 5
+Price: 750 Gold
+
+⸻
+
+23. INITIAL HEADGEAR
+
+Seed:
+
+Adventurer Cap
+
+Level 1
+Price: 75 Gold
+
+Ridiculous Feathered Hat
+
+Level 1
+Price: 150 Gold
+
+Wizard Hat
+
+Level 2
+Price: 250 Gold
+
+Ranger Hood
+
+Level 3
+Price: 350 Gold
+
+Iron Helm
+
+Level 4
+Price: 500 Gold
+
+⸻
+
+24. INITIAL PETS
+
+Seed:
+
+Brown Puppy
+
+Level 2
+Price: 750 Gold
+
+Black Puppy
+
+Level 2
+Price: 750 Gold
+
+Spotted Puppy
+
+Level 2
+Price: 750 Gold
+
+Orange Cat
+
+Level 3
+Price: 1,000 Gold
+
+Dragon Egg
+
+Evolving Pet
+Higher level / higher price
+
+Also create a second Evolving Pet placeholder/content entry so the evolving-pet architecture can be tested later.
+
+Do not implement the entire Evolving Pet experience before the core loop works, but structure the data correctly now.
+
+⸻
+
+25. INITIAL PET ACCESSORIES
+
+Seed:
+
+* Red Bandana
+* Bow Tie
+* Tiny Crown
+* Sunglasses
+* Tiny Wizard Hat
+
+Use reasonable starter prices and level requirements.
+
+⸻
+
+26. INITIAL BACKGROUNDS
+
+Seed:
+
+* Village
+* Forest
+* Castle
+* Dungeon
+* Campfire
+
+These should eventually visibly alter the Character presentation background.
+
+⸻
+
+27. SHOP VISIBILITY RULES
+
+A user can only PURCHASE an item they have unlocked.
+
+Standard Shop should show:
+
+1. Items unlocked at the user’s current level.
+2. Preview items approximately 1–2 levels ahead.
+
+Do NOT display the entire future catalog.
+
+If an item is a preview and not yet unlocked, clearly show:
+
+UNLOCKS AT LEVEL X
+
+and disable Purchase.
+
+A user with insufficient Gold should still see eligible unlocked items and their prices.
+
+Example:
+
+Wooden Sword
+100 Gold
+
+User has:
+
+0 Gold
+
+Show the item.
+
+Purchase button disabled or clearly indicates insufficient Gold.
+
+⸻
+
+28. SHOP CATEGORY NAVIGATION
+
+Current Shop categories are directionally good.
+
+Support categories such as:
+
+* Weapons
+* Off Hand
+* Outfits
+* Headwear
+* Pets
+* Pet Accessories
+* Backgrounds
+* Effects
+
+Ensure horizontal category navigation works well on a phone.
+
+Do not let category labels become clipped or inaccessible.
+
+⸻
+
+29. INVENTORY
+
+Purchased items enter the user’s global Inventory.
+
+The user owns them permanently.
+
+No resale.
+
+No trading.
+
+No gifting in V1.
+
+Prevent duplicate purchase of the same non-stackable item.
+
+⸻
+
+30. EQUIPPING ITEMS
+
+Character screen should allow the user to select owned items and EQUIP them.
+
+Slots:
+
+* Head
+* Outfit
+* Main Hand
+* Off Hand
+* Pet
+* Pet Accessory
+* Background
+* Effect
+
+Allow:
+
+CLEAR SLOT
+
+Equipment changes immediately update the character presentation.
+
+⸻
+
+31. MAKE THE CHARACTER SCREEN FEEL LIKE A GAME
+
+The current Character screen has a large panel with a small emoji in it.
+
+Replace this with a much more compelling presentation.
+
+The character should occupy a meaningful portion of the card.
+
+Show the full-body pixel sprite.
+
+Show equipped pet beside them.
+
+Show equipped weapon/shield.
+
+Show equipped background behind them if applicable.
+
+Below character:
+
+Adventurer Name
+Display Name
+Class
+Level
+
+Then:
+
+XP information
+Legendary Wins
+
+Then:
+
+Equipment slots.
+
+The visual payoff of equipment should be obvious.
+
+⸻
+
+32. PARTY GOLD / RESERVE BASIC IMPLEMENTATION
+
+Even if no Party Goal exists yet, Party Gold earned from quests must not disappear.
+
+Store it in:
+
+PARTY RESERVE
+
+Example:
+
+Party Reserve: 5 Gold
+
+When Party Goals are implemented/activated, this reserve will apply toward the goal.
+
+Do not discard Party Gold because no Party Goal exists.
+
+⸻
+
+33. BASIC PARTY GOAL FUNCTIONALITY
+
+Implement enough Party Goal functionality to test Party Gold.
+
+Party Leader can create a goal with:
+
+* name;
+* description;
+* target Party Gold.
+
+Example:
+
+Ice Cream Adventure
+
+Target:
+
+400 Party Gold
+
+If no active goal exists, Party Gold remains in Reserve.
+
+When activated, existing Reserve applies.
+
+Show progress on Home and Party screens.
+
+Do not overbuild advanced goal suggestions yet.
+
+⸻
+
+34. DATABASE-DRIVEN CONTENT
+
+Do not scatter shop/economy values throughout UI code.
+
+Create structured data/models for:
+
+* catalog items;
+* item category;
+* item price;
+* unlock level;
+* ownership;
+* equipment;
+* pets;
+* evolution metadata;
+* Party Gold;
+* XP;
+* reward transactions.
+
+This will later support App Admin.
+
+The initial content can be seeded through migrations/seed scripts.
+
+⸻
+
+35. CORE REWARD TRANSACTIONS MUST BE SAFE
+
+Quest completion must be server-side and atomic.
+
+Completing a quest must safely perform:
+
+1. mark occurrence complete;
+2. award XP;
+3. award Personal Gold;
+4. award Party Gold;
+5. record reward transaction.
+
+All as one logical operation.
+
+Do not allow:
+
+* double tap;
+* browser refresh;
+* repeated API request;
+* poor connection retry
+
+to award duplicate rewards.
+
+Use idempotency/unique completion constraints where appropriate.
+
+⸻
+
+36. DO NOT BUILD ADVANCED SYSTEMS YET
+
+For THIS development pass, do not spend significant time implementing:
+
+* Cat Foley;
+* Cat Foley random visits;
+* Cat Foley exclusives;
+* advanced Evolving Pet visuals;
+* Legendary Quest UI;
+* Boss Battles;
+* AI photo analysis;
+* Build a Plan;
+* advanced school calendars;
+* notifications;
+* App Admin troubleshooting;
+* View As User;
+* elaborate audit-log UI.
+
+Keep the underlying architecture compatible with these future requirements.
+
+But first make the actual core game fun and functional.
+
+⸻
+
+37. NO BLANK SCREENS
+
+This is a global UX requirement.
+
+Every major screen needs an intentional empty state.
+
+Never display a giant unexplained blank purple area simply because the database query returned zero records.
+
+Examples:
+
+Home:
+Your quest log is clear.
+
+Shop:
+There should always be seeded catalog content.
+
+Party Goal:
+No active Party Goal.
+
+Projects:
+No active Party adventures.
+
+Open Quests:
+No Open Quests are available right now.
+
+Inventory:
+Your pack is empty. Complete quests and visit the Shop to find some gear.
+
+⸻
+
+38. RESPONSIVE MOBILE LAYOUT
+
+The current screenshots are being tested on an iPhone.
+
+Treat iPhone/mobile layout as the PRIMARY interface.
+
+Ensure:
+
+* content does not hide behind bottom navigation;
+* scroll areas work;
+* headers stay readable;
+* category tabs scroll correctly;
+* buttons are easy to tap;
+* safe-area insets are respected;
+* bottom navigation does not overlap content;
+* there is appropriate bottom padding for standalone PWA use.
+
+Test at common iPhone viewport sizes.
+
+⸻
+
+39. PWA / CUSTOM DOMAIN
+
+The permanent production domain is:
+
+choresyourownadventure.com
+
+Keep the PWA architecture compatible with deployment at:
+
+https://choresyourownadventure.com
+
+and:
+
+https://www.choresyourownadventure.com
+
+Eventually choose one canonical version and redirect the other.
+
+Do not hard-code Replit development URLs into:
+
+* authentication callbacks;
+* password-reset URLs;
+* manifest configuration;
+* application links;
+* asset paths.
+
+The production PWA should install from the custom domain.
+
+⸻
+
+40. PWA ICON
+
+The eventual Home Screen icon should use the simplified pixel-art:
+
+crossed sword + broom
+
+Do NOT use the current ornate crest.
+
+Create appropriate icon assets/sizes from the new simple emblem.
+
+Ensure the icon works well when cropped into the iOS rounded-square Home Screen treatment.
+
+⸻
+
+41. CORE ACCEPTANCE TEST — DO NOT MOVE ON UNTIL THIS WORKS
+
+Before continuing into advanced systems, manually test this exact scenario.
+
+STEP 1
+
+Create a brand-new adult account.
+
+Expected:
+
+The user is NOT assigned an emoji/default avatar.
+
+STEP 2
+
+Create a Party.
+
+Expected:
+
+User is redirected to:
+
+CREATE YOUR ADVENTURER
+
+STEP 3
+
+Create character.
+
+Example:
+
+Display Name: Dad
+
+Adventurer Name: choose/generated name
+
+Species: Human
+
+Class: Fighter
+
+Select:
+
+* skin tone;
+* hair;
+* hair color;
+* eyes;
+* optional appearance options.
+
+Expected:
+
+Full-body pixel character preview is visible.
+
+Tap:
+
+BEGIN ADVENTURE
+
+STEP 4
+
+Arrive at Home.
+
+Expected:
+
+Home is NOT blank.
+
+It displays:
+
+* Party;
+* character;
+* Adventurer Name;
+* Level 1;
+* XP;
+* 0 Gold;
+* Give Me a Quest;
+* Your Quests;
+* intentional empty state.
+
+STEP 5
+
+As Party Leader create:
+
+Unload Dishwasher
+
+Difficulty:
+
+Normal
+
+Adventure title:
+
+Clear the Porcelain Armory
+
+Expected reward:
+
+25 XP
+20 Personal Gold
+5 Party Gold
+
+STEP 6
+
+Quest appears on Home.
+
+Tap:
+
+COMPLETE QUEST
+
+Expected:
+
+Short retro completion feedback.
+
+Display:
+
+QUEST COMPLETE!
+
++25 XP
++20 Gold
++5 Party Gold
+
+STEP 7
+
+Home updates.
+
+Expected:
+
+XP = 25 or appropriately reflected in level progress.
+
+Personal Gold = 20.
+
+Party Reserve = 5 if no Party Goal exists.
+
+STEP 8
+
+Repeat enough quests to earn at least 100 Gold.
+
+STEP 9
+
+Open Shop.
+
+Expected:
+
+Shop contains actual seeded items.
+
+Wooden Sword is visible.
+
+STEP 10
+
+Buy Wooden Sword.
+
+Expected:
+
+Gold is deducted exactly once.
+
+Sword enters Inventory.
+
+STEP 11
+
+Open Character.
+
+Equip Wooden Sword in Main Hand.
+
+Expected:
+
+The actual sword becomes visibly rendered on the full-body pixel character.
+
+STEP 12
+
+Return to Home.
+
+Expected:
+
+The character shown on Home is also visibly carrying the equipped Wooden Sword.
+
+⸻
+
+SUCCESS CRITERIA FOR THIS PASS
+
+Do not judge success by number of screens created.
+
+This pass is successful when a new user can:
+
+CREATE A LITTLE PIXEL ADVENTURER
+
+then:
+
+DO A CHORE
+
+then:
+
+GET GOLD
+
+then:
+
+BUY SOMETHING
+
+then:
+
+PUT IT ON
+
+then:
+
+SEE THEIR CHARACTER ACTUALLY WEARING/CARRYING IT.
+
+That is the core game.
+
+Once that loop is working reliably and looks good on an iPhone, continue implementing the remaining V1 specification.
+
+Do not replace core functionality with placeholder emoji.
+
+Do not leave empty routes as blank purple screens.
+
+Do not add complexity simply because the larger specification contains it.
+
+Get the core loop working first.
