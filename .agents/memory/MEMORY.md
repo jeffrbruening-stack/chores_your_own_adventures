@@ -1,3 +1,4 @@
+- [CYOA spec-backend alignment](cyoa-spec-backend-alignment.md) — spec paths ≠ backend paths caused all generated-client calls to 404; fixed by adding spec-aligned route files
 - [CYOA auth architecture](cyoa-auth.md) — custom JWT auth (no Clerk); token in localStorage "cyoa_token"; bcrypt for adults, 4-digit PIN for kids
 - [CYOA codegen fix](cyoa-codegen.md) — Orval 8.x generates Zod v4 syntax; fix by removing type:integer→number, format:email, bare type:object→additionalProperties:true in openapi.yaml
 - [CYOA core game loop](cyoa-core-loop.md) — character creation, equipped items, shop tabs, PixelCharacter component, DB schema additions for core loop

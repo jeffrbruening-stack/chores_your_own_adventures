@@ -188,9 +188,8 @@ export type QuestAssignmentStatus = typeof QuestAssignmentStatus[keyof typeof Qu
 
 
 export const QuestAssignmentStatus = {
-  available: 'available',
-  claimed: 'claimed',
-  pending_verification: 'pending_verification',
+  active: 'active',
+  submitted: 'submitted',
   completed: 'completed',
   expired: 'expired',
   cancelled: 'cancelled',

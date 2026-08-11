@@ -13,6 +13,11 @@ import schoolCalendarsRouter from "./school-calendars.js";
 import adminRouter from "./admin.js";
 import catFoleyRouter from "./cat-foley.js";
 import inventoryRouter from "./inventory.js";
+// Spec-aligned routes (match the OpenAPI paths the generated client uses)
+import questAssignmentsRouter from "./quest-assignments.js";
+import characterRouter from "./character.js";
+import openQuestsRouter from "./open-quests.js";
+import quickQuestsRouter from "./quick-quests.js";
 
 const router: IRouter = Router();
 
@@ -30,5 +35,10 @@ router.use("/school-calendars", schoolCalendarsRouter);
 router.use("/admin", adminRouter);
 router.use("/cat-foley", catFoleyRouter);
 router.use("/inventory", inventoryRouter);
+// Spec-aligned mounts — these match the OpenAPI spec paths the generated client calls
+router.use("/quest-assignments", questAssignmentsRouter);
+router.use("/character", characterRouter);
+router.use("/open-quests", openQuestsRouter);
+router.use("/quick-quests", quickQuestsRouter);
 
 export default router;
