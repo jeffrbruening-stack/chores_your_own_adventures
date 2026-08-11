@@ -31,6 +31,8 @@ export const inviteTokensTable = pgTable("invite_tokens", {
   usedBy: integer("used_by"),
   usedAt: timestamp("used_at"),
   expiresAt: timestamp("expires_at").notNull(),
+  /** Role the invited adult will receive: "adult" (adventurer) or "leader" */
+  role: text("role").notNull().default("adult"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

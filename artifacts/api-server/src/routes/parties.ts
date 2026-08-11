@@ -216,12 +216,14 @@ router.post("/:partyId/invite", requireAuth, async (req, res) => {
   try {
     const partyId = parseInt(String(req.params.partyId));
     await assertLeader(partyId, req.userId!);
+    // role: "adult" (adventurer) or "leader"
+    const role: string = req.body.role === "leader" ? "leader" : "adult";
     const token = crypto.randomBytes(16).toString("hex");
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
     await db.insert(inviteTokensTable).values({
-      partyId, token, createdBy: req.userId!, expiresAt,
+      partyId, token, createdBy: req.userId!, expiresAt, role,
     });
-    res.json({ token, expiresAt, inviteUrl: `https://choresyourownadventure.com/join/${token}` });
+    res.json({ token, expiresAt, role, inviteUrl: `https://choresyourownadventure.com/join/${token}` });
   } catch (err: any) {
     res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
   }
@@ -238,9 +240,10 @@ router.post("/join", requireAuth, async (req, res) => {
       return;
     }
     const existing = await getMemberRole(invite.partyId, req.userId!);
+    const inviteRole = (invite as any).role ?? "adult";
     if (!existing) {
       await db.insert(partyMembersTable).values({
-        partyId: invite.partyId, userId: req.userId!, role: "adult",
+        partyId: invite.partyId, userId: req.userId!, role: inviteRole,
       });
       await db.update(inviteTokensTable).set({ usedBy: req.userId!, usedAt: new Date() })
         .where(eq(inviteTokensTable.id, invite.id));
@@ -249,7 +252,7 @@ router.post("/join", requireAuth, async (req, res) => {
       .where(eq(usersTable.id, req.userId!));
     const [party] = await db.select().from(partiesTable)
       .where(eq(partiesTable.id, invite.partyId)).limit(1);
-    res.json({ ...party, myRole: existing ?? "adult" });
+    res.json({ ...party, myRole: existing ?? inviteRole });
   } catch {
     res.status(500).json({ error: "Failed" });
   }

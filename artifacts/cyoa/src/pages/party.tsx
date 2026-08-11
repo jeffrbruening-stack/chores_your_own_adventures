@@ -32,9 +32,35 @@ export default function Party() {
 
   // Add member state
   const [showAddMember, setShowAddMember] = useState(false);
+  const [addTab, setAddTab] = useState<'child' | 'adult'>('child');
   const [newDisplayName, setNewDisplayName] = useState('');
   const [newPin, setNewPin] = useState('');
   const [addingMember, setAddingMember] = useState(false);
+  // Adult invite state
+  const [inviteRole, setInviteRole] = useState<'adult' | 'leader'>('adult');
+  const [inviteResult, setInviteResult] = useState<{ token: string; inviteUrl: string; role: string } | null>(null);
+  const [generatingInvite, setGeneratingInvite] = useState(false);
+
+  const handleGenerateInvite = async () => {
+    setGeneratingInvite(true);
+    setInviteResult(null);
+    try {
+      const token = localStorage.getItem('cyoa_token');
+      const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+      const res = await fetch(`${BASE}/api/parties/${activePartyId}/invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ role: inviteRole }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Failed');
+      const data = await res.json();
+      setInviteResult(data);
+    } catch (e: any) {
+      toast({ title: 'Error generating invite', description: e.message, variant: 'destructive' });
+    } finally {
+      setGeneratingInvite(false);
+    }
+  };
 
   const handleAddKid = async () => {
     if (!newDisplayName.trim()) {
@@ -136,44 +162,121 @@ export default function Party() {
                 )}
               </div>
 
-              {/* Add kid form */}
+              {/* Add member form — two tabs: child or adult */}
               {showAddMember && isLeader && (
                 <div className="bg-card border-2 border-primary/40 rounded-xl p-4 mb-4 flex flex-col gap-3 animate-in fade-in slide-in-from-top-2">
-                  <p className="font-pixel text-[10px] text-primary">NEW ADVENTURER</p>
-                  <input
-                    type="text"
-                    placeholder="Kid's display name"
-                    value={newDisplayName}
-                    onChange={e => setNewDisplayName(e.target.value)}
-                    className="bg-background border-2 border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary transition-colors"
-                    maxLength={20}
-                  />
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <input
-                      type="password"
-                      inputMode="numeric"
-                      placeholder="4-digit PIN"
-                      value={newPin}
-                      onChange={e => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                      className="w-full bg-background border-2 border-border rounded-xl pl-10 pr-4 py-3 text-sm font-mono tracking-widest focus:outline-none focus:border-primary transition-colors"
-                      maxLength={4}
-                    />
+                  {/* Tab selector */}
+                  <div className="flex rounded-lg overflow-hidden border border-border">
+                    <button
+                      onClick={() => { setAddTab('child'); setInviteResult(null); }}
+                      className={`flex-1 py-2 text-[10px] font-pixel transition-colors ${addTab === 'child' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                    >
+                      ADD CHILD
+                    </button>
+                    <button
+                      onClick={() => { setAddTab('adult'); setInviteResult(null); }}
+                      className={`flex-1 py-2 text-[10px] font-pixel transition-colors ${addTab === 'adult' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+                    >
+                      INVITE ADULT
+                    </button>
                   </div>
-                  <p className="text-xs text-muted-foreground -mt-1">
-                    They'll use this PIN to log in. Make it easy for them to remember!
-                  </p>
-                  <button
-                    onClick={handleAddKid}
-                    disabled={addingMember || !newDisplayName.trim() || newPin.length !== 4}
-                    className="w-full bg-primary text-primary-foreground font-pixel py-3 rounded-xl text-xs disabled:opacity-50 transition-opacity"
-                  >
-                    {addingMember ? 'JOINING...' : '⚔️ ADD TO PARTY'}
-                  </button>
-                  <p className="text-[10px] text-muted-foreground text-center">
-                    They'll choose their character on first login with household code{' '}
-                    <span className="font-bold text-primary">{party.householdCode}</span>
-                  </p>
+
+                  {/* Child tab */}
+                  {addTab === 'child' && (
+                    <>
+                      <p className="font-pixel text-[10px] text-primary">NEW ADVENTURER</p>
+                      <input
+                        type="text"
+                        placeholder="Kid's display name"
+                        value={newDisplayName}
+                        onChange={e => setNewDisplayName(e.target.value)}
+                        className="bg-background border-2 border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary transition-colors"
+                        maxLength={20}
+                      />
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <input
+                          type="password"
+                          inputMode="numeric"
+                          placeholder="4-digit PIN"
+                          value={newPin}
+                          onChange={e => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                          className="w-full bg-background border-2 border-border rounded-xl pl-10 pr-4 py-3 text-sm font-mono tracking-widest focus:outline-none focus:border-primary transition-colors"
+                          maxLength={4}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground -mt-1">
+                        They'll use this PIN to log in. Make it easy to remember!
+                      </p>
+                      <button
+                        onClick={handleAddKid}
+                        disabled={addingMember || !newDisplayName.trim() || newPin.length !== 4}
+                        className="w-full bg-primary text-primary-foreground font-pixel py-3 rounded-xl text-xs disabled:opacity-50 transition-opacity"
+                      >
+                        {addingMember ? 'JOINING...' : '⚔️ ADD TO PARTY'}
+                      </button>
+                      <p className="text-[10px] text-muted-foreground text-center">
+                        Household code: <span className="font-bold text-primary">{party.householdCode}</span>
+                      </p>
+                    </>
+                  )}
+
+                  {/* Adult invite tab */}
+                  {addTab === 'adult' && (
+                    <>
+                      <p className="font-pixel text-[10px] text-primary">INVITE ADULT</p>
+                      <p className="text-xs text-muted-foreground">Choose the role this adult will have in your party:</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setInviteRole('adult')}
+                          className={`flex-1 py-2.5 rounded-xl text-xs font-bold border-2 transition-colors ${inviteRole === 'adult' ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground'}`}
+                        >
+                          ⚔️ Adventurer
+                        </button>
+                        <button
+                          onClick={() => setInviteRole('leader')}
+                          className={`flex-1 py-2.5 rounded-xl text-xs font-bold border-2 transition-colors ${inviteRole === 'leader' ? 'border-yellow-400 bg-yellow-400/10 text-yellow-500' : 'border-border text-muted-foreground'}`}
+                        >
+                          👑 Party Leader
+                        </button>
+                      </div>
+                      {inviteRole === 'leader' && (
+                        <p className="text-[10px] text-yellow-500 -mt-1">
+                          Party Leaders can create quests, approve completions, and invite others.
+                        </p>
+                      )}
+                      {!inviteResult ? (
+                        <button
+                          onClick={handleGenerateInvite}
+                          disabled={generatingInvite}
+                          className="w-full bg-primary text-primary-foreground font-pixel py-3 rounded-xl text-xs disabled:opacity-50"
+                        >
+                          {generatingInvite ? 'GENERATING...' : '🔗 GENERATE INVITE LINK'}
+                        </button>
+                      ) : (
+                        <div className="flex flex-col gap-2">
+                          <div className="bg-background rounded-xl border border-border p-3">
+                            <p className="text-[10px] text-muted-foreground mb-1 font-pixel">INVITE LINK</p>
+                            <p className="text-xs break-all font-mono text-primary">{inviteResult.inviteUrl}</p>
+                          </div>
+                          <div className="bg-background rounded-xl border border-border p-3">
+                            <p className="text-[10px] text-muted-foreground mb-1 font-pixel">INVITE CODE</p>
+                            <p className="text-sm font-mono tracking-widest font-bold text-center">{inviteResult.token}</p>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground text-center">
+                            This invite expires in 7 days.{' '}
+                            {inviteResult.role === 'leader' && <span className="text-yellow-500">They'll join as <strong>Party Leader</strong>.</span>}
+                          </p>
+                          <button
+                            onClick={() => { setInviteResult(null); }}
+                            className="text-[10px] text-muted-foreground underline"
+                          >
+                            Generate a new invite
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
 

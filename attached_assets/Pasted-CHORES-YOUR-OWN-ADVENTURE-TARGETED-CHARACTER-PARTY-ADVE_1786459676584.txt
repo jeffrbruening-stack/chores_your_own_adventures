@@ -1,0 +1,650 @@
+CHORES YOUR OWN ADVENTURE — TARGETED CHARACTER + PARTY + ADVENTURE TITLE FIX PASS
+
+The current build is improving, but actual mobile testing shows several specific issues that need correction before moving on.
+
+Do NOT add new major systems in this pass.
+
+Fix the following exact issues:
+
+1. Remove stubble entirely.
+2. Beard must include a mustache.
+3. Remove the unexplained mark/artifact on the right side of the face.
+4. Improve eyes so they look natural and not like vertical slits.
+5. Rebuild Elf ears so they look attached and proportionate.
+6. Make Masculine/Feminine visually meaningfully different.
+7. Add a way to invite/add a co-Party Leader.
+8. Make the AUTO Adventure Title button actually generate a short fantasy rewrite from the Plain Quest text.
+9. Keep the functionality already working.
+
+⸻
+
+1. REMOVE STUBBLE ENTIRELY
+
+Delete Stubble as a facial-hair option.
+
+It is not visually successful and is not needed.
+
+Do not show:
+
+* Stubble
+* Five o’clock shadow
+* Light beard shadow
+
+in the V1 character creator.
+
+Keep only clean, clearly readable facial-hair options.
+
+For now use:
+
+* None
+* Mustache
+* Beard
+
+⸻
+
+2. BEARD MUST INCLUDE A MUSTACHE
+
+The Beard option currently behaves like a large chin beard without consistently reading as a full beard.
+
+Change Beard to mean:
+
+FULL BEARD
+
+It should include:
+
+* mustache;
+* chin beard;
+* jaw/side beard where appropriate.
+
+The mustache should visually connect naturally into the beard.
+
+Do not make the full beard look like a separate triangular object glued onto the chin.
+
+Keep it pixel-art styled but cohesive.
+
+⸻
+
+3. MUSTACHE MUST BE CLEAR AND SIMPLE
+
+The standalone Mustache should be obvious but not huge.
+
+Use a simple pixel mustache centered directly beneath the nose/mouth area.
+
+Do not:
+
+* place it too low;
+* make it look like a mouth;
+* make it connect to the cheeks;
+* use blurry shading.
+
+⸻
+
+4. REMOVE THE UNEXPLAINED RIGHT-SIDE FACE MARK
+
+There is a persistent rectangular/patch-like mark on the right side of the character’s face.
+
+It appears regardless of other customization choices.
+
+This looks like an accidental sprite layer or shading artifact.
+
+Find the exact render layer producing it and REMOVE it.
+
+The default face should be symmetrical unless a deliberate option specifically changes it.
+
+Check likely causes:
+
+* face shadow overlay;
+* species overlay;
+* cheek layer;
+* facial-hair residue;
+* glasses alignment mask;
+* hair sideburn layer;
+* generic highlight/shading rectangle.
+
+Do not simply recolor it to be less obvious.
+
+Remove the unwanted artifact at its source.
+
+⸻
+
+5. REDESIGN THE EYES
+
+Current eyes are too large and the pupils look like narrow vertical slits.
+
+They do not look friendly or natural.
+
+Redesign the default eyes for the 16-bit character style.
+
+Use simpler pixel eyes.
+
+Goals:
+
+* both eyes align symmetrically;
+* pupils point forward;
+* pupils should be small square/rectangular dots rather than tall vertical slits;
+* whites should not dominate the whole face;
+* eyes should be expressive but simple.
+
+Example visual logic:
+
+Small eye-white region
+
+* small dark/colored pupil block centered consistently.
+
+If eye color is supported, keep the colored portion subtle.
+
+Do not create cross-eyed or reptilian-looking pupils unless that is a deliberate species option in the future.
+
+⸻
+
+6. FIX GLASSES AGAIN AFTER EYE REDESIGN
+
+Once the eyes are corrected, realign glasses.
+
+Glasses should sit around the eyes, not replace or hide them.
+
+Start with only a few strong styles:
+
+* Round
+* Square
+* Small spectacles
+
+Use species/head-specific positioning offsets where required.
+
+Test:
+
+Human
+Elf
+Dwarf
+Gnome
+Orc
+Goblin
+
+Do not assume the same x/y offsets work for every head.
+
+⸻
+
+7. REBUILD ELF EARS
+
+Current Elf ears are oversized rectangular protrusions and look detached/unnatural.
+
+Completely redo the Elf ear shape.
+
+Elf ears should:
+
+* originate directly from the side of the head;
+* use the same skin color as the character;
+* taper into a pointed tip;
+* angle slightly outward/upward;
+* be proportionate to the head;
+* remain visible but not enormous.
+
+Think classic fantasy pointed ears in a 16-bit RPG.
+
+Do NOT render them as large rectangular blocks.
+
+Do NOT create a visible gap between ear and head.
+
+Hair should partially cover ears where visually appropriate.
+
+⸻
+
+8. MASCULINE VS FEMININE NEEDS A REAL VISUAL DIFFERENCE
+
+Current Masculine and Feminine presentation appears nearly identical, with suspenders or tiny clothing changes being the main difference.
+
+That is insufficient.
+
+The selection should change the BASE BODY/PRESENTATION, not merely add an accessory.
+
+Keep it simple and traditional fantasy-game shorthand.
+
+MASCULINE BASE PRESENTATION
+
+Use:
+
+* slightly broader shoulders;
+* straighter torso;
+* pants/trousers as basic under-clothing;
+* slightly more angular body shape.
+
+FEMININE BASE PRESENTATION
+
+Use:
+
+* slightly narrower shoulders;
+* subtly different torso silhouette;
+* tunic/dress/skirt-style default lower garment or equivalent recognizable fantasy feminine silhouette;
+* slightly different waist/body shape.
+
+Do NOT sexualize.
+
+Do NOT exaggerate breasts/body anatomy.
+
+The goal is simply:
+
+When the user taps Masculine vs Feminine, they should immediately be able to SEE that something changed.
+
+ANY / OTHER
+
+Use a neutral/androgynous base silhouette.
+
+All hair, colors, species, classes, and equipment remain available to everyone.
+
+Do not restrict clothing by identity after character creation.
+
+⸻
+
+9. CLASS PREVIEW GARMENTS SHOULD OVERRIDE BASE PRESENTATION APPROPRIATELY
+
+When viewing a class during character creation, class garb should still preserve enough of the selected base presentation to remain visually distinct.
+
+For example:
+
+Feminine Wizard:
+
+* wizard robe;
+* pointed hat;
+* staff;
+* slightly feminine silhouette.
+
+Masculine Wizard:
+
+* same class identity;
+* slightly masculine silhouette.
+
+Do not create entirely separate mechanics.
+
+This is just a visual composition issue.
+
+⸻
+
+10. ADD CO-PARTY-LEADER INVITE FLOW
+
+I can currently add a kid/Adventurer, but there is no obvious way to add another adult as Party Leader.
+
+This is a core requirement.
+
+On the Party screen, Party Founder/Party Leaders should have:
+
++ ADD PARTY MEMBER
+
+with at least two options:
+
+ADD CHILD / ADVENTURER
+
+Existing PIN-based child flow.
+
+INVITE ADULT
+
+Adult invite flow.
+
+For INVITE ADULT:
+
+Party Leader chooses role:
+
+* Adventurer
+* Party Leader
+
+Then generate:
+
+* invite link;
+* invite code.
+
+A Party Leader invite must explicitly create the membership with Party Leader permissions once accepted.
+
+Do not automatically make every invited adult a Party Leader.
+
+⸻
+
+11. PARTY FOUNDER / PARTY LEADER PERMISSION RULES
+
+Keep existing role logic:
+
+Party Founder:
+
+* all Party Leader permissions;
+* can transfer Founder;
+* can remove/demote other Party Leaders;
+* can delete Party.
+
+Party Leader:
+
+* can manage quests;
+* approve quests;
+* manage kids;
+* create Party Goals;
+* invite adults;
+* manage normal Party settings.
+
+When inviting an adult as Party Leader, the resulting UI should clearly show:
+
+Party Leader
+
+on their member card.
+
+⸻
+
+12. FIX THE AUTO ADVENTURE TITLE BUTTON
+
+On Create Quest, the current AUTO control does nothing.
+
+This needs to be functional.
+
+The intended behavior is simple:
+
+User enters Plain Quest text such as:
+
+Pick up books in room.
+
+User taps:
+
+AUTO
+
+The app reads the Plain Quest text and generates a SHORT fantasy/adventure rewrite.
+
+Example:
+
+Plain:
+Pick up books in room.
+
+Adventure:
+Recover the Scattered Tomes
+
+Another example:
+
+Plain:
+Unload dishwasher.
+
+Adventure:
+Clear the Porcelain Armory
+
+Another:
+
+Plain:
+Take trash out.
+
+Adventure:
+Banish the Refuse
+
+The generated Adventure Title should be:
+
+* short;
+* funny or flavorful;
+* immediately understandable;
+* usually 2–7 words;
+* never a paragraph;
+* never long fantasy narration.
+
+⸻
+
+13. AUTO BUTTON UX
+
+The user should NOT need to move focus manually or save the quest first.
+
+Behavior:
+
+1. User types Plain Quest.
+2. User taps AUTO.
+3. AUTO shows a brief loading state such as:
+    TRANSLATING...
+4. Generated Adventure Title appears in the Adventure Title field.
+5. User can edit it manually afterward.
+
+If Plain Quest is empty:
+
+Disable AUTO or show:
+
+Enter a quest first.
+
+Do not silently fail.
+
+⸻
+
+14. AI FAILURE FALLBACK FOR AUTO
+
+If AI/service call fails:
+
+Do not crash quest creation.
+
+Show a small message:
+
+Couldn’t translate that one. You can enter an Adventure Title manually.
+
+Keep Plain Quest untouched.
+
+The user must still be able to create the quest.
+
+⸻
+
+15. AUTO SHOULD NOT GENERATE EXCESSIVE TEXT
+
+Explicitly constrain the AI/system prompt used for Adventure Title generation.
+
+Use instruction equivalent to:
+
+“Rewrite this household chore as a short playful fantasy RPG quest title. Maximum 7 words. Do not add explanation. Do not use a full sentence unless necessary.”
+
+Examples of GOOD outputs:
+
+* Recover the Scattered Tomes
+* Clear the Porcelain Armory
+* Banish the Refuse
+* Restore Order to the Bedchamber
+* Feed the Loyal Beast
+* Conquer Mount Laundry
+
+Examples of BAD outputs:
+
+* Brave adventurer, venture forth into your bedroom and recover all the tomes that have been scattered across the floor by dark forces.
+* The Quest of Picking Up the Books That Are Currently In The Room
+* Pick Up Books, But Fantasy
+
+⸻
+
+16. USE THE EXISTING PLAIN/ADVENTURE TITLE MODEL
+
+Do NOT introduce a new quest-title system.
+
+The Quest already conceptually has:
+
+* Plain Title
+* Adventure Title
+
+AUTO simply populates Adventure Title from Plain Title.
+
+Store the result in the quest record.
+
+Do not regenerate it every time the quest is viewed.
+
+⸻
+
+17. TEST AUTO WITH MULTIPLE TASKS
+
+Manually test at least:
+
+Plain:
+Pick up books in room.
+
+Expected:
+A short fantasy rewrite.
+
+Plain:
+Brush teeth.
+
+Expected:
+Something short such as:
+Polish the Royal Fangs
+
+Plain:
+Feed the dog.
+
+Expected:
+Something short such as:
+Feed the Loyal Hound
+
+Plain:
+Unload dishwasher.
+
+Expected:
+Clear the Porcelain Armory
+
+Plain:
+Clean bathroom.
+
+Expected:
+Something short, understandable, and not grossly verbose.
+
+⸻
+
+18. DO NOT BREAK CURRENT QUEST CREATION FLOW
+
+The current Create Quest UI direction is generally good.
+
+Keep:
+
+* What Needs Doing?
+* Adventure Title
+* Auto
+* Next: Who?
+
+Fix functionality rather than redesigning the whole screen.
+
+⸻
+
+19. CHARACTER QA CHECKLIST
+
+Before considering this pass complete, manually verify:
+
+FACE
+
+* No unexplained right-face mark.
+* Eyes do not look cross-eyed.
+* Pupils do not look like vertical slits.
+* No blurry stubble exists.
+
+FACIAL HAIR
+
+None:
+clean face.
+
+Mustache:
+clearly readable mustache.
+
+Beard:
+full beard INCLUDING mustache.
+
+ELF
+
+Ears visibly attach to head.
+
+No giant rectangles.
+
+No floating ears.
+
+IDENTITY
+
+Masculine → clearly visible base-silhouette change.
+
+Feminine → clearly visible base-silhouette/clothing change.
+
+Any/Other → neutral base.
+
+GLASSES
+
+Round/Square glasses align to eyes.
+
+No face distortion.
+
+EQUIPMENT
+
+Existing equipment rendering must continue to work.
+
+Do not regress Traveler’s Tunic, weapons, class previews, etc.
+
+⸻
+
+20. PARTY QA CHECKLIST
+
+As Founder/Party Leader:
+
+Party
+→ Add Party Member
+
+Expected choices:
+
+* Add Child / Adventurer
+* Invite Adult
+
+Invite Adult:
+
+Choose:
+Party Leader
+
+Generate invite.
+
+Accept invite with second adult account.
+
+Expected:
+Second adult appears as Party Leader.
+
+Verify second Party Leader can:
+
+* create quests;
+* assign quests;
+* approve verification;
+* add children;
+* create Party Goals.
+
+Verify second Party Leader CANNOT:
+
+* delete Party if Founder-only;
+* transfer Founder unless they currently are Founder.
+
+⸻
+
+21. QUEST AUTO QA CHECKLIST
+
+Create Quest.
+
+Type:
+
+Pick up books in room.
+
+Tap AUTO.
+
+Expected:
+
+Adventure Title field fills automatically.
+
+Change Plain text to:
+
+Unload dishwasher.
+
+Tap AUTO again.
+
+Expected:
+
+Adventure Title updates to a new relevant title.
+
+Do not append new text to previous title.
+
+Do not leave stale title if user explicitly requests regeneration.
+
+⸻
+
+SUCCESS CRITERIA FOR THIS PASS
+
+This pass is complete when:
+
+1. Stubble is gone.
+2. Beard includes mustache.
+3. The strange face mark is gone.
+4. Eyes look like normal friendly pixel-art eyes.
+5. Elf ears look attached and intentional.
+6. Masculine/Feminine visibly differ.
+7. A second adult can be invited as Party Leader.
+8. The AUTO button actually turns plain chores into short Adventure Speak.
+9. Existing character/equipment/quest functionality does not regress.
+
+Do not add unrelated new systems until these issues are fixed.

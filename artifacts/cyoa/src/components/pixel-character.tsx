@@ -115,10 +115,9 @@ export const CLASSES_LIST = [
 ];
 
 export const FACIAL_HAIR_OPTIONS = [
-  { id: 'none',     label: 'None'     },
-  { id: 'stubble',  label: 'Stubble'  },
-  { id: 'mustache', label: 'Mustache' },
-  { id: 'beard',    label: 'Beard'    },
+  { id: 'none',     label: 'None'        },
+  { id: 'mustache', label: 'Mustache'    },
+  { id: 'beard',    label: 'Full Beard'  },
 ];
 
 // ─── COLOR RESOLUTION ─────────────────────────────────────────────────────────
@@ -266,18 +265,19 @@ const BODIES: Record<string, Body> = {
 function renderSpeciesFeatures(species: string, skinCol: string, sdark: string, b: Body): El[] {
   const out: El[] = [];
   if (species === 'elf') {
-    const ey = b.hy + 3;
-    // Left pointed ear
-    out.push(R(b.hx - 3, ey, 3, 4, skinCol));
-    out.push(R(b.hx - 2, ey + 4, 2, 2, skinCol));
-    out.push(R(b.hx - 1, ey + 6, 1, 2, skinCol));
-    // Right pointed ear
-    out.push(R(b.hx + b.hw, ey, 3, 4, skinCol));
-    out.push(R(b.hx + b.hw - 1, ey + 4, 2, 2, skinCol));
-    out.push(R(b.hx + b.hw, ey + 6, 1, 2, skinCol));
-    // Inner ear shadow
-    out.push(R(b.hx - 1, ey + 1, 1, 4, sdark));
-    out.push(R(b.hx + b.hw + 1, ey + 1, 1, 4, sdark));
+    // Classic fantasy pointed ears — flush to head, taper upward-outward (no gap, no rectangles)
+    const ey = b.hy + 4; // mid-head vertical position
+    // LEFT ear: base overlaps head edge for flush attachment, narrows to 1px tip
+    out.push(R(b.hx - 1, ey,     2, 2, skinCol)); // base (2px wide, 1px overlaps head)
+    out.push(R(b.hx - 2, ey - 1, 2, 1, skinCol)); // angles up-outward
+    out.push(R(b.hx - 3, ey - 2, 1, 1, skinCol)); // pointed tip
+    out.push(R(b.hx - 1, ey,     1, 1, sdark));   // inner ear shadow for depth
+    // RIGHT ear (mirrored)
+    const rbase = b.hx + b.hw - 1;
+    out.push(R(rbase,     ey,     2, 2, skinCol));
+    out.push(R(rbase + 1, ey - 1, 2, 1, skinCol));
+    out.push(R(rbase + 3, ey - 2, 1, 1, skinCol));
+    out.push(R(rbase + 1, ey,     1, 1, sdark));
   }
   if (species === 'orc') {
     // Heavy brow ridge
@@ -327,15 +327,30 @@ function renderBody(
   out.push(R(b.lfx + 1, b.lfy, b.lfw - 2, 1, '#5A3018'));
   out.push(R(b.rfx + 1, b.rfy, b.rfw - 2, 1, '#5A3018'));
 
-  // Legs
-  out.push(R(b.llx, b.lly, b.llw, b.llh, legColor));
-  out.push(R(b.rlx, b.rly, b.rlw, b.rlh, legColor));
-  // Leg inner shadow (left side of each leg)
-  out.push(R(b.llx, b.lly, 1, b.llh, '#00000022'));
-  out.push(R(b.rlx, b.rly, 1, b.rlh, '#00000022'));
-  // Knee detail
-  out.push(R(b.llx + 1, b.lly + Math.floor(b.llh * 0.45), b.llw - 2, 2, shadeColor(legColor, 15)));
-  out.push(R(b.rlx + 1, b.rly + Math.floor(b.rlh * 0.45), b.rlw - 2, 2, shadeColor(legColor, 15)));
+  // ── Lower body / legs — visually different by gender ────────
+  if (gender === 'feminine') {
+    // Skirt/tunic: one wider unified shape covering upper legs with a flared hem
+    const skirtY = b.lly;
+    const skirtH = Math.floor(b.llh * 0.48);
+    const skirtX = b.llx - 2;
+    const skirtW = (b.rlx + b.rlw) - b.llx + 4;
+    out.push(R(skirtX,     skirtY,              skirtW,     skirtH,     outfitColor));
+    out.push(R(skirtX - 1, skirtY + skirtH - 3, skirtW + 2, 3,          outfitColor)); // flared hem
+    // Legs peeking below skirt
+    const belowY = skirtY + skirtH;
+    const belowH = b.llh - skirtH;
+    out.push(R(b.llx + 1, belowY, b.llw - 2, belowH, legColor));
+    out.push(R(b.rlx + 1, belowY, b.rlw - 2, belowH, legColor));
+  } else {
+    // Masculine / Any: normal trousers
+    out.push(R(b.llx, b.lly, b.llw, b.llh, legColor));
+    out.push(R(b.rlx, b.rly, b.rlw, b.rlh, legColor));
+    out.push(R(b.llx, b.lly, 1, b.llh, '#00000022')); // inner shadow
+    out.push(R(b.rlx, b.rly, 1, b.rlh, '#00000022'));
+    // Knee detail
+    out.push(R(b.llx + 1, b.lly + Math.floor(b.llh * 0.45), b.llw - 2, 2, shadeColor(legColor, 15)));
+    out.push(R(b.rlx + 1, b.rly + Math.floor(b.rlh * 0.45), b.rlw - 2, 2, shadeColor(legColor, 15)));
+  }
 
   // Arms (bare lower, sleeved upper)
   out.push(R(b.lax, b.lay, b.law, b.lah, skinCol));
@@ -344,18 +359,20 @@ function renderBody(
   const sleeveH = Math.floor(b.lah * 0.55);
   out.push(R(b.lax, b.lay, b.law, sleeveH, outfitColor));
   out.push(R(b.rax, b.ray, b.raw, sleeveH, outfitColor));
+  // Masculine: slight shoulder cap broadening
+  if (gender === 'masculine') {
+    out.push(R(b.lax - 1, b.lay, 1, 3, outfitColor));
+    out.push(R(b.rax + b.raw, b.ray, 1, 3, outfitColor));
+  }
 
-  // Torso width adjusted for gender
-  const tw = gender === 'feminine' ? b.tw - 2 : b.tw;
-  const tx = gender === 'feminine' ? b.tx + 1 : b.tx;
+  // Torso — shaped slightly by gender
+  const tw = gender === 'feminine' ? b.tw - 2 : gender === 'masculine' ? b.tw + 1 : b.tw;
+  const tx = gender === 'feminine' ? b.tx + 1 : gender === 'masculine' ? b.tx - 1 : b.tx;
   out.push(R(tx, b.ty, tw, b.th, outfitColor));
-  // Torso shading (left edge darker, right edge slightly lighter)
-  out.push(R(tx, b.ty, 1, b.th, '#00000020'));
-  out.push(R(tx + tw - 1, b.ty, 1, b.th, '#FFFFFF10'));
-  // Belt line
-  out.push(R(tx + 1, b.ty + b.th - 2, tw - 2, 2, shadeColor(outfitColor, -20)));
-
-  // Feminine waist suggestion
+  out.push(R(tx, b.ty, 1, b.th, '#00000020'));       // left edge shading
+  out.push(R(tx + tw - 1, b.ty, 1, b.th, '#FFFFFF10')); // right edge highlight
+  out.push(R(tx + 1, b.ty + b.th - 2, tw - 2, 2, shadeColor(outfitColor, -20))); // belt
+  // Feminine waist taper hint
   if (gender === 'feminine') {
     out.push(R(tx, b.ty + Math.floor(b.th * 0.5), tw, 2, shadeColor(outfitColor, 12)));
   }
@@ -365,8 +382,7 @@ function renderBody(
 
   // Head
   out.push(R(b.hx, b.hy, b.hw, b.hh, skinCol));
-  // Head right-side shadow
-  out.push(R(b.hx + b.hw - 2, b.hy + 1, 2, b.hh - 2, sdark));
+  // (no right-side head shadow — it caused an unwanted face artifact)
   // Head top highlight
   out.push(R(b.hx + 1, b.hy, b.hw - 2, 1, '#FFFFFF20'));
 
@@ -471,26 +487,18 @@ function renderFace(
   const { eyeY, eyeLX, eyeRX, noseX, noseY, mouthX, mouthY, mouthW } = b;
 
   // ── Eyes ────────────────────────────────────────────────────
-  // Each eye: 3 wide × 2 tall white area. Pupil CENTERED in each eye (not cross-eyed).
-  out.push(R(eyeLX,     eyeY, 3, 2, '#F8F8F8'));  // left eye white
-  out.push(R(eyeRX,     eyeY, 3, 2, '#F8F8F8'));  // right eye white
-  out.push(R(eyeLX + 1, eyeY, 1, 2, eyeCol));      // left pupil (center)
-  out.push(R(eyeRX + 1, eyeY, 1, 2, eyeCol));      // right pupil (center)
-  // Eye shine (top-right of each pupil)
-  out.push(R(eyeLX + 2, eyeY, 1, 1, '#FFFFFF'));
-  out.push(R(eyeRX + 2, eyeY, 1, 1, '#FFFFFF'));
-  // Eyelids / upper lash line
-  out.push(R(eyeLX,     eyeY - 1, 3, 1, sdark));
-  out.push(R(eyeRX,     eyeY - 1, 3, 1, sdark));
-  // Lower lash line
-  out.push(R(eyeLX,     eyeY + 2, 3, 1, sdark));
-  out.push(R(eyeRX,     eyeY + 2, 3, 1, sdark));
+  // 2×2 colored eye block — small, square, friendly (no vertical-slit look)
+  out.push(R(eyeLX, eyeY, 2, 2, eyeCol));   // left eye
+  out.push(R(eyeRX, eyeY, 2, 2, eyeCol));   // right eye
+  // 1×1 shine pixel (top-right corner of each eye)
+  out.push(R(eyeLX + 1, eyeY, 1, 1, '#FFFFFF'));
+  out.push(R(eyeRX + 1, eyeY, 1, 1, '#FFFFFF'));
+  // Upper eyelid line (thin 1px above each eye, slightly wider for emphasis)
+  out.push(R(eyeLX - 1, eyeY - 1, 4, 1, sdark));
+  out.push(R(eyeRX - 1, eyeY - 1, 4, 1, sdark));
 
   // ── Nose ────────────────────────────────────────────────────
   out.push(R(noseX, noseY, 2, 1, sdark));
-  // Nostril dots
-  out.push(R(noseX - 1, noseY, 1, 1, sdark));
-  out.push(R(noseX + 2, noseY, 1, 1, sdark));
 
   // ── Mouth (chibi smile) ─────────────────────────────────────
   // Center-high arc: outer pixels drop down 1
@@ -498,71 +506,66 @@ function renderFace(
   out.push(R(mouthX,     mouthY + 1, 1,          1, sdark)); // left corner down
   out.push(R(mouthX + mouthW - 1, mouthY + 1, 1, 1, sdark)); // right corner down
 
-  // ── Cheek blush ─────────────────────────────────────────────
-  out.push(R(eyeLX - 1, eyeY + 3, 2, 1, '#E87878'));
-  out.push(R(eyeRX + 2, eyeY + 3, 2, 1, '#E87878'));
+  // ── Cheek blush (below and outside the 2×2 eyes) ───────────
+  out.push(R(eyeLX - 2, eyeY + 2, 2, 1, '#E87878'));
+  out.push(R(eyeRX + 2, eyeY + 2, 2, 1, '#E87878'));
 
   // ── Facial hair ─────────────────────────────────────────────
-  if (facialHair === 'stubble') {
-    // Intentional pixel cluster along jaw — readable dots, not blur
-    const jy = mouthY + 2;
-    const jx = mouthX;
-    const jw = mouthW;
-    for (let i = 0; i < jw; i += 2) {
-      out.push(R(jx + i, jy, 1, 1, sdark));
-    }
-    for (let i = 1; i < jw - 1; i += 2) {
-      out.push(R(jx + i, jy + 1, 1, 1, sdark));
-    }
-    out.push(R(mouthX + 2, mouthY - 1, 1, 1, sdark)); // above lip L
-    out.push(R(mouthX + mouthW - 3, mouthY - 1, 1, 1, sdark)); // above lip R
-  }
+  // ── Mustache (standalone) ───────────────────────────────────
   if (facialHair === 'mustache') {
-    out.push(R(mouthX + 1, mouthY - 2, mouthW - 2, 2, hairCol));
-    out.push(R(mouthX,     mouthY - 1, 1, 1, hairCol));
-    out.push(R(mouthX + mouthW - 1, mouthY - 1, 1, 1, hairCol));
-    // Waxed ends curl up
-    out.push(R(mouthX - 1, mouthY - 2, 1, 1, hairCol));
-    out.push(R(mouthX + mouthW, mouthY - 2, 1, 1, hairCol));
+    // Simple, clear mustache centered directly under the nose
+    const msx = noseX - 1;
+    const msy = mouthY - 1;
+    out.push(R(msx,     msy,     4, 1, hairCol)); // main bar
+    out.push(R(msx - 1, msy + 1, 1, 1, hairCol)); // left end drops
+    out.push(R(msx + 4, msy + 1, 1, 1, hairCol)); // right end drops
   }
+  // ── Full beard (includes mustache + chin + connected sides) ─
   if (facialHair === 'beard') {
+    const msx = noseX - 1;
+    const msy = mouthY - 1;
+    // Mustache portion at top
+    out.push(R(msx,     msy,     4, 1, hairCol));
+    out.push(R(msx - 1, msy + 1, 1, 1, hairCol));
+    out.push(R(msx + 4, msy + 1, 1, 1, hairCol));
+    // Jaw sides — connect mustache down into chin beard naturally
+    out.push(R(mouthX - 2, msy + 1, 2, 5, hairCol));
+    out.push(R(mouthX + mouthW, msy + 1, 2, 5, hairCol));
+    // Chin beard body
     const by = mouthY + 1;
     const bx = mouthX - 1;
     const bw = mouthW + 2;
-    out.push(R(bx,     by,     bw,     4, hairCol));
-    out.push(R(bx + 1, by + 4, bw - 2, 3, hairCol));
-    out.push(R(bx + 2, by + 7, bw - 4, 2, hairCol));
-    out.push(R(bx + 3, by + 9, bw - 6, 1, hairCol));
-    // Sideburns connecting to head hair
-    out.push(R(bx - 1, by - 3, 2, 4, hairCol));
-    out.push(R(bx + bw - 1, by - 3, 2, 4, hairCol));
+    out.push(R(bx,     by,     bw,     3, hairCol));
+    out.push(R(bx + 1, by + 3, bw - 2, 3, hairCol));
+    out.push(R(bx + 2, by + 6, bw - 4, 2, hairCol));
+    out.push(R(bx + 3, by + 8, bw - 6, 1, hairCol));
   }
 
   // ── Glasses ─────────────────────────────────────────────────
   if (hasGlasses) {
-    const gy = eyeY - 1;
-    const fc = '#303030'; // frame color
-    const lx = eyeLX - 1; // left frame outer x
-    const rx = eyeRX - 1; // right frame outer x
-    const fw = 5;  // frame width
-    const fh = 4;  // frame height
+    const gy = eyeY - 1; // 1px above the 2×2 eye
+    const fc = '#303030';
+    // 4×4 frames precisely wrap the 2×2 eyes (1px border each side)
+    const fw = 4, fh = 4;
+    const lx = eyeLX - 1;
+    const rx = eyeRX - 1;
     // Left lens frame
-    out.push(R(lx,      gy,      fw, 1, fc)); // top
-    out.push(R(lx,      gy+fh-1, fw, 1, fc)); // bottom
-    out.push(R(lx,      gy,      1,  fh, fc)); // left side
-    out.push(R(lx+fw-1, gy,      1,  fh, fc)); // right side
+    out.push(R(lx,      gy,      fw, 1,    fc)); // top
+    out.push(R(lx,      gy+fh-1, fw, 1,    fc)); // bottom
+    out.push(R(lx,      gy+1,    1,  fh-2, fc)); // left side
+    out.push(R(lx+fw-1, gy+1,    1,  fh-2, fc)); // right side
     // Right lens frame
-    out.push(R(rx,      gy,      fw, 1, fc));
-    out.push(R(rx,      gy+fh-1, fw, 1, fc));
-    out.push(R(rx,      gy,      1,  fh, fc));
-    out.push(R(rx+fw-1, gy,      1,  fh, fc));
+    out.push(R(rx,      gy,      fw, 1,    fc));
+    out.push(R(rx,      gy+fh-1, fw, 1,    fc));
+    out.push(R(rx,      gy+1,    1,  fh-2, fc));
+    out.push(R(rx+fw-1, gy+1,    1,  fh-2, fc));
     // Bridge between lenses
     const bridgeX = lx + fw;
-    const bridgeW = Math.max(1, rx - (lx + fw));
+    const bridgeW = Math.max(1, rx - bridgeX);
     out.push(R(bridgeX, gy + 1, bridgeW, 1, fc));
-    // Temple arms (side pieces)
+    // Temple arms
     out.push(R(lx - 2, gy + 1, 2, 1, fc));
-    out.push(R(rx + fw, gy + 1, 3, 1, fc));
+    out.push(R(rx + fw, gy + 1, 2, 1, fc));
   }
 
   return out;

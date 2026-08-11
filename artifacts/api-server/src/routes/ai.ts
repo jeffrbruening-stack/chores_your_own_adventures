@@ -30,13 +30,15 @@ async function chat(system: string, user: string): Promise<string> {
 // POST /api/ai/adventure-speak
 router.post("/adventure-speak", requireAuth, async (req, res) => {
   try {
-    const { plainText } = req.body;
-    if (!plainText) { res.status(400).json({ error: "plainText required" }); return; }
+    // Accept either plainTitle (new) or plainText (legacy)
+    const input = req.body.plainTitle ?? req.body.plainText;
+    if (!input) { res.status(400).json({ error: "plainTitle required" }); return; }
     const result = await chat(
-      "You are a fantasy RPG narrator. Transform plain household chores into epic quest titles. Keep it under 10 words. Be dramatic and fun. Return ONLY the quest title, nothing else.",
-      plainText
+      "Rewrite this household chore as a short playful fantasy RPG quest title. Maximum 7 words. Return ONLY the title — no explanation, no punctuation at the end, no quotes.",
+      input
     );
-    res.json({ adventureText: result });
+    // Return both field names for compatibility
+    res.json({ adventureTitle: result, adventureText: result });
   } catch {
     res.status(500).json({ error: "AI unavailable" });
   }
