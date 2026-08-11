@@ -304,9 +304,7 @@ function renderSpeciesFeatures(species: string, skinCol: string, sdark: string, 
     out.push(R(b.hx + b.hw + 1, ey + 8, 2, 2, skinCol));
     out.push(R(b.hx + b.hw + 1, ey + 10, 1, 1, skinCol));
     out.push(R(b.hx + b.hw + 3, ey + 1, 1, 5, sdark));
-    // Pointy chin
-    out.push(R(b.hx + Math.floor(b.hw / 2) - 1, b.hy + b.hh, 2, 2, skinCol));
-    out.push(R(b.hx + Math.floor(b.hw / 2), b.hy + b.hh + 2, 1, 1, skinCol));
+    // (pointy chin removed — head shape now handled by chin taper in renderBody)
   }
   return out;
 }
@@ -380,9 +378,10 @@ function renderBody(
   // Neck
   out.push(R(b.nx, b.ny, b.nw, b.nh, skinCol));
 
-  // Head
-  out.push(R(b.hx, b.hy, b.hw, b.hh, skinCol));
-  // (no right-side head shadow — it caused an unwanted face artifact)
+  // Head — tapered chin to avoid the rectangular "jaw block" appearance
+  out.push(R(b.hx,     b.hy,              b.hw,     b.hh - 2, skinCol)); // main head
+  out.push(R(b.hx + 1, b.hy + b.hh - 2,  b.hw - 2, 1,        skinCol)); // chin taper (1px in)
+  out.push(R(b.hx + 2, b.hy + b.hh - 1,  b.hw - 4, 1,        skinCol)); // chin bottom (2px in)
   // Head top highlight
   out.push(R(b.hx + 1, b.hy, b.hw - 2, 1, '#FFFFFF20'));
 
@@ -506,10 +505,6 @@ function renderFace(
   out.push(R(mouthX,     mouthY + 1, 1,          1, sdark)); // left corner down
   out.push(R(mouthX + mouthW - 1, mouthY + 1, 1, 1, sdark)); // right corner down
 
-  // ── Cheek blush (below and outside the 2×2 eyes) ───────────
-  out.push(R(eyeLX - 2, eyeY + 2, 2, 1, '#E87878'));
-  out.push(R(eyeRX + 2, eyeY + 2, 2, 1, '#E87878'));
-
   // ── Facial hair ─────────────────────────────────────────────
   // ── Mustache (standalone) ───────────────────────────────────
   if (facialHair === 'mustache') {
@@ -528,9 +523,10 @@ function renderFace(
     out.push(R(msx,     msy,     4, 1, hairCol));
     out.push(R(msx - 1, msy + 1, 1, 1, hairCol));
     out.push(R(msx + 4, msy + 1, 1, 1, hairCol));
-    // Jaw sides — connect mustache down into chin beard naturally
-    out.push(R(mouthX - 2, msy + 1, 2, 5, hairCol));
-    out.push(R(mouthX + mouthW, msy + 1, 2, 5, hairCol));
+    // Jaw sides — connect mustache down into chin beard (clamped inside head)
+    const jawMaxH = Math.max(0, b.hy + b.hh - (msy + 1) - 1);
+    out.push(R(mouthX - 2, msy + 1, 2, Math.min(5, jawMaxH), hairCol));
+    out.push(R(mouthX + mouthW, msy + 1, 2, Math.min(5, jawMaxH), hairCol));
     // Chin beard body
     const by = mouthY + 1;
     const bx = mouthX - 1;
@@ -602,7 +598,7 @@ function getOutfitColors(equipped: EquippedItems, classId: string): { outfit: st
     fighter:   { outfit: '#7A6850', legs: '#4A4030' },
     ranger:    { outfit: '#3D6028', legs: '#2A4018' },
     wizard:    { outfit: '#5030A0', legs: '#301870' },
-    rogue:     { outfit: '#282828', legs: '#181818' },
+    rogue:     { outfit: '#3A3530', legs: '#2A2020' },
     cleric:    { outfit: '#D8C870', legs: '#A89040' },
     barbarian: { outfit: '#7A3818', legs: '#4A2008' },
   };
@@ -634,12 +630,14 @@ function renderHeadgear(equipped: EquippedItems, classId: string, b: Body): El[]
     out.push(R(hx + 3, hy - 7, 1, 3, '#FFD700'));
     out.push(R(hx + 2, hy - 6, 3, 1, '#FFD700'));
   } else if (name.includes('hood') || wantsHood) {
-    // Close-fitting rogue hood
-    out.push(R(hx - 1, hy - 1, hw + 2, 5, '#1A1A1A'));
-    out.push(R(hx - 2, hy + 4, hw + 4, 4, '#252525'));
-    // Face shadow from hood
-    out.push(R(hx, hy, 2, 4, '#0000003A'));
-    out.push(R(hx + hw - 2, hy, 2, 4, '#0000003A'));
+    // Rogue cowl: frames the face, NEVER covers it
+    // Hood cap over the top of the head
+    out.push(R(hx - 1, hy - 4, hw + 2, 5, '#2C2820')); // hood top above head
+    out.push(R(hx,     hy - 1, hw,     2, '#342E28')); // where hood meets head top
+    // Cowl sides frame the face (stop at mid-face level — face stays fully visible)
+    const cowlH = Math.floor(b.hh * 0.5);
+    out.push(R(hx - 2, hy, 2, cowlH, '#2C2820')); // left cowl side
+    out.push(R(hx + hw, hy, 2, cowlH, '#2C2820')); // right cowl side
   } else if (name.includes('ranger') || name.includes('leaf') || wantsRangerCap) {
     // Ranger's cap + cloak hood
     out.push(R(hx, hy - 1, hw, 4, '#3D5828'));

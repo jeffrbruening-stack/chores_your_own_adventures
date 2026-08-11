@@ -1,0 +1,179 @@
+CHARACTER ART CLEANUP — FACE + ROGUE
+
+Do not redesign the character system. Make these specific visual corrections to the existing renderer.
+
+1. REMOVE THE CURRENT CHIN/JAW PIXELS
+
+The current face has two small skin-colored vertical blocks hanging below the left and right sides of the face. These look extremely strange.
+
+Remove them completely.
+
+The head should terminate cleanly at the jaw/chin.
+
+Do not attempt to create jaw definition using dangling pixels beneath the face.
+
+For a clean-shaven character, use a simple flat lower-face silhouette. A neck may begin beneath the CENTER of the head, but there should not be skin-colored protrusions hanging from either side of the jaw.
+
+2. REMOVE PINK CHEEK / BLUSH MARKS ENTIRELY
+
+Remove the pink horizontal rectangles currently rendered on both cheeks.
+
+Do not replace them with smaller blush marks.
+
+The base character face does not need blush or rosy cheeks.
+
+Keep the face visually clean and simple:
+
+* eyes
+* eyebrows
+* nose
+* simple mouth
+* optional facial hair
+* optional glasses
+
+That’s enough.
+
+3. SIMPLIFY THE CLEAN-SHAVEN FACE
+
+The clean-shaven face should look intentionally minimal rather than trying to add lots of pixel detail.
+
+Use:
+
+* symmetrical eyes
+* small centered pupils
+* simple eyebrows
+* very small/simple nose
+* simple neutral mouth
+* clean jaw
+
+Avoid unnecessary shading blocks, cheek marks, jaw pixels, facial creases, or other decorative face pixels.
+
+At this resolution, readability is more important than facial detail.
+
+4. FIX THE ROGUE CLASS APPEARANCE
+
+The current Rogue preview is not acceptable.
+
+It currently creates a huge solid black horizontal block across the upper face/head. It obscures the character’s face and looks like a rendering error.
+
+Completely remove that face-covering black rectangle.
+
+Rogue should look like a recognizable fantasy rogue, not like the character’s head was covered by a black box.
+
+Use a visual design such as:
+
+* dark charcoal/brown fitted tunic
+* dark trousers
+* dark boots
+* belt
+* optional small shoulder/cross-body strap
+* short hood OR subtle dark cowl
+* dagger in hand
+
+If using a hood, it should frame the head and leave the entire central face visible.
+
+The hood must NEVER render as a horizontal rectangle across the eyes.
+
+Think classic friendly fantasy RPG thief/rogue, not ninja.
+
+5. DO NOT MAKE ROGUE PURE BLACK
+
+Use multiple dark shades so individual garments remain readable against the dark preview background.
+
+Prefer:
+
+* charcoal
+* dark gray
+* dark brown
+* muted leather brown
+
+Pure black may be used sparingly for outlines/details.
+
+The character must remain clearly visible against the nearly black preview background.
+
+6. CLASS SHOULD ADD CHARACTER — NOT HIDE CHARACTER
+
+Every class should preserve the player’s recognizable character.
+
+Changing from Fighter → Rogue → Cleric should make it obvious that this is the same person wearing different fantasy gear.
+
+Class selection must not replace or obscure:
+
+* face
+* skin color
+* hair
+* facial hair
+* eyes
+* species features
+* glasses
+
+Class changes primarily affect:
+
+* clothing
+* weapon/tool
+* hat/hood where appropriate
+* small accessories
+
+7. ROGUE VISUAL TARGET
+
+A Rogue should immediately communicate:
+
+“Sneaky fantasy adventurer.”
+
+A good simple V1 Rogue could be:
+
+* charcoal hooded tunic
+* brown belt
+* dark pants
+* brown boots
+* small silver dagger
+
+Keep the face completely visible.
+
+8. CHECK LAYER ORDER
+
+The current Rogue problem strongly suggests an incorrect sprite-layer order or oversized hood/mask element.
+
+Review the rendering stack.
+
+A sensible order is approximately:
+
+1. background
+2. rear accessories
+3. body
+4. legs
+5. base clothing
+6. class clothing
+7. neck
+8. head
+9. species ears/features
+10. hair
+11. facial features
+12. facial hair
+13. glasses
+14. headwear/hood framing elements
+15. weapon/front accessories
+
+Do not allow a class garment layer to accidentally cover the entire facial-feature layer.
+
+9. MANUALLY TEST THESE COMBINATIONS
+
+Before declaring the fix complete, visually inspect:
+
+Human + Fighter + no facial hair
+Human + Rogue + no facial hair
+Human + Cleric + blue hair
+Elf + Rogue
+Dwarf + Fighter + beard
+Human + Rogue + glasses
+
+Verify:
+
+* no pink cheeks
+* no dangling chin pixels
+* no unexplained face artifacts
+* eyes remain visible
+* Rogue does not obscure face
+* class changes clothing/equipment while preserving character identity
+
+Do not add new character features during this pass. Fix these rendering issues first.
