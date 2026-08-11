@@ -40,7 +40,7 @@ router.post("/", requireAuth, async (req, res) => {
 // PATCH /api/school-calendars/:calendarId
 router.patch("/:calendarId", requireAuth, async (req, res) => {
   try {
-    const calId = parseInt(req.params.calendarId);
+    const calId = parseInt(String(req.params.calendarId));
     const [existing] = await db.select({ partyId: schoolCalendarsTable.partyId })
       .from(schoolCalendarsTable).where(eq(schoolCalendarsTable.id, calId)).limit(1);
     if (!existing) { res.status(404).json({ error: "Not found" }); return; }
@@ -60,7 +60,7 @@ router.patch("/:calendarId", requireAuth, async (req, res) => {
 // DELETE /api/school-calendars/:calendarId
 router.delete("/:calendarId", requireAuth, async (req, res) => {
   try {
-    const calId = parseInt(req.params.calendarId);
+    const calId = parseInt(String(req.params.calendarId));
     const [existing] = await db.select({ partyId: schoolCalendarsTable.partyId })
       .from(schoolCalendarsTable).where(eq(schoolCalendarsTable.id, calId)).limit(1);
     if (!existing) { res.status(404).json({ error: "Not found" }); return; }

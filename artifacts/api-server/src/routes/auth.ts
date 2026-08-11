@@ -35,13 +35,9 @@ router.post("/register", async (req, res) => {
     const [user] = await db.insert(usersTable).values({
       email, displayName, passwordHash, userType: "adult",
     }).returning();
-    // Create starter character
-    await db.insert(charactersTable).values({
-      userId: user.id,
-      adventurerName: displayName,
-    }).onConflictDoNothing();
+    // Do NOT auto-create character. User must go through CREATE YOUR ADVENTURER flow.
     const token = signToken({ userId: user.id, userType: "adult" });
-    res.status(201).json({ user: toUserProfile(user), token });
+    res.status(201).json({ user: await toUserProfile(user.id), token });
   } catch (err) {
     res.status(500).json({ error: "Registration failed" });
   }
@@ -67,7 +63,7 @@ router.post("/login", async (req, res) => {
       return;
     }
     const token = signToken({ userId: user.id, userType: "adult" });
-    res.json({ user: toUserProfile(user), token });
+    res.json({ user: await toUserProfile(user.id), token });
   } catch {
     res.status(500).json({ error: "Login failed" });
   }
@@ -78,13 +74,12 @@ router.post("/logout", requireAuth, (_req, res) => {
   res.json({ message: "Logged out" });
 });
 
-// GET /api/auth/me
+// GET /api/auth/me — includes hasCharacter boolean
 router.get("/me", requireAuth, async (req, res) => {
   try {
-    const [user] = await db.select().from(usersTable)
-      .where(eq(usersTable.id, req.userId!)).limit(1);
-    if (!user) { res.status(404).json({ error: "User not found" }); return; }
-    res.json(toUserProfile(user));
+    const profile = await toUserProfile(req.userId!);
+    if (!profile) { res.status(404).json({ error: "User not found" }); return; }
+    res.json(profile);
   } catch {
     res.status(500).json({ error: "Failed to get user" });
   }
@@ -98,9 +93,10 @@ router.patch("/me", requireAuth, async (req, res) => {
     if (typeof adventureMode === "boolean") updates.adventureMode = adventureMode;
     if (typeof soundEnabled === "boolean") updates.soundEnabled = soundEnabled;
     if (typeof hapticsEnabled === "boolean") updates.hapticsEnabled = hapticsEnabled;
-    const [user] = await db.update(usersTable).set(updates as any)
-      .where(eq(usersTable.id, req.userId!)).returning();
-    res.json(toUserProfile(user));
+    await db.update(usersTable).set(updates as any)
+      .where(eq(usersTable.id, req.userId!));
+    const profile = await toUserProfile(req.userId!);
+    res.json(profile);
   } catch {
     res.status(500).json({ error: "Update failed" });
   }
@@ -185,6 +181,7 @@ router.get("/household/:code", async (req, res) => {
         adventurerName: charactersTable.adventurerName,
         species: charactersTable.species,
         class: charactersTable.class,
+        configured: charactersTable.configured,
       })
       .from(partyMembersTable)
       .innerJoin(usersTable, eq(usersTable.id, partyMembersTable.userId))
@@ -193,7 +190,7 @@ router.get("/household/:code", async (req, res) => {
     res.json(members.map(m => ({
       id: m.id, displayName: m.displayName, adventurerName: m.adventurerName,
       userType: m.userType, level: m.currentLevel,
-      species: m.species, class: m.class,
+      species: m.species, class: m.class, hasCharacter: !!m.configured,
     })));
   } catch {
     res.status(500).json({ error: "Failed" });
@@ -242,7 +239,7 @@ router.post("/kid-login", async (req, res) => {
     await db.update(usersTable).set({ pinAttempts: 0, pinLockedUntil: null })
       .where(eq(usersTable.id, user.id));
     const token = signToken({ userId: user.id, userType: user.userType });
-    res.json({ user: toUserProfile(user), token });
+    res.json({ user: await toUserProfile(user.id), token });
   } catch {
     res.status(500).json({ error: "Login failed" });
   }
@@ -266,7 +263,15 @@ router.post("/change-pin", requireAuth, async (req, res) => {
   }
 });
 
-function toUserProfile(user: any) {
+// Build user profile including hasCharacter flag
+async function toUserProfile(userId: number) {
+  const [user] = await db.select().from(usersTable)
+    .where(eq(usersTable.id, userId)).limit(1);
+  if (!user) return null;
+  
+  const [char] = await db.select({ configured: charactersTable.configured })
+    .from(charactersTable).where(eq(charactersTable.userId, userId)).limit(1);
+  
   return {
     id: user.id,
     displayName: user.displayName,
@@ -281,6 +286,7 @@ function toUserProfile(user: any) {
     soundEnabled: user.soundEnabled,
     hapticsEnabled: user.hapticsEnabled,
     activePartyId: user.activePartyId,
+    hasCharacter: !!(char?.configured),
   };
 }
 

@@ -40,7 +40,7 @@ router.post("/", requireAuth, async (req, res) => {
 // POST /api/party-goals/:goalId/activate
 router.post("/:goalId/activate", requireAuth, async (req, res) => {
   try {
-    const goalId = parseInt(req.params.goalId);
+    const goalId = parseInt(String(req.params.goalId));
     const [goal] = await db.select().from(partyGoalsTable)
       .where(eq(partyGoalsTable.id, goalId)).limit(1);
     if (!goal) { res.status(404).json({ error: "Not found" }); return; }
@@ -60,7 +60,7 @@ router.post("/:goalId/activate", requireAuth, async (req, res) => {
 // POST /api/party-goals/:goalId/propose-activation
 router.post("/:goalId/propose-activation", requireAuth, async (req, res) => {
   try {
-    const goalId = parseInt(req.params.goalId);
+    const goalId = parseInt(String(req.params.goalId));
     const [goal] = await db.select().from(partyGoalsTable)
       .where(eq(partyGoalsTable.id, goalId)).limit(1);
     if (!goal) { res.status(404).json({ error: "Not found" }); return; }
@@ -77,7 +77,7 @@ router.post("/:goalId/propose-activation", requireAuth, async (req, res) => {
 // POST /api/party-goals/:goalId/redeem
 router.post("/:goalId/redeem", requireAuth, async (req, res) => {
   try {
-    const goalId = parseInt(req.params.goalId);
+    const goalId = parseInt(String(req.params.goalId));
     const [goal] = await db.select().from(partyGoalsTable)
       .where(eq(partyGoalsTable.id, goalId)).limit(1);
     if (!goal || goal.status !== "active") { res.status(400).json({ error: "Goal not active" }); return; }
@@ -102,7 +102,7 @@ router.post("/:goalId/redeem", requireAuth, async (req, res) => {
 // DELETE /api/party-goals/:goalId
 router.delete("/:goalId", requireAuth, async (req, res) => {
   try {
-    const goalId = parseInt(req.params.goalId);
+    const goalId = parseInt(String(req.params.goalId));
     const [goal] = await db.select({ partyId: partyGoalsTable.partyId })
       .from(partyGoalsTable).where(eq(partyGoalsTable.id, goalId)).limit(1);
     if (!goal) { res.status(404).json({ error: "Not found" }); return; }

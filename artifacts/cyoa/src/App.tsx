@@ -30,6 +30,7 @@ import PartyGoals from '@/pages/party-goals';
 import SchoolCalendars from '@/pages/school-calendars';
 import Admin from '@/pages/admin';
 import Settings from '@/pages/settings';
+import CreateCharacter from '@/pages/create-character';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,12 +41,23 @@ const queryClient = new QueryClient({
   },
 });
 
-function ProtectedRoute({ component: Component, adminOnly = false }: { component: any, adminOnly?: boolean }) {
-  const { isAuthenticated, isLoading, currentUser } = useAuth();
-  const [location, setLocation] = useLocation();
+interface ProtectedRouteProps {
+  component: React.ComponentType;
+  adminOnly?: boolean;
+  /** Set true on the /create-character route itself to avoid redirect loop */
+  skipCharacterCheck?: boolean;
+}
+
+function ProtectedRoute({ component: Component, adminOnly = false, skipCharacterCheck = false }: ProtectedRouteProps) {
+  const { isAuthenticated, isLoading, currentUser, hasCharacter } = useAuth();
+  const [, setLocation] = useLocation();
 
   if (isLoading) {
-    return <div className="min-h-[100dvh] flex items-center justify-center"><p className="font-pixel animate-pulse">LOADING...</p></div>;
+    return (
+      <div className="min-h-[100dvh] flex items-center justify-center">
+        <p className="font-pixel animate-pulse text-primary">LOADING...</p>
+      </div>
+    );
   }
 
   if (!isAuthenticated) {
@@ -58,6 +70,12 @@ function ProtectedRoute({ component: Component, adminOnly = false }: { component
     return null;
   }
 
+  // Redirect to character creation if character not yet configured
+  if (!skipCharacterCheck && !hasCharacter) {
+    setLocation('/create-character');
+    return null;
+  }
+
   return <Component />;
 }
 
@@ -66,12 +84,19 @@ function Router() {
     <AppShell>
       <RoutedErrorBoundary>
         <Switch>
+          {/* Public */}
           <Route path="/" component={Landing} />
           <Route path="/login" component={Login} />
           <Route path="/register" component={Register} />
           <Route path="/kid-login" component={KidLogin} />
           <Route path="/forgot-password" component={ForgotPassword} />
-          
+
+          {/* Character creation — protected but skips char check to avoid loop */}
+          <Route path="/create-character">
+            <ProtectedRoute component={CreateCharacter} skipCharacterCheck />
+          </Route>
+
+          {/* Protected — all require a configured character */}
           <Route path="/home"><ProtectedRoute component={Home} /></Route>
           <Route path="/quests"><ProtectedRoute component={Quests} /></Route>
           <Route path="/quest-create"><ProtectedRoute component={QuestCreate} /></Route>
@@ -83,7 +108,7 @@ function Router() {
           <Route path="/school-calendars"><ProtectedRoute component={SchoolCalendars} /></Route>
           <Route path="/settings"><ProtectedRoute component={Settings} /></Route>
           <Route path="/admin"><ProtectedRoute component={Admin} adminOnly /></Route>
-          
+
           <Route component={NotFound} />
         </Switch>
       </RoutedErrorBoundary>

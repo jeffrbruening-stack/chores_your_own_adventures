@@ -39,7 +39,7 @@ router.get("/users", async (req, res) => {
 // GET /api/admin/users/:userId
 router.get("/users/:userId", async (req, res) => {
   try {
-    const userId = parseInt(req.params.userId);
+    const userId = parseInt(String(req.params.userId));
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     if (!user) { res.status(404).json({ error: "Not found" }); return; }
     res.json(user);
@@ -51,7 +51,7 @@ router.get("/users/:userId", async (req, res) => {
 // POST /api/admin/users/:userId/adjust
 router.post("/users/:userId/adjust", async (req, res) => {
   try {
-    const userId = parseInt(req.params.userId);
+    const userId = parseInt(String(req.params.userId));
     const { xpDelta, goldDelta, reason, makeAdmin, removeAdmin } = req.body;
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     if (!user) { res.status(404).json({ error: "Not found" }); return; }
@@ -109,7 +109,7 @@ router.post("/shop", async (req, res) => {
 // PATCH /api/admin/shop/:itemId
 router.patch("/shop/:itemId", async (req, res) => {
   try {
-    const itemId = parseInt(req.params.itemId);
+    const itemId = parseInt(String(req.params.itemId));
     const allowed = ["name","description","goldPrice","minLevel","emoji","isActive","isCatFoleyExclusive"];
     const updates: any = { updatedAt: new Date() };
     for (const k of allowed) { if (req.body[k] !== undefined) updates[k] = req.body[k]; }

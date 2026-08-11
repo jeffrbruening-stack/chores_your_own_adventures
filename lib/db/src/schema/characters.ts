@@ -15,6 +15,7 @@ export const charactersTable = pgTable("characters", {
   eyeColor: text("eye_color").notNull().default("brown"),
   hasGlasses: boolean("has_glasses").notNull().default(false),
   facialHair: text("facial_hair").notNull().default("none"),
+  configured: boolean("configured").notNull().default(false),
   cooldownUntil: timestamp("cooldown_until"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

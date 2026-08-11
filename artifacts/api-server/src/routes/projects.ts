@@ -44,7 +44,7 @@ router.post("/", requireAuth, async (req, res) => {
 // GET /api/projects/:projectId
 router.get("/:projectId", requireAuth, async (req, res) => {
   try {
-    const projectId = parseInt(req.params.projectId);
+    const projectId = parseInt(String(req.params.projectId));
     const [project] = await db.select().from(projectsTable)
       .where(eq(projectsTable.id, projectId)).limit(1);
     if (!project) { res.status(404).json({ error: "Not found" }); return; }
@@ -66,7 +66,7 @@ router.get("/:projectId", requireAuth, async (req, res) => {
 // PATCH /api/projects/:projectId
 router.patch("/:projectId", requireAuth, async (req, res) => {
   try {
-    const projectId = parseInt(req.params.projectId);
+    const projectId = parseInt(String(req.params.projectId));
     const [existing] = await db.select({ partyId: projectsTable.partyId })
       .from(projectsTable).where(eq(projectsTable.id, projectId)).limit(1);
     if (!existing) { res.status(404).json({ error: "Not found" }); return; }
@@ -85,7 +85,7 @@ router.patch("/:projectId", requireAuth, async (req, res) => {
 // DELETE /api/projects/:projectId
 router.delete("/:projectId", requireAuth, async (req, res) => {
   try {
-    const projectId = parseInt(req.params.projectId);
+    const projectId = parseInt(String(req.params.projectId));
     const [existing] = await db.select({ partyId: projectsTable.partyId })
       .from(projectsTable).where(eq(projectsTable.id, projectId)).limit(1);
     if (!existing) { res.status(404).json({ error: "Not found" }); return; }
@@ -101,7 +101,7 @@ router.delete("/:projectId", requireAuth, async (req, res) => {
 // POST /api/projects/:projectId/duplicate
 router.post("/:projectId/duplicate", requireAuth, async (req, res) => {
   try {
-    const projectId = parseInt(req.params.projectId);
+    const projectId = parseInt(String(req.params.projectId));
     const [existing] = await db.select().from(projectsTable)
       .where(eq(projectsTable.id, projectId)).limit(1);
     if (!existing) { res.status(404).json({ error: "Not found" }); return; }

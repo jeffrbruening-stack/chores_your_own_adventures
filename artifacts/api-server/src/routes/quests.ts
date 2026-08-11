@@ -106,7 +106,7 @@ router.post("/", requireAuth, async (req, res) => {
 // GET /api/quests/:questId
 router.get("/:questId", requireAuth, async (req, res) => {
   try {
-    const questId = parseInt(req.params.questId);
+    const questId = parseInt(String(req.params.questId));
     const [quest] = await db.select(QUEST_SELECT).from(questDefinitionsTable)
       .where(eq(questDefinitionsTable.id, questId)).limit(1);
     if (!quest) { res.status(404).json({ error: "Not found" }); return; }
@@ -120,7 +120,7 @@ router.get("/:questId", requireAuth, async (req, res) => {
 // PATCH /api/quests/:questId
 router.patch("/:questId", requireAuth, async (req, res) => {
   try {
-    const questId = parseInt(req.params.questId);
+    const questId = parseInt(String(req.params.questId));
     const [existing] = await db.select({ partyId: questDefinitionsTable.partyId })
       .from(questDefinitionsTable).where(eq(questDefinitionsTable.id, questId)).limit(1);
     if (!existing) { res.status(404).json({ error: "Not found" }); return; }
@@ -140,7 +140,7 @@ router.patch("/:questId", requireAuth, async (req, res) => {
 // DELETE /api/quests/:questId
 router.delete("/:questId", requireAuth, async (req, res) => {
   try {
-    const questId = parseInt(req.params.questId);
+    const questId = parseInt(String(req.params.questId));
     const [existing] = await db.select({ partyId: questDefinitionsTable.partyId })
       .from(questDefinitionsTable).where(eq(questDefinitionsTable.id, questId)).limit(1);
     if (!existing) { res.status(404).json({ error: "Not found" }); return; }
@@ -156,7 +156,7 @@ router.delete("/:questId", requireAuth, async (req, res) => {
 // PATCH /api/quests/:questId/pause
 router.patch("/:questId/pause", requireAuth, async (req, res) => {
   try {
-    const questId = parseInt(req.params.questId);
+    const questId = parseInt(String(req.params.questId));
     const [existing] = await db.select({ partyId: questDefinitionsTable.partyId, isPaused: questDefinitionsTable.isPaused })
       .from(questDefinitionsTable).where(eq(questDefinitionsTable.id, questId)).limit(1);
     if (!existing) { res.status(404).json({ error: "Not found" }); return; }
@@ -255,7 +255,7 @@ router.get("/open", requireAuth, async (req, res) => {
 // POST /api/quests/assignments/:assignmentId/complete
 router.post("/assignments/:assignmentId/complete", requireAuth, async (req, res) => {
   try {
-    const assignmentId = parseInt(req.params.assignmentId);
+    const assignmentId = parseInt(String(req.params.assignmentId));
     const [assignment] = await db.select().from(questAssignmentsTable)
       .where(eq(questAssignmentsTable.id, assignmentId)).limit(1);
     if (!assignment || assignment.userId !== req.userId) {
@@ -313,7 +313,7 @@ router.post("/assignments/:assignmentId/complete", requireAuth, async (req, res)
 // POST /api/quests/assignments/:assignmentId/verify (leader verifies submitted quest)
 router.post("/assignments/:assignmentId/verify", requireAuth, async (req, res) => {
   try {
-    const assignmentId = parseInt(req.params.assignmentId);
+    const assignmentId = parseInt(String(req.params.assignmentId));
     const [assignment] = await db.select().from(questAssignmentsTable)
       .where(eq(questAssignmentsTable.id, assignmentId)).limit(1);
     if (!assignment) { res.status(404).json({ error: "Not found" }); return; }
@@ -425,7 +425,7 @@ router.get("/proposals", requireAuth, async (req, res) => {
 // POST /api/quests/proposals/:proposalId/review
 router.post("/proposals/:proposalId/review", requireAuth, async (req, res) => {
   try {
-    const proposalId = parseInt(req.params.proposalId);
+    const proposalId = parseInt(String(req.params.proposalId));
     const [proposal] = await db.select().from(questProposalsTable)
       .where(eq(questProposalsTable.id, proposalId)).limit(1);
     if (!proposal) { res.status(404).json({ error: "Not found" }); return; }
@@ -470,7 +470,7 @@ router.get("/quick", requireAuth, async (req, res) => {
 // POST /api/quests/:questId/duplicate
 router.post("/:questId/duplicate", requireAuth, async (req, res) => {
   try {
-    const questId = parseInt(req.params.questId);
+    const questId = parseInt(String(req.params.questId));
     const [existing] = await db.select().from(questDefinitionsTable)
       .where(eq(questDefinitionsTable.id, questId)).limit(1);
     if (!existing) { res.status(404).json({ error: "Not found" }); return; }

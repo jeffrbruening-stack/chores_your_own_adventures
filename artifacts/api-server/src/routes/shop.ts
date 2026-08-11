@@ -40,7 +40,7 @@ router.get("/", requireAuth, async (req, res) => {
 // POST /api/shop/:itemId/purchase
 router.post("/:itemId/purchase", requireAuth, async (req, res) => {
   try {
-    const itemId = parseInt(req.params.itemId);
+    const itemId = parseInt(String(req.params.itemId));
     const userId = req.userId!;
     const [item] = await db.select().from(shopItemsTable).where(eq(shopItemsTable.id, itemId)).limit(1);
     if (!item || !item.isActive) { res.status(404).json({ error: "Item not available" }); return; }
@@ -78,7 +78,7 @@ router.post("/:itemId/purchase", requireAuth, async (req, res) => {
 // POST /api/shop/purchases/:inventoryId/undo
 router.post("/purchases/:inventoryId/undo", requireAuth, async (req, res) => {
   try {
-    const inventoryId = parseInt(req.params.inventoryId);
+    const inventoryId = parseInt(String(req.params.inventoryId));
     const [inv] = await db.select().from(userInventoryTable)
       .where(and(eq(userInventoryTable.id, inventoryId), eq(userInventoryTable.userId, req.userId!)))
       .limit(1);
@@ -126,40 +126,13 @@ router.get("/inventory", requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/inventory/equip
-router.post("/inventory/equip", requireAuth, async (req, res) => {
-  try {
-    const { shopItemId, slot } = req.body;
-    const userId = req.userId!;
-    // Verify owned
-    const [owned] = await db.select().from(userInventoryTable)
-      .where(and(eq(userInventoryTable.userId, userId), eq(userInventoryTable.shopItemId, shopItemId))).limit(1);
-    if (!owned) { res.status(403).json({ error: "Item not owned" }); return; }
-    // Upsert equipped slot
-    const [existing] = await db.select().from(equippedItemsTable)
-      .where(and(eq(equippedItemsTable.userId, userId), eq(equippedItemsTable.slot, slot))).limit(1);
-    if (existing) {
-      await db.update(equippedItemsTable).set({ shopItemId, equippedAt: new Date() })
-        .where(eq(equippedItemsTable.id, existing.id));
-    } else {
-      await db.insert(equippedItemsTable).values({ userId, slot, shopItemId });
-    }
-    res.json({ message: "Equipped", slot, shopItemId });
-  } catch {
-    res.status(500).json({ error: "Failed" });
-  }
+// Legacy paths — redirect to /api/inventory for validated equip/unequip
+// These are kept to avoid 404s from any cached client code but do not bypass validation
+router.post("/inventory/equip", (_req, res) => {
+  res.status(308).json({ error: "Use POST /api/inventory/equip", location: "/api/inventory/equip" });
 });
-
-// DELETE /api/inventory/equip/:slot
-router.delete("/inventory/equip/:slot", requireAuth, async (req, res) => {
-  try {
-    const { slot } = req.params;
-    await db.delete(equippedItemsTable)
-      .where(and(eq(equippedItemsTable.userId, req.userId!), eq(equippedItemsTable.slot, slot)));
-    res.status(204).send();
-  } catch {
-    res.status(500).json({ error: "Failed" });
-  }
+router.delete("/inventory/equip/:slot", (_req, res) => {
+  res.status(308).json({ error: "Use DELETE /api/inventory/equip/:slot", location: "/api/inventory/equip" });
 });
 
 export default router;

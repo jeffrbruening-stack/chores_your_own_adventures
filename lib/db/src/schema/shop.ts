@@ -16,6 +16,7 @@ export const shopItemsTable = pgTable("shop_items", {
   minLevel: integer("min_level").notNull().default(1),
   isActive: boolean("is_active").notNull().default(true),
   isCatFoleyExclusive: boolean("is_cat_foley_exclusive").notNull().default(false),
+  isStarter: boolean("is_starter").notNull().default(false),
   isEvolvingPet: boolean("is_evolving_pet").notNull().default(false),
   evolutionStages: jsonb("evolution_stages"),
   emoji: text("emoji").notNull().default("⚔️"),

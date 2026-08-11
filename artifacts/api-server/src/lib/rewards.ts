@@ -1,9 +1,9 @@
 // XP and gold reward tables per difficulty
 export const DIFFICULTY_REWARDS = {
-  easy:      { xp: 15,  gold: 8,   partyGold: 3  },
-  normal:    { xp: 25,  gold: 15,  partyGold: 5  },
-  hard:      { xp: 50,  gold: 25,  partyGold: 10 },
-  epic:      { xp: 100, gold: 50,  partyGold: 20 },
+  easy:      { xp: 10,  gold: 10,  partyGold: 2  },
+  normal:    { xp: 25,  gold: 20,  partyGold: 5  },
+  hard:      { xp: 50,  gold: 40,  partyGold: 10 },
+  epic:      { xp: 100, gold: 75,  partyGold: 20 },
   legendary: { xp: 250, gold: 100, partyGold: 40 },
 } as const;
 

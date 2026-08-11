@@ -94,7 +94,7 @@ router.get("/", requireAuth, async (req, res) => {
     const xpNext = xpForLevel(user.currentLevel + 1) - xpForLevel(user.currentLevel);
 
     res.json({
-      user: toUserProfile(user),
+      user: await toUserProfile(user.id),
       character: character ?? null,
       activeParty: activeParty ?? null,
       myRole: membership?.role ?? null,

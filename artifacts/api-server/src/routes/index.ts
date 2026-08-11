@@ -12,6 +12,7 @@ import aiRouter from "./ai.js";
 import schoolCalendarsRouter from "./school-calendars.js";
 import adminRouter from "./admin.js";
 import catFoleyRouter from "./cat-foley.js";
+import inventoryRouter from "./inventory.js";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use("/ai", aiRouter);
 router.use("/school-calendars", schoolCalendarsRouter);
 router.use("/admin", adminRouter);
 router.use("/cat-foley", catFoleyRouter);
+router.use("/inventory", inventoryRouter);
 
 export default router;

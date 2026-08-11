@@ -74,7 +74,7 @@ router.post("/", requireAuth, async (req, res) => {
 // GET /api/parties/:partyId
 router.get("/:partyId", requireAuth, async (req, res) => {
   try {
-    const partyId = parseInt(req.params.partyId);
+    const partyId = parseInt(String(req.params.partyId));
     await assertMember(partyId, req.userId!);
     const [party] = await db.select().from(partiesTable)
       .where(eq(partiesTable.id, partyId)).limit(1);
@@ -89,7 +89,7 @@ router.get("/:partyId", requireAuth, async (req, res) => {
 // PATCH /api/parties/:partyId
 router.patch("/:partyId", requireAuth, async (req, res) => {
   try {
-    const partyId = parseInt(req.params.partyId);
+    const partyId = parseInt(String(req.params.partyId));
     await assertLeader(partyId, req.userId!);
     const { name, routinesPaused } = req.body;
     const updates: any = { updatedAt: new Date() };
@@ -106,7 +106,7 @@ router.patch("/:partyId", requireAuth, async (req, res) => {
 // DELETE /api/parties/:partyId
 router.delete("/:partyId", requireAuth, async (req, res) => {
   try {
-    const partyId = parseInt(req.params.partyId);
+    const partyId = parseInt(String(req.params.partyId));
     const [party] = await db.select().from(partiesTable).where(eq(partiesTable.id, partyId)).limit(1);
     if (!party || party.founderId !== req.userId) {
       res.status(403).json({ error: "Only the founder can delete the party" });
@@ -123,7 +123,7 @@ router.delete("/:partyId", requireAuth, async (req, res) => {
 // GET /api/parties/:partyId/members
 router.get("/:partyId/members", requireAuth, async (req, res) => {
   try {
-    const partyId = parseInt(req.params.partyId);
+    const partyId = parseInt(String(req.params.partyId));
     await assertMember(partyId, req.userId!);
     const members = await db.select({
       id: usersTable.id,
@@ -147,7 +147,7 @@ router.get("/:partyId/members", requireAuth, async (req, res) => {
 // POST /api/parties/:partyId/members/kid — add kid
 router.post("/:partyId/members/kid", requireAuth, async (req, res) => {
   try {
-    const partyId = parseInt(req.params.partyId);
+    const partyId = parseInt(String(req.params.partyId));
     await assertLeader(partyId, req.userId!);
     const { displayName, pin } = req.body;
     if (!displayName || !pin) { res.status(400).json({ error: "displayName and pin required" }); return; }
@@ -168,8 +168,8 @@ router.post("/:partyId/members/kid", requireAuth, async (req, res) => {
 // PATCH /api/parties/:partyId/members/:userId
 router.patch("/:partyId/members/:memberId", requireAuth, async (req, res) => {
   try {
-    const partyId = parseInt(req.params.partyId);
-    const memberId = parseInt(req.params.memberId);
+    const partyId = parseInt(String(req.params.partyId));
+    const memberId = parseInt(String(req.params.memberId));
     await assertLeader(partyId, req.userId!);
     const { role, resetPin } = req.body;
     if (role) {
@@ -190,8 +190,8 @@ router.patch("/:partyId/members/:memberId", requireAuth, async (req, res) => {
 // DELETE /api/parties/:partyId/members/:userId
 router.delete("/:partyId/members/:memberId", requireAuth, async (req, res) => {
   try {
-    const partyId = parseInt(req.params.partyId);
-    const memberId = parseInt(req.params.memberId);
+    const partyId = parseInt(String(req.params.partyId));
+    const memberId = parseInt(String(req.params.memberId));
     await assertLeader(partyId, req.userId!);
     await db.delete(partyMembersTable)
       .where(and(eq(partyMembersTable.partyId, partyId), eq(partyMembersTable.userId, memberId)));
@@ -204,7 +204,7 @@ router.delete("/:partyId/members/:memberId", requireAuth, async (req, res) => {
 // POST /api/parties/:partyId/invite
 router.post("/:partyId/invite", requireAuth, async (req, res) => {
   try {
-    const partyId = parseInt(req.params.partyId);
+    const partyId = parseInt(String(req.params.partyId));
     await assertLeader(partyId, req.userId!);
     const token = crypto.randomBytes(16).toString("hex");
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
@@ -248,7 +248,7 @@ router.post("/join", requireAuth, async (req, res) => {
 // POST /api/parties/:partyId/leave
 router.post("/:partyId/leave", requireAuth, async (req, res) => {
   try {
-    const partyId = parseInt(req.params.partyId);
+    const partyId = parseInt(String(req.params.partyId));
     await db.delete(partyMembersTable)
       .where(and(eq(partyMembersTable.partyId, partyId), eq(partyMembersTable.userId, req.userId!)));
     const [user] = await db.select({ activePartyId: usersTable.activePartyId })
@@ -266,7 +266,7 @@ router.post("/:partyId/leave", requireAuth, async (req, res) => {
 // POST /api/parties/:partyId/transfer-founder
 router.post("/:partyId/transfer-founder", requireAuth, async (req, res) => {
   try {
-    const partyId = parseInt(req.params.partyId);
+    const partyId = parseInt(String(req.params.partyId));
     const [party] = await db.select().from(partiesTable).where(eq(partiesTable.id, partyId)).limit(1);
     if (!party || party.founderId !== req.userId) {
       res.status(403).json({ error: "Only the founder can transfer" });
@@ -288,7 +288,7 @@ router.post("/:partyId/transfer-founder", requireAuth, async (req, res) => {
 // POST /api/parties/:partyId/pause-routines
 router.post("/:partyId/pause-routines", requireAuth, async (req, res) => {
   try {
-    const partyId = parseInt(req.params.partyId);
+    const partyId = parseInt(String(req.params.partyId));
     await assertLeader(partyId, req.userId!);
     const [party] = await db.update(partiesTable)
       .set({ routinesPaused: true, updatedAt: new Date() })
@@ -302,7 +302,7 @@ router.post("/:partyId/pause-routines", requireAuth, async (req, res) => {
 // POST /api/parties/:partyId/summon-cat-foley
 router.post("/:partyId/summon-cat-foley", requireAuth, async (req, res) => {
   try {
-    const partyId = parseInt(req.params.partyId);
+    const partyId = parseInt(String(req.params.partyId));
     await assertLeader(partyId, req.userId!);
     // Cat Foley appears for 48 hours
     const { catFoleyAppearancesTable } = await import("@workspace/db/schema");
@@ -321,8 +321,8 @@ router.post("/:partyId/summon-cat-foley", requireAuth, async (req, res) => {
 // PATCH /api/parties/:partyId/members/:memberId/adjust (leader adjust member stats)
 router.patch("/:partyId/members/:memberId/adjust", requireAuth, async (req, res) => {
   try {
-    const partyId = parseInt(req.params.partyId);
-    const memberId = parseInt(req.params.memberId);
+    const partyId = parseInt(String(req.params.partyId));
+    const memberId = parseInt(String(req.params.memberId));
     await assertLeader(partyId, req.userId!);
     const { xpDelta, goldDelta, reason } = req.body;
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, memberId)).limit(1);
