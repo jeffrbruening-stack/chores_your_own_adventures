@@ -74,7 +74,7 @@ export function QuestCard({ quest, onComplete, onVerify, isLeader, onClick }: Qu
 
       {quest.status === 'active' && onComplete && (
         <button 
-          onClick={onComplete}
+          onClick={e => { e.stopPropagation(); onComplete(); }}
           className="mt-2 w-full bg-primary text-primary-foreground font-pixel text-[10px] py-3 rounded-lg active:scale-95 transition-transform"
         >
           {quest.requiresVerification ? 'SUBMIT FOR REVIEW' : 'COMPLETE QUEST'}

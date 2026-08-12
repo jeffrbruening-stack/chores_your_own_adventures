@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { X, Star, Coins, ShieldAlert, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { format, isPast } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
@@ -62,7 +63,7 @@ export function QuestDetailSheet({
     quest.status !== 'completed' &&
     isPast(new Date(quest.expiresAt));
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
@@ -249,6 +250,7 @@ export function QuestDetailSheet({
           )}
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   );
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '@/contexts/auth-context';
 import {
   useGetParty,
@@ -139,7 +140,7 @@ function ManageMemberSheet({ member, partyId, onClose, onRefresh }: ManageMember
     }
   };
 
-  return (
+  return createPortal(
     <>
       <div className="fixed inset-0 bg-black/60 z-40 animate-in fade-in duration-150" onClick={onClose} />
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t-2 border-border rounded-t-2xl max-h-[90dvh] overflow-y-auto animate-in slide-in-from-bottom-4 duration-200">
@@ -316,7 +317,8 @@ function ManageMemberSheet({ member, partyId, onClose, onRefresh }: ManageMember
           )}
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   );
 }
 
