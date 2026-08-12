@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cyoa-cache-v2';
+const CACHE_NAME = 'cyoa-cache-v3';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -58,7 +58,29 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Static assets: cache-first, fall back to network and cache the result
+  // Code (JS/CSS/HTML and dev-server modules): network-first so updates are
+  // never held hostage by the cache; fall back to cache when offline.
+  const isCode =
+    url.pathname.startsWith('/src/') ||
+    url.pathname.startsWith('/@') ||
+    url.pathname.startsWith('/node_modules/') ||
+    /\.(js|mjs|ts|tsx|css|html)$/.test(url.pathname);
+  if (isCode) {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          if (response && response.status === 200 && response.type === 'basic') {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  // Other static assets (images, fonts): cache-first, fall back to network
   event.respondWith(
     caches.match(request).then(cached => {
       if (cached) return cached;
