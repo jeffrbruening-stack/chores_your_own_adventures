@@ -17,6 +17,7 @@ export interface CharacterAppearance {
   species?: string;
   gender?: string;
   class?: string;
+  expression?: string;
 }
 
 export interface EquippedItems {
@@ -1030,10 +1031,12 @@ function renderEffect(equipped: EquippedItems): El[] {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// BENCHMARK WIZARD — PIXEL GRID RENDERER (Task #11)
-// Canvas: 32×48. Each layer is a string[] (one string per row, 32 chars wide).
-// '.' = transparent. All other tokens map into the dynamic palette.
-// The renderer uses horizontal run-length encoding — one <rect> per run.
+// WIZARD PIXEL RENDERER — 48×72 canvas (upgraded from 32×48 benchmark)
+// Layers (z-order): cape → boots → skin → robe → hair → face → headgear → weapon → off-hand
+// '.' = transparent. Tokens resolve to hex via buildWizardPalette() at render.
+// RLE: one <rect> per horizontal run — ~300-500 rects total vs 3456 naïve.
+// Equipped items: equipped.head overrides default hat layer;
+//                 equipped.main_hand overrides default staff layer.
 // ═══════════════════════════════════════════════════════════════════════════════
 
 type Grid = string[];
@@ -1080,310 +1083,617 @@ function buildGrid(
 // ─── WIZARD PALETTE ───────────────────────────────────────────────────────────
 
 function buildWizardPalette(
-  skinBase: string, skinDark: string,
-  hairBase: string, eyeBase: string,
-  robeBase: string,
+  skinBase: string, skinDark: string, hairBase: string, eyeBase: string, robeBase: string,
 ): Record<string, string> {
   return {
-    // Skin (A=lightest highlight → D=darkest shadow)
-    A: lightenHex(skinBase, 30), S: skinBase,
-    s: darkenHex(skinBase, 18), D: skinDark,
-    // Eye components
-    E: eyeBase, B: '#101010', W: '#F8F8F8',
-    // Face details (Y/y = eyebrow/beard using hair color, N = nose shadow, M/m = mouth)
-    Y: hairBase, y: darkenHex(hairBase, 25),
-    N: darkenHex(skinBase, 28), M: darkenHex(skinBase, 40), m: darkenHex(skinBase, 55),
-    // Hair (j=highlight, H=base, h=shadow)
-    j: lightenHex(hairBase, 22), H: hairBase, h: darkenHex(hairBase, 25),
-    // Robe (G=highlight → x=deepest fold)
-    G: lightenHex(robeBase, 38), R: robeBase,
-    r: darkenHex(robeBase, 22), X: darkenHex(robeBase, 44), x: darkenHex(robeBase, 62),
+    // Skin
+    A: lightenHex(skinBase, 30),   S: skinBase,
+    s: darkenHex(skinBase, 18),    D: skinDark,
+    // Eyes
+    E: eyeBase,  B: '#101010',  W: '#F8F8F8',
+    // Face/hair details
+    Y: hairBase,                   y: darkenHex(hairBase, 25),
+    N: darkenHex(skinBase, 28),   M: darkenHex(skinBase, 40),  m: darkenHex(skinBase, 55),
+    // Hair
+    j: lightenHex(hairBase, 22),  H: hairBase,   h: darkenHex(hairBase, 25),
+    // Robe
+    G: lightenHex(robeBase, 38),  R: robeBase,
+    r: darkenHex(robeBase, 22),   X: darkenHex(robeBase, 44),  x: darkenHex(robeBase, 62),
     // Gold trim
-    T: '#D4B840', t: '#907820',
-    // Hat cone (P=base, p=inner shadow, q=deep crease)
-    P: darkenHex(robeBase, 12), p: darkenHex(robeBase, 35), q: darkenHex(robeBase, 58),
-    // Hat brim (V=top face lighter, v=underside darker)
-    V: darkenHex(robeBase, 5), v: darkenHex(robeBase, 28),
+    T: '#D4B840',  t: '#907820',
+    // Hat cone
+    P: darkenHex(robeBase, 12),   p: darkenHex(robeBase, 35),  q: darkenHex(robeBase, 58),
+    // Hat brim
+    V: darkenHex(robeBase, 5),    v: darkenHex(robeBase, 28),
+    // Cape (rendered behind body at sides)
+    K: darkenHex(robeBase, 22),   k: darkenHex(robeBase, 45),  J: lightenHex(robeBase, 12),
     // Boots
-    Z: '#3A2010', z: '#5A3820', Q: '#1A0A04',
+    Z: '#3A2010',  z: '#5A3820',  Q: '#1A0A04',
     // Staff wood
-    F: '#9B5C2A', f: '#5A3018',
-    // Crystal gem
-    C: '#C89AFF', c: '#7840A0', g: '#EDD8FF',
+    F: '#9B5C2A',  f: '#5A3018',
+    // Crystal gem (staff / orb)
+    C: '#C89AFF',  c: '#7840A0',  g: '#EDD8FF',
+    // Chest brooch gem
+    O: '#E85020',  o: '#901808',
+    // Generic weapon metals
+    I: '#C8C8D0',  i: '#909098',  // silver blade / bright
+    L: '#8B6030',  l: '#5A3018',  // brown handle / dark wood
   };
 }
 
-// ─── WIZARD PIXEL ART LAYERS ──────────────────────────────────────────────────
+// ─── WIZARD LAYERS (48×72) ────────────────────────────────────────────────────
+// Key layout:
+//   Hat cone  rows  0-12  |  Hat brim rows 13-15
+//   Head      rows 13-33  (visible from row ~16; brim covers 13-15)
+//   Neck      rows 33-37  |  Cape sides: rows 34-70, cols 5-12 & 35-43
+//   Shoulders rows 34-36  |  V-neck rows 37-44  |  Brooch rows 40-44
+//   Torso     rows 44-54  |  Belt/buckle rows 47-52
+//   Skirt     rows 55-65  |  Hem rows 63-65
+//   Boots     rows 63-71  |  Staff: crystal rows 0-5, shaft cols 38-39 rows 6-71
 
-/** Staff crystal (rows 0–3) + wood shaft (rows 4–47) at cols 25–27. */
-const WIZARD_STAFF_GRID: Grid = (() => buildGrid(32, 48, put => {
-  // Crystal gem (5-pixel wide at peak, 2 at tip)
-  put(0, 26, 2, 'C');
-  put(1, 25, 1, 'c'); put(1, 26, 2, 'C'); put(1, 28, 1, 'c');
-  put(2, 25, 1, 'c'); put(2, 26, 1, 'C'); put(2, 27, 1, 'g'); put(2, 28, 1, 'c');
-  put(3, 26, 1, 'c'); put(3, 27, 1, 'C'); put(3, 28, 1, 'c');
-  // 2-pixel shaft: F=warm front, f=shadow back
-  for (let r = 4; r < 48; r++) { put(r, 26, 1, 'F'); put(r, 27, 1, 'f'); }
-  // Subtle wood grain knots
-  put(14, 26, 2, 'f'); put(26, 26, 2, 'f'); put(38, 26, 2, 'f');
+/** Default staff — held in right hand (overridable by equipped.main_hand). */
+const WIZARD_STAFF_GRID: Grid = (() => buildGrid(48, 72, put => {
+  // Crystal gem (rows 0-5, cols 37-41)
+  put(0, 38, 2, 'C');
+  put(1, 37, 1, 'c'); put(1, 38, 2, 'C'); put(1, 40, 1, 'c');
+  put(2, 36, 1, 'c'); put(2, 37, 1, 'C'); put(2, 38, 1, 'g'); put(2, 39, 1, 'C'); put(2, 40, 1, 'c');
+  put(3, 36, 1, 'c'); put(3, 37, 3, 'C'); put(3, 40, 1, 'c');
+  put(4, 37, 1, 'c'); put(4, 38, 2, 'C'); put(4, 40, 1, 'c');
+  put(5, 37, 4, 'c');
+  // Shaft 2px wide (F=warm front, f=shadow side), rows 6-71
+  for (let r = 6; r < 72; r++) { put(r, 38, 1, 'F'); put(r, 39, 1, 'f'); }
+  // Wood grain knots
+  [22, 38, 52, 65].forEach(r => put(r, 38, 2, 'f'));
 }))();
 
-/** Skin body: shaped head silhouette, neck, wrists/hands. */
-const WIZARD_SKIN_GRID: Grid = (() => buildGrid(32, 48, put => {
-  // ── Head (rows 10–20; row 10 covered by hat brim, visible from row 11) ──
-  // Rows 10–11: narrow forehead (10 px, cols 11–20)
-  put(10, 11, 2, 'A'); put(10, 13, 7, 'S'); put(10, 20, 1, 's');
-  put(11, 11, 2, 'A'); put(11, 13, 7, 'S'); put(11, 20, 1, 's');
-  // Rows 12–17: full cheeks (12 px, cols 10–21)
-  for (let r = 12; r <= 17; r++) {
-    put(r, 10, 2, 'A'); put(r, 12, 8, 'S'); put(r, 20, 2, 's');
-  }
-  // Row 18: jaw narrows (10 px, cols 11–20)
-  put(18, 11, 1, 'A'); put(18, 12, 7, 'S'); put(18, 19, 2, 's');
-  // Row 19: chin (8 px, cols 12–19)
-  put(19, 12, 6, 'S'); put(19, 18, 2, 's');
-  // Row 20: chin tip (6 px, cols 13–18)
-  put(20, 13, 5, 'S'); put(20, 18, 1, 's');
-
-  // ── Neck (rows 21–23, cols 14–17) ──
-  for (let r = 21; r <= 23; r++) {
-    put(r, 14, 1, 'A'); put(r, 15, 2, 'S'); put(r, 17, 1, 's');
-  }
-  // Small chest skin in V-neck opening (rows 24–25)
-  put(24, 14, 4, 'S'); put(25, 15, 2, 's');
-
-  // ── Left wrist/hand (rows 35–38, cols 5–8) ──
-  put(35, 5, 3, 'S'); put(35, 8, 1, 's');
-  put(36, 5, 3, 'S'); put(36, 8, 1, 's');
-  put(37, 6, 2, 'S'); put(37, 8, 1, 's');
-  put(38, 6, 2, 's');
-
-  // ── Right wrist/hand (rows 35–38, cols 22–25) ──
-  put(35, 22, 3, 'S'); put(35, 25, 1, 's');
-  put(36, 22, 3, 'S'); put(36, 25, 1, 's');
-  put(37, 22, 2, 'S'); put(37, 24, 2, 's');
-  put(38, 23, 2, 's');
+/** Alternative weapon grid: sword (for equipped swords/blades). */
+const WIZARD_SWORD_GRID: Grid = (() => buildGrid(48, 72, put => {
+  // Pommel
+  put(2, 37, 3, 'I');
+  // Crossguard (wide)
+  put(4, 34, 8, 'i');
+  // Blade (rows 5-20)
+  for (let r = 5; r <= 20; r++) { put(r, 37, 2, 'I'); put(r, 38, 1, 'W'); }
+  // Taper tip
+  put(21, 37, 1, 'I');
+  // Handle
+  for (let r = 3; r <= 4; r++) { put(r, 37, 2, 'L'); }
 }))();
 
-/** Robe: wide collar, tapered sleeves, folded torso, sash, flared skirt. */
-const WIZARD_ROBE_GRID: Grid = (() => buildGrid(32, 48, put => {
-  // ── Left sleeve (rows 22–34, cols 4–9, tapers shoulder→cuff) ──
-  for (let r = 22; r <= 24; r++) { put(r, 4, 1, 'G'); put(r, 5, 4, 'R'); put(r, 9, 1, 'x'); } // shoulder: 6px
-  for (let r = 25; r <= 28; r++) { put(r, 5, 1, 'G'); put(r, 6, 3, 'R'); put(r, 9, 1, 'x'); } // upper arm: 5px
-  for (let r = 29; r <= 33; r++) { put(r, 6, 1, 'G'); put(r, 7, 2, 'R'); put(r, 9, 1, 'X'); } // lower arm: 4px
-  put(34, 4, 6, 'T'); put(34, 4, 1, 'G'); put(34, 9, 1, 't');                                  // cuff: gold
+/** Alternative weapon grid: dagger. */
+const WIZARD_DAGGER_GRID: Grid = (() => buildGrid(48, 72, put => {
+  // Handle (rows 2-6)
+  for (let r = 2; r <= 6; r++) put(r, 37, 2, 'L');
+  // Crossguard
+  put(7, 35, 6, 'i');
+  // Blade (rows 8-16)
+  for (let r = 8; r <= 15; r++) { put(r, 37, 2, 'I'); put(r, 38, 1, 'W'); }
+  put(16, 37, 1, 'i');
+}))();
 
-  // ── Right sleeve (rows 22–34, cols 22–27, tapers shoulder→cuff) ──
-  for (let r = 22; r <= 24; r++) { put(r, 22, 1, 'x'); put(r, 23, 4, 'R'); put(r, 27, 1, 'G'); } // shoulder: 6px
-  for (let r = 25; r <= 28; r++) { put(r, 22, 1, 'x'); put(r, 23, 3, 'R'); put(r, 26, 1, 'G'); } // upper arm: 5px
-  for (let r = 29; r <= 33; r++) { put(r, 22, 1, 'X'); put(r, 23, 2, 'R'); put(r, 25, 1, 'G'); } // lower arm: 4px
-  put(34, 21, 1, 't'); put(34, 22, 5, 'T'); put(34, 27, 1, 'G');                                  // cuff: gold
+/**
+ * Returns the main-hand weapon grid based on equipped.main_hand.
+ * Defaults to the staff when nothing is equipped or item is a staff/wand.
+ */
+function buildWizardMainHandGrid(equipped: EquippedItems): Grid {
+  const name = (equipped.main_hand?.name ?? '').toLowerCase();
+  if (!equipped.main_hand) return WIZARD_STAFF_GRID;
+  if (name.includes('staff') || name.includes('wand') || name.includes('rod')) return WIZARD_STAFF_GRID;
+  if (name.includes('sword') || name.includes('blade') || name.includes('saber')) return WIZARD_SWORD_GRID;
+  if (name.includes('dagger') || name.includes('knife')) return WIZARD_DAGGER_GRID;
+  return WIZARD_STAFF_GRID; // fallback
+}
 
-  // ── Wide shoulders (rows 22–23, skipping neck cols 14–17) ──
-  put(22, 10, 4, 'G'); put(22, 18, 2, 'R'); put(22, 20, 2, 'r'); // left half + right half
-  put(23, 10, 3, 'G'); put(23, 13, 1, 'R'); put(23, 18, 2, 'R'); put(23, 20, 2, 'r');
+/** Cape — at body sides behind the robe, with gold bottom hem. */
+const WIZARD_CAPE_GRID: Grid = (() => buildGrid(48, 72, put => {
+  // Left cape side (cols 5-12, rows 34-65)
+  for (let r = 34; r <= 65; r++) {
+    put(r, 5, 1, 'J');
+    put(r, 6, 5, 'K');
+    put(r, 11, 2, 'k');
+    if (r === 44 || r === 56) put(r, 7, 3, 'k');
+  }
+  // Right cape side (cols 35-43, rows 34-65)
+  for (let r = 34; r <= 65; r++) {
+    put(r, 35, 2, 'k');
+    put(r, 37, 5, 'K');
+    put(r, 42, 1, 'J');
+    if (r === 44 || r === 56) put(r, 38, 3, 'k');
+  }
+  // Cape bottom drape (rows 66-70)
+  for (let r = 66; r <= 70; r++) {
+    put(r, 4, 2, 'J'); put(r, 6, 7, 'K');
+    put(r, 35, 7, 'K'); put(r, 42, 2, 'J');
+    put(r, 13, 22, 'k'); // dark fold between boots
+  }
+  // Gold hem
+  put(71, 4, 40, 'T'); put(71, 4, 3, 'G'); put(71, 41, 3, 't');
+}))();
 
-  // ── V-neck lapels (rows 24–26, neck opening narrows then closes) ──
-  put(24, 10, 3, 'G'); put(24, 13, 1, 'R');           // left lapel
-  put(24, 18, 2, 'r'); put(24, 20, 1, 'X');            // right lapel
-  put(25, 10, 2, 'G'); put(25, 12, 2, 'R');            // left closes
-  put(25, 17, 2, 'r'); put(25, 19, 2, 'X');            // right closes
-  put(26, 10, 1, 'G'); put(26, 11, 11, 'R'); put(26, 21, 1, 'X'); // V closes at row 26
+/** Skin — head silhouette, neck, wrists/hands. */
+const WIZARD_SKIN_GRID: Grid = (() => buildGrid(48, 72, put => {
+  // Head (rows 13-33; hat brim covers 13-15 but skin still there for overlap)
+  put(13, 18, 2, 'A'); put(13, 20, 9, 'S'); put(13, 29, 2, 's');
+  put(14, 18, 2, 'A'); put(14, 20, 9, 'S'); put(14, 29, 2, 's');
+  put(15, 17, 2, 'A'); put(15, 19, 10, 'S'); put(15, 29, 3, 's');
+  put(16, 16, 2, 'A'); put(16, 18, 11, 'S'); put(16, 29, 4, 's');
+  put(17, 16, 2, 'A'); put(17, 18, 11, 'S'); put(17, 29, 4, 's');
+  put(18, 15, 2, 'A'); put(18, 17, 12, 'S'); put(18, 29, 4, 's'); put(18, 33, 1, 'D');
+  put(19, 15, 2, 'A'); put(19, 17, 12, 'S'); put(19, 29, 4, 's'); put(19, 33, 1, 'D');
+  for (let r = 20; r <= 28; r++) {
+    put(r, 14, 2, 'A'); put(r, 16, 14, 'S'); put(r, 30, 3, 's'); put(r, 33, 2, 'D');
+  }
+  put(29, 15, 2, 'A'); put(29, 17, 12, 'S'); put(29, 29, 3, 's'); put(29, 32, 1, 'D');
+  put(30, 16, 2, 'A'); put(30, 18, 10, 'S'); put(30, 28, 4, 's');
+  put(31, 18, 2, 'A'); put(31, 20, 8, 'S'); put(31, 28, 3, 's');
+  put(32, 20, 2, 'A'); put(32, 22, 5, 'S'); put(32, 27, 3, 's');
+  put(33, 22, 2, 'A'); put(33, 24, 3, 'S'); put(33, 27, 2, 's');
 
-  // ── Torso body (rows 27–35, cols 10–21 with fold shading) ──
-  for (let r = 27; r <= 35; r++) {
-    put(r, 10, 1, 'G');  // left edge highlight
-    put(r, 11, 4, 'R');  // left body
-    put(r, 15, 1, 'r');  // center seam fold (vertical crease)
-    put(r, 16, 4, 'R');  // right body
-    put(r, 20, 1, 'r');  // right inner shadow
-    put(r, 21, 1, 'X');  // right edge deep shadow
+  // Neck (rows 34-37)
+  for (let r = 34; r <= 37; r++) {
+    put(r, 21, 2, 'A'); put(r, 23, 2, 'S'); put(r, 25, 2, 's');
+  }
+  // Chest skin in V-neck opening (rows 38-43)
+  put(38, 21, 7, 'S'); put(38, 28, 1, 's');
+  put(39, 22, 6, 'S'); put(39, 28, 1, 's');
+  put(40, 23, 5, 'S'); put(40, 28, 1, 's');
+  put(41, 23, 5, 'S'); put(41, 28, 1, 's');
+  put(42, 24, 4, 'S'); put(42, 28, 1, 's');
+  put(43, 24, 4, 'S');
+
+  // Left wrist/hand (rows 53-58, cols 6-12)
+  put(53, 6, 5, 'S'); put(53, 11, 2, 's');
+  put(54, 6, 5, 'S'); put(54, 11, 2, 's');
+  put(55, 7, 5, 'S'); put(55, 12, 1, 's');
+  put(56, 8, 4, 'S'); put(56, 12, 1, 's');
+  put(57, 8, 4, 's'); put(58, 9, 3, 's');
+
+  // Right wrist/hand (rows 53-58, cols 35-41)
+  put(53, 35, 2, 's'); put(53, 37, 5, 'S');
+  put(54, 35, 2, 's'); put(54, 37, 5, 'S');
+  put(55, 35, 1, 's'); put(55, 36, 5, 'S');
+  put(56, 35, 1, 's'); put(56, 36, 4, 'S');
+  put(57, 35, 4, 's'); put(58, 36, 3, 's');
+}))();
+
+/** Robe — V-neck lapels, chest brooch, tapered sleeves, torso folds, leather belt+buckle, flared skirt, gold hem. */
+const WIZARD_ROBE_GRID: Grid = (() => buildGrid(48, 72, put => {
+  // Left sleeve (rows 34-54, tapers shoulder→cuff)
+  for (let r = 34; r <= 37; r++) { put(r, 5, 1, 'G'); put(r, 6, 7, 'R'); put(r, 13, 1, 'r'); put(r, 14, 1, 'x'); }
+  for (let r = 38; r <= 43; r++) { put(r, 6, 1, 'G'); put(r, 7, 5, 'R'); put(r, 12, 1, 'r'); put(r, 13, 1, 'x'); }
+  for (let r = 44; r <= 48; r++) { put(r, 7, 1, 'G'); put(r, 8, 3, 'R'); put(r, 11, 1, 'r'); put(r, 12, 1, 'X'); }
+  for (let r = 49; r <= 52; r++) { put(r, 8, 1, 'G'); put(r, 9, 2, 'R'); put(r, 11, 1, 'X'); }
+  put(53, 5, 8, 'T'); put(53, 5, 2, 'G'); put(53, 12, 2, 't'); // gold cuff
+  put(54, 5, 8, 'T'); put(54, 5, 1, 'G'); put(54, 12, 1, 't');
+
+  // Right sleeve (rows 34-54)
+  for (let r = 34; r <= 37; r++) { put(r, 33, 1, 'x'); put(r, 34, 1, 'r'); put(r, 35, 7, 'R'); put(r, 42, 1, 'G'); }
+  for (let r = 38; r <= 43; r++) { put(r, 34, 1, 'x'); put(r, 35, 1, 'r'); put(r, 36, 5, 'R'); put(r, 41, 1, 'G'); }
+  for (let r = 44; r <= 48; r++) { put(r, 35, 1, 'X'); put(r, 36, 1, 'r'); put(r, 37, 3, 'R'); put(r, 40, 1, 'G'); }
+  for (let r = 49; r <= 52; r++) { put(r, 36, 1, 'X'); put(r, 37, 2, 'R'); put(r, 39, 1, 'G'); }
+  put(53, 35, 2, 't'); put(53, 37, 8, 'T'); put(53, 42, 2, 'G'); // gold cuff
+  put(54, 35, 1, 't'); put(54, 36, 8, 'T'); put(54, 42, 1, 'G');
+
+  // Wide shoulders (rows 34-36, skip neck cols 21-26)
+  for (let r = 34; r <= 36; r++) {
+    put(r, 14, 2, 'G'); put(r, 16, 5, 'R'); put(r, 20, 2, 'r'); // left half
+    put(r, 26, 2, 'r'); put(r, 28, 5, 'R'); put(r, 33, 2, 'X'); // right half
   }
 
-  // ── Sash / belt at waist (rows 29–30, gold band over torso) ──
-  put(29, 10, 12, 'T'); put(29, 10, 2, 'G'); put(29, 20, 2, 't');
-  // Sash knot/clasp at center
-  put(28, 15, 2, 't'); put(30, 15, 2, 't');   // knot shadow above/below
-  put(29, 14, 4, 'T'); put(29, 14, 1, 'G');   // knot body (overwrites band)
-  // Sash tie tails hanging down
-  put(30, 14, 1, 'T'); put(30, 17, 1, 'T');
-  put(31, 14, 1, 't'); put(31, 17, 1, 't');
+  // V-neck lapels (rows 37-44)
+  put(37, 14, 6, 'R'); put(37, 14, 2, 'G'); put(37, 19, 2, 'r'); put(37, 27, 2, 'r'); put(37, 29, 5, 'R'); put(37, 33, 2, 'X');
+  put(38, 14, 5, 'R'); put(38, 14, 2, 'G'); put(38, 18, 2, 'r'); put(38, 28, 2, 'r'); put(38, 30, 4, 'R'); put(38, 33, 2, 'X');
+  put(39, 14, 4, 'R'); put(39, 14, 2, 'G'); put(39, 17, 2, 'r'); put(39, 29, 2, 'r'); put(39, 31, 3, 'R'); put(39, 33, 2, 'X');
+  put(40, 14, 3, 'G'); put(40, 17, 2, 'R'); put(40, 19, 2, 'r'); put(40, 27, 2, 'r'); put(40, 29, 4, 'R'); put(40, 32, 2, 'X');
+  put(41, 14, 3, 'G'); put(41, 17, 2, 'R'); put(41, 19, 2, 'r'); put(41, 27, 2, 'r'); put(41, 29, 4, 'R'); put(41, 32, 2, 'X');
+  put(42, 14, 3, 'G'); put(42, 17, 4, 'R'); put(42, 21, 2, 'r'); put(42, 25, 2, 'r'); put(42, 27, 4, 'R'); put(42, 31, 3, 'X');
+  put(43, 14, 3, 'G'); put(43, 17, 4, 'R'); put(43, 21, 2, 'r'); put(43, 25, 2, 'r'); put(43, 27, 4, 'R'); put(43, 31, 3, 'X');
+  put(44, 14, 2, 'G'); put(44, 16, 16, 'R'); put(44, 32, 2, 'X'); // V closed
 
-  // ── Lower robe / skirt (rows 36–44, flares outward) ──
-  const skirtSpec: Array<[number, number, number]> = [
-    [36, 10, 12], [37, 10, 12],
-    [38, 9,  14], [39, 9,  14],
-    [40, 8,  16], [41, 8,  16],
-    [42, 7,  18], [43, 7,  18],
-    [44, 6,  20],
+  // Chest brooch (rows 40-44, center cols 22-25)
+  put(40, 23, 2, 'T');
+  put(41, 22, 1, 'T'); put(41, 23, 2, 'O'); put(41, 25, 1, 'T');
+  put(42, 22, 1, 'T'); put(42, 23, 1, 'g'); put(42, 24, 1, 'O'); put(42, 25, 1, 'T');
+  put(43, 22, 1, 'T'); put(43, 23, 2, 'O'); put(43, 25, 1, 'T');
+  put(44, 23, 2, 'T');
+
+  // Torso body (rows 45-54, cols 14-33)
+  for (let r = 45; r <= 54; r++) {
+    put(r, 14, 2, 'G'); put(r, 16, 5, 'R'); put(r, 21, 1, 'r');
+    put(r, 22, 2, 'R'); put(r, 24, 1, 'r'); put(r, 25, 2, 'R');
+    put(r, 27, 5, 'R'); put(r, 32, 1, 'r'); put(r, 33, 2, 'X');
+  }
+
+  // Leather belt (rows 47-52) with gold center buckle
+  for (let r = 47; r <= 52; r++) {
+    put(r, 14, 20, 'Z'); put(r, 14, 2, 'z'); put(r, 32, 2, 'Q');
+  }
+  // Buckle frame (4px wide × 6px tall, center)
+  put(47, 22, 4, 'T'); put(47, 22, 1, 'G');
+  put(48, 22, 1, 'T'); put(48, 23, 2, 'x'); put(48, 25, 1, 'T');
+  put(49, 22, 1, 'T'); put(49, 23, 2, 'x'); put(49, 25, 1, 'T');
+  put(50, 22, 1, 'T'); put(50, 23, 2, 'x'); put(50, 25, 1, 'T');
+  put(51, 22, 1, 'T'); put(51, 23, 2, 'x'); put(51, 25, 1, 'T');
+  put(52, 22, 4, 'T'); put(52, 25, 1, 't');
+
+  // Skirt (rows 55-65, flares outward)
+  const skirt: Array<[number, number, number]> = [
+    [55,14,20],[56,13,22],[57,12,24],[58,11,26],
+    [59,10,28],[60,9,30],[61,8,32],[62,7,34],
+    [63,7,34],[64,7,34],[65,7,34],
   ];
-  for (const [r, c, w] of skirtSpec) {
-    put(r, c, 1, 'G');              // left edge highlight
-    put(r, c + 1, w - 3, 'R');     // main body
-    put(r, c + w - 2, 1, 'r');     // right shadow
-    put(r, c + w - 1, 1, 'X');     // right deep fold
-    // Vertical drape folds
-    if (13 >= c && 13 < c + w) put(r, 13, 1, 'r');
-    if (17 >= c && 17 < c + w) put(r, 17, 1, 'r');
-    if (w > 14 && 20 >= c && 20 < c + w) put(r, 20, 1, 'r');
+  for (const [row, c, w] of skirt) {
+    put(row, c, 1, 'G'); put(row, c+1, w-4, 'R'); put(row, c+w-3, 1, 'r'); put(row, c+w-2, 2, 'X');
+    [19,24,29].forEach(fc => { if (fc > c && fc < c+w) put(row, fc, 1, 'r'); });
   }
 
-  // ── Hem accent — row 44: gold trim over skirt ──
-  put(44, 6, 20, 'T'); put(44, 6, 2, 'G'); put(44, 24, 2, 't');
+  // Gold robe hem (rows 63-65, overlays bottom of skirt)
+  put(63, 7, 34, 'T'); put(63, 7, 3, 'G'); put(63, 38, 3, 't');
+  put(64, 7, 34, 'T'); put(64, 7, 2, 'G'); put(64, 37, 2, 'T');
+  put(65, 7, 34, 't');
 }))();
 
-/** Boots: shaped toes peeking from under the robe hem (rows 44–47). */
-const WIZARD_BOOTS_GRID: Grid = (() => buildGrid(32, 48, put => {
-  // Left boot (cols 8–14)
-  put(44, 8, 7, 'Z'); put(44, 8, 2, 'z'); put(44, 14, 1, 'Q');
-  put(45, 8, 7, 'Z'); put(45, 8, 1, 'z'); put(45, 14, 1, 'Q');
-  put(46, 8, 8, 'Q'); put(46, 9, 2, 'Z');   // sole
-  put(47, 9, 6, 'Q');                         // sole underside
-  // Right boot (cols 18–24)
-  put(44, 18, 7, 'Z'); put(44, 18, 2, 'z'); put(44, 24, 1, 'Q');
-  put(45, 18, 7, 'Z'); put(45, 18, 1, 'z'); put(45, 24, 1, 'Q');
-  put(46, 18, 8, 'Q'); put(46, 19, 2, 'Z');
-  put(47, 19, 6, 'Q');
+/** Boots — peaking below robe hem. */
+const WIZARD_BOOTS_GRID: Grid = (() => buildGrid(48, 72, put => {
+  // Left boot (cols 9-20, rows 63-68)
+  put(63,9,11,'Z'); put(63,9,3,'z'); put(63,19,1,'Q');
+  put(64,9,12,'Z'); put(64,9,2,'z'); put(64,20,1,'Q');
+  put(65,9,13,'Z'); put(65,9,1,'z'); put(65,21,1,'Q');
+  put(66,9,14,'Q'); put(66,10,3,'Z');
+  put(67,9,14,'Q'); put(68,10,12,'Q');
+  // Right boot (cols 28-39, rows 63-68)
+  put(63,28,11,'Z'); put(63,28,3,'z'); put(63,38,1,'Q');
+  put(64,28,12,'Z'); put(64,28,2,'z'); put(64,39,1,'Q');
+  put(65,28,13,'Z'); put(65,28,1,'z'); put(65,40,1,'Q');
+  put(66,28,14,'Q'); put(66,29,3,'Z');
+  put(67,28,14,'Q'); put(68,29,12,'Q');
 }))();
 
-/** Wizard hat: floppy left-leaning cone + wide brim + gold star emblem. */
-const WIZARD_HAT_GRID: Grid = (() => buildGrid(32, 48, put => {
-  // ── Hat cone (rows 0–8, leans left) ──
-  put(0, 14, 2, 'P');
-  put(1, 13, 3, 'P'); put(1, 15, 1, 'p');
-  put(2, 12, 3, 'P'); put(2, 15, 2, 'p');
-  put(3, 11, 6, 'P'); put(3, 17, 1, 'p');
-  put(4, 10, 6, 'P'); put(4, 16, 2, 'p');
-  put(5, 9,  7, 'P'); put(5, 16, 3, 'p');
-  put(6, 8,  8, 'P'); put(6, 16, 3, 'p');
-  put(7, 7,  10,'P'); put(7, 17, 2, 'p');
-  put(8, 6,  12,'P'); put(8, 18, 2, 'p');
-  // Inner shadow crease (vertical depth on cone right side)
-  for (let r = 2; r <= 8; r++) put(r, 15, 1, 'q');
-  // ── Gold star emblem (front of cone, rows 4–6) ──
-  put(4, 11, 1, 'T');                                            // top arm
-  put(5, 10, 1, 'T'); put(5, 11, 1, 'T'); put(5, 12, 1, 'T'); // horizontal bar
-  put(6, 11, 1, 'T');                                            // bottom arm
-  // ── Hat brim (rows 9–10) ──
-  put(9,  4, 24, 'V'); put(9, 4, 3, 'G'); put(9, 25, 3, 'v');  // top face (lighter)
-  put(10, 3, 26, 'v'); put(10, 3, 2, 'V'); put(10, 28, 1, 'V'); // underside (darker)
+// ─── DEFAULT WIZARD HAT ───────────────────────────────────────────────────────
+
+/** Floppy conical wizard hat with gold star emblem and wide brim. */
+const WIZARD_HAT_GRID: Grid = (() => buildGrid(48, 72, put => {
+  // Cone (rows 0-12, leans left)
+  put(0,23,2,'P');
+  put(1,22,3,'P'); put(1,24,1,'p');
+  put(2,21,3,'P'); put(2,24,2,'p');
+  put(3,20,4,'P'); put(3,24,2,'p');
+  put(4,18,6,'P'); put(4,24,3,'p');
+  put(5,16,8,'P'); put(5,24,4,'p');
+  put(6,14,10,'P'); put(6,24,4,'p');
+  put(7,12,12,'P'); put(7,24,5,'p');
+  put(8,10,14,'P'); put(8,24,5,'p');
+  put(9,8,16,'P'); put(9,24,5,'p');
+  put(10,7,17,'P'); put(10,24,6,'p');
+  put(11,6,18,'P'); put(11,24,6,'p');
+  put(12,5,19,'P'); put(12,24,7,'p');
+  // Inner crease
+  for (let r = 2; r <= 12; r++) put(r, 23, 1, 'q');
+  // Gold star emblem (rows 6-8)
+  put(6,15,1,'T'); put(7,14,3,'T'); put(8,15,1,'T');
+  // Brim (rows 13-15)
+  put(13,8,30,'V'); put(13,8,4,'G'); put(13,35,4,'v');
+  put(14,7,32,'V'); put(14,7,3,'G'); put(14,37,4,'v');
+  put(15,7,32,'v'); put(15,7,2,'V'); put(15,37,2,'V');
 }))();
 
-/** Hair visible below hat brim — side sideburns + style extensions. */
+/** Alternative hat grids for equipped head items. */
+const WIZARD_HOOD_GRID: Grid = (() => buildGrid(48, 72, put => {
+  // Hood top
+  for (let r = 8; r <= 15; r++) { put(r, 10, 28, 'p'); put(r, 10, 3, 'q'); put(r, 35, 3, 'q'); }
+  // Cowl sides frame the face
+  for (let r = 16; r <= 30; r++) { put(r, 10, 5, 'p'); put(r, 33, 5, 'p'); }
+  put(15, 8, 32, 'q'); // brim band
+}))();
+
+const WIZARD_CROWN_GRID: Grid = (() => buildGrid(48, 72, put => {
+  // Crown band (rows 12-15)
+  put(12, 13, 22, 'T'); put(12, 13, 4, 'G'); put(12, 31, 4, 't');
+  put(13, 12, 24, 'T'); put(13, 12, 3, 'G');
+  put(14, 12, 24, 'T');
+  put(15, 12, 24, 'T');
+  // Crown points (3 points)
+  put(7,  14, 3, 'T'); put(8, 13, 4, 'T'); put(9, 12, 5, 'T'); // left point
+  put(7,  22, 3, 'T'); put(8, 21, 4, 'T'); put(9, 20, 5, 'T'); // center point
+  put(7,  30, 3, 'T'); put(8, 29, 4, 'T'); put(9, 28, 5, 'T'); // right point
+  // Crown gems
+  put(13, 15, 2, 'O'); // left gem
+  put(13, 22, 2, 'C'); // center gem
+  put(13, 29, 2, 'O'); // right gem
+}))();
+
+const WIZARD_HELMET_GRID: Grid = (() => buildGrid(48, 72, put => {
+  // Full visorless helm
+  for (let r = 8; r <= 15; r++) { put(r, 11, 26, 'i'); put(r, 11, 3, 'I'); put(r, 34, 3, 'i'); }
+  // Cheekguards
+  for (let r = 14; r <= 20; r++) { put(r, 10, 5, 'i'); put(r, 33, 5, 'i'); }
+  // Nasal guard
+  for (let r = 14; r <= 22; r++) put(r, 23, 2, 'i');
+  // Rim
+  put(8, 11, 26, 'I'); put(15, 10, 28, 'i');
+}))();
+
+/**
+ * Returns the headgear grid based on equipped.head.
+ * Defaults to the floppy wizard hat when nothing is equipped.
+ */
+function buildWizardHeadLayer(equipped: EquippedItems): Grid {
+  const name = (equipped.head?.name ?? '').toLowerCase();
+  if (!equipped.head) return WIZARD_HAT_GRID;
+  if (name.includes('wizard') || name.includes('witch') || name.includes('arcane hat')) return WIZARD_HAT_GRID;
+  if (name.includes('hood') || name.includes('cowl')) return WIZARD_HOOD_GRID;
+  if (name.includes('crown') || name.includes('tiara')) return WIZARD_CROWN_GRID;
+  if (name.includes('helm') || name.includes('helmet')) return WIZARD_HELMET_GRID;
+  return WIZARD_HAT_GRID; // fallback — keep default hat for unrecognized items
+}
+
+// ─── HAIR ─────────────────────────────────────────────────────────────────────
+
 function buildWizardHairGrid(hairStyle: string): Grid {
-  if (hairStyle === 'bald') return buildGrid(32, 48, () => {});
-  return buildGrid(32, 48, put => {
-    // Base: sideburns always visible at head sides (rows 11–12)
-    put(11, 10, 2, 'H'); put(12, 10, 2, 'h'); // left
-    put(11, 21, 2, 'H'); put(12, 21, 2, 'h'); // right
+  if (hairStyle === 'bald') return buildGrid(48, 72, () => {});
+  return buildGrid(48, 72, put => {
+    // Base sideburns below hat brim (rows 16-18)
+    put(16,13,3,'j'); put(17,12,3,'H'); put(18,12,3,'h');
+    put(16,32,3,'H'); put(17,33,3,'H'); put(18,33,3,'h');
     switch (hairStyle) {
       case 'medium':
-        put(13, 9, 2, 'H'); put(14, 9, 2, 'H'); put(15, 9, 2, 'h');
-        put(13, 22, 2, 'H'); put(14, 22, 2, 'H'); put(15, 22, 2, 'h');
+        for (let r = 19; r <= 28; r++) { put(r,11,3,r<23?'j':'H'); put(r,34,3,'H'); }
         break;
       case 'long':
-        for (let r = 11; r <= 19; r++) {
-          put(r, 9, 2, r <= 13 ? 'j' : 'H');  // left (j=highlight near hat)
-          put(r, 22, 2, 'H');
-        }
-        for (let r = 20; r <= 27; r++) {
-          put(r, 8, 2, 'H'); put(r, 23, 2, 'H');
-        }
+        for (let r = 16; r <= 52; r++) { put(r,10,4,r<20?'j':'H'); put(r,34,4,'H'); }
         break;
       case 'curly':
-        put(11, 9, 3, 'H'); put(12, 8, 3, 'H'); put(13, 8, 3, 'h');
-        put(11, 21, 3, 'H'); put(12, 22, 3, 'H'); put(13, 22, 3, 'h');
+        put(16,10,5,'H'); put(17,9,5,'H'); put(18,9,5,'h');
+        put(16,33,5,'H'); put(17,34,5,'H'); put(18,34,5,'h');
         break;
       case 'ponytail':
-        for (let r = 13; r <= 26; r++) put(r, 22, 3, r < 16 ? 'j' : 'H');
-        put(27, 22, 2, 'H'); put(28, 23, 1, 'h'); // curl end
+        for (let r = 18; r <= 44; r++) put(r,34,5,r<23?'j':'H');
+        put(45,34,4,'H'); put(46,35,3,'h');
         break;
       case 'mohawk':
-        // Shaved sides show as dark stubble
-        put(11, 10, 2, 'h'); put(12, 10, 2, 'h');
-        put(11, 21, 2, 'h'); put(12, 21, 2, 'h');
+        put(16,12,3,'h'); put(17,12,3,'h');
+        put(16,33,3,'h'); put(17,33,3,'h');
         break;
-      default: break; // 'short' = just the base sideburns
+      // 'short' falls through to base sideburns only
     }
   });
 }
 
-/** Face features: brows, eyes, nose, mouth, optional beard + glasses. */
-function buildWizardFaceGrid(facialHair: string, hasGlasses: boolean): Grid {
-  return buildGrid(32, 48, put => {
-    // ── Eyebrows (row 12, hair color Y) ──
-    put(12, 11, 3, 'Y'); put(11, 12, 1, 'Y'); // left brow + arch pixel
-    put(12, 18, 3, 'Y'); put(11, 19, 1, 'Y'); // right brow + arch pixel
+// ─── FACE ─────────────────────────────────────────────────────────────────────
 
-    // ── Eyes (rows 13–14, 3 pixels wide each) ──
-    // Left eye (cols 11–13): outline–iris–outline / iris–shine–iris
-    put(13, 11, 1, 'B'); put(13, 12, 1, 'E'); put(13, 13, 1, 'B');
-    put(14, 11, 1, 'E'); put(14, 12, 1, 'W'); put(14, 13, 1, 'E');
-    // Right eye (cols 18–20)
-    put(13, 18, 1, 'B'); put(13, 19, 1, 'E'); put(13, 20, 1, 'B');
-    put(14, 18, 1, 'E'); put(14, 19, 1, 'W'); put(14, 20, 1, 'E');
+function buildWizardFaceGrid(facialHair: string, hasGlasses: boolean, expression = 'neutral'): Grid {
+  return buildGrid(48, 72, put => {
+    // Eyebrows (default row 18; vary by expression)
+    if (expression === 'surprised') {
+      put(16,16,5,'Y'); put(15,19,1,'Y');
+      put(16,27,5,'Y'); put(15,29,1,'Y');
+    } else if (expression === 'happy') {
+      put(17,16,5,'Y'); put(16,19,1,'Y');
+      put(17,27,5,'Y'); put(16,30,1,'Y');
+    } else if (expression === 'angry') {
+      put(18,16,4,'Y'); put(19,20,1,'Y');
+      put(18,28,4,'Y'); put(19,27,1,'Y');
+    } else {
+      put(18,16,5,'Y'); put(17,19,1,'Y');
+      put(18,27,5,'Y'); put(17,30,1,'Y');
+    }
 
-    // ── Nose (rows 15–16) ──
-    put(15, 15, 1, 'N');
-    put(16, 14, 1, 'N'); put(16, 16, 1, 'N'); // nostrils hint
+    // Eyes (5×5 area; happy=squint, surprised=wide, wink=L closed)
+    if (expression === 'happy') {
+      put(22,16,5,'B'); put(23,17,3,'y');
+      put(22,27,5,'B'); put(23,28,3,'y');
+    } else if (expression === 'surprised') {
+      put(19,17,3,'B'); put(20,16,1,'B'); put(20,17,3,'E'); put(20,20,1,'B');
+      put(21,16,1,'B'); put(21,17,1,'E'); put(21,18,1,'W'); put(21,19,2,'E'); put(21,20,1,'B');
+      put(22,16,1,'B'); put(22,17,3,'E'); put(22,20,1,'B');
+      put(23,16,1,'B'); put(23,17,3,'E'); put(23,20,1,'B'); put(24,17,3,'B');
+      put(19,28,3,'B'); put(20,27,1,'B'); put(20,28,3,'E'); put(20,31,1,'B');
+      put(21,27,1,'B'); put(21,28,1,'E'); put(21,29,1,'W'); put(21,30,2,'E'); put(21,31,1,'B');
+      put(22,27,1,'B'); put(22,28,3,'E'); put(22,31,1,'B');
+      put(23,27,1,'B'); put(23,28,3,'E'); put(23,31,1,'B'); put(24,28,3,'B');
+    } else if (expression === 'wink') {
+      put(22,16,5,'B'); put(23,17,3,'y'); // left eye closed
+      put(20,28,3,'B'); put(21,27,1,'B'); put(21,28,3,'E'); put(21,31,1,'B');
+      put(22,27,1,'B'); put(22,28,1,'E'); put(22,29,1,'W'); put(22,30,2,'E'); put(22,31,1,'B');
+      put(23,27,1,'B'); put(23,28,3,'E'); put(23,31,1,'B'); put(24,28,3,'B');
+    } else {
+      put(20,17,3,'B'); put(21,16,1,'B'); put(21,17,3,'E'); put(21,20,1,'B');
+      put(22,16,1,'B'); put(22,17,1,'E'); put(22,18,1,'W'); put(22,19,2,'E'); put(22,20,1,'B');
+      put(23,16,1,'B'); put(23,17,3,'E'); put(23,20,1,'B'); put(24,17,3,'B');
+      put(20,28,3,'B'); put(21,27,1,'B'); put(21,28,3,'E'); put(21,31,1,'B');
+      put(22,27,1,'B'); put(22,28,1,'E'); put(22,29,1,'W'); put(22,30,2,'E'); put(22,31,1,'B');
+      put(23,27,1,'B'); put(23,28,3,'E'); put(23,31,1,'B'); put(24,28,3,'B');
+    }
 
-    // ── Mouth / smile (rows 17–18) ──
-    put(17, 14, 4, 'M'); put(17, 15, 2, 'm'); // lip line + dark center
-    put(18, 13, 1, 'M'); put(18, 18, 1, 'M'); // smile corners drop
+    // Nose (rows 25-27)
+    put(25,22,1,'N'); put(25,25,1,'N');
+    put(26,21,1,'N'); put(26,26,1,'N');
+    put(27,22,3,'N');
 
-    // ── Facial hair ──
+    // Mouth (rows 28-30)
+    if (expression === 'happy') {
+      put(27,18,1,'M'); put(27,29,1,'M');
+      put(28,19,9,'M'); put(28,21,5,'m');
+      put(29,20,8,'s');
+    } else if (expression === 'surprised') {
+      put(28,22,4,'B'); put(29,21,1,'B'); put(29,22,4,'m'); put(29,26,1,'B');
+      put(30,21,1,'B'); put(30,22,4,'m'); put(30,26,1,'B'); put(31,22,4,'B');
+    } else if (expression === 'angry') {
+      put(28,20,8,'M'); put(29,21,1,'M'); put(29,27,1,'M');
+    } else if (expression === 'thinking') {
+      put(28,22,5,'M'); put(28,26,1,'m');
+    } else {
+      put(28,20,8,'M'); put(28,21,6,'m');
+      put(29,19,1,'M'); put(29,28,1,'M');
+    }
+
+    // Facial hair
     if (facialHair === 'mustache' || facialHair === 'beard') {
-      put(16, 13, 1, 'Y'); put(16, 14, 3, 'Y'); put(16, 17, 1, 'Y'); // mustache bar
-      put(17, 12, 1, 'Y'); put(17, 18, 1, 'Y');                       // drooping ends
+      put(26,19,2,'Y'); put(26,21,5,'Y'); put(26,26,2,'Y');
+      put(27,18,1,'Y'); put(27,28,1,'Y');
     }
     if (facialHair === 'beard') {
-      put(18, 12, 8, 'Y');
-      put(19, 12, 8, 'Y'); put(19, 13, 2, 'y');
-      put(20, 12, 7, 'Y'); put(20, 14, 2, 'y');
-      put(21, 13, 6, 'Y'); put(21, 15, 1, 'y');
-      put(22, 14, 4, 'Y');
+      put(29,18,12,'Y'); put(29,20,3,'y');
+      put(30,17,13,'Y'); put(30,20,3,'y');
+      put(31,17,13,'Y'); put(31,21,3,'y');
+      put(32,18,11,'Y'); put(32,22,2,'y');
+      put(33,19,9,'Y'); put(33,23,2,'y');
+      put(34,20,7,'Y');
     }
 
-    // ── Glasses ──
+    // Glasses
     if (hasGlasses) {
-      // Left lens (rows 12–15, cols 10–13)
-      put(12, 10, 4, 'B'); put(15, 10, 4, 'B');
-      put(13, 10, 1, 'B'); put(14, 10, 1, 'B');
-      put(13, 13, 1, 'B'); put(14, 13, 1, 'B');
-      // Right lens (rows 12–15, cols 17–20)
-      put(12, 17, 4, 'B'); put(15, 17, 4, 'B');
-      put(13, 17, 1, 'B'); put(14, 17, 1, 'B');
-      put(13, 20, 1, 'B'); put(14, 20, 1, 'B');
+      // Left lens (rows 19-24, cols 15-21)
+      put(19,16,5,'B'); put(24,16,5,'B');
+      for (let r = 20; r <= 23; r++) { put(r,15,1,'B'); put(r,21,1,'B'); }
+      // Right lens (rows 19-24, cols 26-32)
+      put(19,27,5,'B'); put(24,27,5,'B');
+      for (let r = 20; r <= 23; r++) { put(r,26,1,'B'); put(r,32,1,'B'); }
       // Bridge + temples
-      put(13, 14, 3, 'B'); put(13, 9, 1, 'B'); put(13, 21, 1, 'B');
+      put(21,22,4,'B');
+      put(21,13,2,'B'); put(21,33,2,'B');
     }
   });
 }
 
-/** Off-hand item in left hand area (orb, tome, shield, etc.). */
+// ─── OFF-HAND ─────────────────────────────────────────────────────────────────
+
 function buildWizardOffHandGrid(ohName: string): Grid {
-  return buildGrid(32, 48, put => {
+  return buildGrid(48, 72, put => {
     if (ohName.includes('orb') || ohName.includes('focus') || ohName.includes('crystal')) {
-      put(30, 2, 4, 'C');
-      put(31, 1, 4, 'C'); put(31, 2, 1, 'g');
-      put(32, 1, 4, 'C'); put(32, 4, 1, 'c');
-      put(33, 2, 3, 'c');
+      put(38,2,5,'C'); put(39,1,6,'C'); put(39,2,1,'g');
+      put(40,1,6,'C'); put(40,3,1,'g');
+      put(41,1,6,'C'); put(41,6,1,'c');
+      put(42,1,5,'C'); put(42,5,2,'c');
+      put(43,2,5,'c');
     } else if (ohName.includes('tome') || ohName.includes('book') || ohName.includes('grimoire')) {
-      put(32, 1, 5, 't'); put(32, 1, 1, 'T');
-      for (let r = 33; r <= 37; r++) {
-        put(r, 1, 5, 'Z');
-        if (r >= 33 && r <= 36) put(r, 2, 3, 'z'); // pages
-      }
-      put(37, 1, 5, 't');
+      put(42,1,8,'t'); put(42,1,1,'T');
+      for (let r = 43; r <= 57; r++) { put(r,1,8,'Z'); put(r,2,5,'z'); }
+      put(58,1,8,'t');
     } else if (ohName.includes('shield') || ohName.includes('buckler')) {
-      put(24, 1, 4, 'r');
-      for (let r = 25; r <= 34; r++) { put(r, 0, 6, 'R'); put(r, 1, 2, 'G'); }
-      put(35, 1, 4, 'r');
+      put(38,0,5,'r');
+      for (let r = 39; r <= 50; r++) { put(r,0,7,'R'); put(r,1,2,'G'); }
+      put(51,0,5,'r');
     }
   });
 }
 
-/** Master wizard renderer — stacks all layers front-to-back. */
+// ─── BACKGROUND / PET / EFFECT — 48×72 VERSIONS ──────────────────────────────
+// These mirror the original 32×48 functions with coordinates scaled ×1.5
+// so they fill the wizard's larger canvas correctly.
+
+function renderBackground48(equipped: EquippedItems): El[] {
+  const out: El[] = [];
+  const name = (equipped.background?.name ?? '').toLowerCase();
+  const W = 48, H = 72;
+
+  if (!name) {
+    out.push(R(0,0,W,H,'#12101C'));
+    out.push(R(0,57,W,15,'#0C0A14'));
+    for (let x = 0; x < W; x += 12) out.push(R(x,60,11,1,'#1A1828'));
+    return out;
+  }
+  if (name.includes('dumpster fire') || name.includes('dumpster')) {
+    out.push(R(0,0,W,H,'#080610'));
+    out.push(R(0,57,W,15,'#1A1208'));
+    // Alley walls
+    out.push(R(0,0,10,57,'#201A18')); out.push(R(38,0,10,57,'#201A18'));
+    for (let y = 6; y < 54; y += 9) { out.push(R(1,y,6,1,'#302018')); out.push(R(4,y+4,5,1,'#302018')); }
+    // Dumpster
+    out.push(R(0,36,14,20,'#2A4838')); out.push(R(1,33,11,4,'#2A4838')); out.push(R(3,31,8,2,'#3A5848'));
+    out.push(R(1,56,4,3,'#101010')); out.push(R(7,56,4,3,'#101010'));
+    // Fire
+    out.push(R(1,30,11,4,'#FF6010')); out.push(R(3,25,8,5,'#FF4010'));
+    out.push(R(5,21,5,4,'#FF2010')); out.push(R(5,18,4,3,'#EE1010'));
+    out.push(R(1,27,3,5,'#FFA020')); out.push(R(9,28,3,3,'#FFA020'));
+    out.push(R(6,22,3,5,'#FFCC40')); out.push(R(6,16,2,3,'#FFEE80'));
+    out.push(R(6,15,2,2,'#FFDD60'));
+    // Stars
+    out.push(R(16,1,1,1,'#FFFFFF')); out.push(R(24,4,1,1,'#FFFF80'));
+    out.push(R(34,3,1,1,'#FFFFFF')); out.push(R(42,7,1,1,'#FFFFFF'));
+    out.push(R(20,9,1,1,'#FFFFFF')); out.push(R(30,2,1,1,'#FFFF80'));
+    return out;
+  }
+  if (name.includes('forest') || name.includes('nature') || name.includes('grove')) {
+    out.push(R(0,0,W,H,'#183010')); out.push(R(0,54,W,18,'#102008'));
+    out.push(R(1,21,8,33,'#204010')); out.push(R(0,12,10,12,'#30601A'));
+    out.push(R(38,24,8,30,'#204010')); out.push(R(36,15,12,12,'#30601A'));
+    out.push(R(13,57,3,3,'#308020')); out.push(R(30,55,3,5,'#308020'));
+    return out;
+  }
+  if (name.includes('tavern') || name.includes('inn') || name.includes('bar')) {
+    out.push(R(0,0,W,H,'#2A1808')); out.push(R(0,54,W,18,'#3A2010'));
+    for (let x = 0; x < W; x += 12) out.push(R(x,57,11,15,'#3A2008'));
+    out.push(R(3,7,9,6,'#5A3820')); out.push(R(4,9,6,3,'#C8A040'));
+    out.push(R(36,6,8,9,'#5A3820'));
+    return out;
+  }
+  if (name.includes('cave') || name.includes('dungeon') || name.includes('mine')) {
+    out.push(R(0,0,W,H,'#060406')); out.push(R(0,54,W,18,'#100C0A'));
+    out.push(R(7,0,3,8,'#181418')); out.push(R(18,0,5,5,'#181418'));
+    out.push(R(33,0,3,9,'#181418'));
+    out.push(R(0,0,5,54,'#100C10')); out.push(R(43,0,5,54,'#100C10'));
+    return out;
+  }
+  if (name.includes('sky') || name.includes('cloud') || name.includes('heaven')) {
+    out.push(R(0,0,W,H,'#4090D0')); out.push(R(0,42,W,30,'#A0D8F0'));
+    out.push(R(3,6,12,5,'#F0F8FF')); out.push(R(1,7,15,5,'#F0F8FF'));
+    out.push(R(30,12,15,5,'#F0F8FF')); out.push(R(28,13,18,5,'#F0F8FF'));
+    return out;
+  }
+  out.push(R(0,0,W,H,'#12101C')); out.push(R(0,57,W,15,'#0C0A14'));
+  return out;
+}
+
+function renderPet48(equipped: EquippedItems): El[] {
+  const out: El[] = [];
+  if (!equipped.pet) return out;
+  const name = equipped.pet.name.toLowerCase();
+  // Pets sit to the right, scaled for 48×72 canvas
+  const px = 36, py = 45;
+
+  if (name.includes('dragon') || name.includes('wyvern')) {
+    out.push(R(px,py+1,7,6,'#508020')); out.push(R(px+6,py-3,6,6,'#508020'));
+    out.push(R(px+10,py-1,2,2,'#FF4010')); out.push(R(px+4,py-1,3,4,'#508020'));
+    out.push(R(px-1,py,3,3,'#406018')); out.push(R(px+6,py+6,2,6,'#508020'));
+  } else if (name.includes('cat') || name.includes('kitten')) {
+    out.push(R(px,py+3,8,5,'#D0A040')); out.push(R(px+1,py,6,5,'#D0A040'));
+    out.push(R(px+1,py-1,2,2,'#D0A040')); out.push(R(px+6,py-1,2,2,'#D0A040'));
+    out.push(R(px+3,py+2,2,2,'#303030')); out.push(R(px+6,py+2,2,2,'#303030'));
+    out.push(R(px+8,py+4,6,2,'#D0A040')); out.push(R(px+12,py+3,2,2,'#D0A040'));
+  } else if (name.includes('fox')) {
+    out.push(R(px,py+3,8,5,'#C06020')); out.push(R(px+1,py,6,5,'#C06020'));
+    out.push(R(px+3,py-1,2,2,'#C06020')); out.push(R(px+6,py-1,2,2,'#C06020'));
+    out.push(R(px-2,py+1,4,4,'#F0F0F0')); out.push(R(px+3,py+2,2,2,'#303030'));
+  } else {
+    out.push(R(px,py+3,6,5,'#9060C0')); out.push(R(px+1,py,5,5,'#9060C0'));
+    out.push(R(px+2,py+2,2,2,'#FFFFFF')); out.push(R(px+5,py+2,2,2,'#FFFFFF'));
+    out.push(R(px+6,py+5,5,2,'#7040A0'));
+  }
+  return out;
+}
+
+function renderEffect48(equipped: EquippedItems): El[] {
+  const out: El[] = [];
+  if (!equipped.effect) return out;
+  const name = equipped.effect.name.toLowerCase();
+  if (name.includes('star') || name.includes('sparkle') || name.includes('glitter')) {
+    out.push(R(6,6,3,3,'#FFD700',0.7)); out.push(R(39,10,3,3,'#FFD700',0.6));
+    out.push(R(18,3,2,2,'#FFFFFF',0.9)); out.push(R(30,6,2,2,'#FFFFFF',0.7));
+    out.push(R(10,15,2,2,'#FFD700',0.5));
+  } else if (name.includes('fire') || name.includes('flame')) {
+    out.push(R(7,22,3,8,'#FF6010',0.6)); out.push(R(37,22,3,8,'#FF6010',0.6));
+    out.push(R(7,19,2,3,'#FF8020',0.5)); out.push(R(39,19,2,3,'#FF8020',0.5));
+  } else if (name.includes('glow') || name.includes('aura') || name.includes('holy')) {
+    out.push(R(9,4,30,60,'#FFFFFF',0.07));
+  } else if (name.includes('shadow') || name.includes('dark')) {
+    out.push(R(0,0,48,72,'#000000',0.25));
+  }
+  return out;
+}
+
+// ─── MASTER COMPOSITOR ────────────────────────────────────────────────────────
+
 function renderWizardSprite(
   appearance: CharacterAppearance,
   equipped: EquippedItems,
@@ -1391,38 +1701,43 @@ function renderWizardSprite(
   hairCol: string, eyeCol: string,
   outfitColor: string,
 ): El[] {
-  const pal = buildWizardPalette(skinCol, sdarkCol, hairCol, eyeCol, outfitColor);
-  const facialHair  = appearance.facialHair ?? 'none';
-  const hairStyle   = appearance.hairStyle  ?? 'short';
-  const hasGlasses  = appearance.hasGlasses ?? false;
-  const ohName      = (equipped.off_hand?.name ?? '').toLowerCase();
+  const pal        = buildWizardPalette(skinCol, sdarkCol, hairCol, eyeCol, outfitColor);
+  const facialHair = appearance.facialHair ?? 'none';
+  const hairStyle  = appearance.hairStyle  ?? 'short';
+  const hasGlasses = appearance.hasGlasses ?? false;
+  const expression = appearance.expression ?? 'neutral';
+  const ohName     = (equipped.off_hand?.name ?? '').toLowerCase();
 
   return [
-    ...renderGrid(WIZARD_STAFF_GRID,                              pal), // 1. Staff (deepest)
-    ...renderGrid(WIZARD_BOOTS_GRID,                              pal), // 2. Boots (under robe)
-    ...renderGrid(WIZARD_SKIN_GRID,                               pal), // 3. Skin body
-    ...renderGrid(WIZARD_ROBE_GRID,                               pal), // 4. Robe (over skin)
-    ...renderGrid(buildWizardHairGrid(hairStyle),                 pal), // 5. Hair
-    ...renderGrid(buildWizardFaceGrid(facialHair, hasGlasses),    pal), // 6. Face
-    ...renderGrid(WIZARD_HAT_GRID,                                pal), // 7. Hat (front)
-    ...renderGrid(buildWizardOffHandGrid(ohName),                 pal), // 8. Off-hand item
+    ...renderBackground48(equipped),                                         // 0. Background (48×72)
+    ...renderGrid(WIZARD_CAPE_GRID,                                   pal),  // 1. Cape (behind all)
+    ...renderGrid(WIZARD_BOOTS_GRID,                                  pal),  // 2. Boots
+    ...renderGrid(WIZARD_SKIN_GRID,                                   pal),  // 3. Skin
+    ...renderGrid(WIZARD_ROBE_GRID,                                   pal),  // 4. Robe
+    ...renderGrid(buildWizardHairGrid(hairStyle),                     pal),  // 5. Hair
+    ...renderGrid(buildWizardFaceGrid(facialHair, hasGlasses, expression), pal), // 6. Face
+    ...renderGrid(buildWizardHeadLayer(equipped),                     pal),  // 7. Headgear (equipped or default hat)
+    ...renderGrid(buildWizardMainHandGrid(equipped),                   pal),  // 8. Main-hand weapon (equipped or default staff)
+    ...renderGrid(buildWizardOffHandGrid(ohName),                     pal),  // 9. Off-hand item
+    ...renderPet48(equipped),                                                // 10. Pet (48×72)
+    ...renderEffect48(equipped),                                             // 11. Effect overlay (48×72)
   ];
 }
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 
 export function PixelCharacter({ appearance = {}, equipped = {}, size = 192 }: PixelCharacterProps) {
-  _k = 0; // reset key counter each render
+  _k = 0;
 
   const species    = appearance.species   ?? 'human';
   const classId    = appearance.class     ?? 'fighter';
-  const gender     = appearance.gender    ?? 'any';
   const skinId     = appearance.skinTone;
   const hairId     = appearance.hairColor;
   const eyeId      = appearance.eyeColor;
   const hairStyle  = appearance.hairStyle  ?? 'short';
   const facialHair = appearance.facialHair ?? 'none';
   const hasGlasses = appearance.hasGlasses ?? false;
+  const gender     = appearance.gender    ?? 'any';
 
   const b        = BODIES[species] ?? BODIES.human;
   const skinCol  = sk(skinId);
@@ -1432,23 +1747,37 @@ export function PixelCharacter({ appearance = {}, equipped = {}, size = 192 }: P
 
   const { outfit: outfitColor, legs: legColor } = getOutfitColors(equipped, classId);
 
-  // Wizard class uses the new pixel-grid benchmark renderer.
-  // All other classes continue using the existing renderer unchanged.
+  // Wizard class → upgraded 48×72 pixel-grid renderer (background/pet/effect included).
+  // All other classes → original 32×48 renderer, unchanged.
   const isWizard = classId === 'wizard';
 
+  if (isWizard) {
+    const wizardElements = renderWizardSprite(
+      appearance, equipped, skinCol, sdark, hairCol, eyeCol, outfitColor,
+    );
+    return (
+      <svg
+        width={size}
+        height={Math.round(size * 1.5)}
+        viewBox="0 0 48 72"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ imageRendering: 'pixelated' } as React.CSSProperties}
+        shapeRendering="crispEdges"
+      >
+        {wizardElements}
+      </svg>
+    );
+  }
+
+  // Non-wizard: original 32×48 renderer — background, body, hair, face, headgear, equipment, pet, effect
   const elements: El[] = [
     ...renderBackground(equipped),
-    ...(isWizard
-      ? renderWizardSprite(appearance, equipped, skinCol, sdark, hairCol, eyeCol, outfitColor)
-      : [
-          ...renderBody(b, skinCol, sdark, outfitColor, legColor, gender, classId),
-          ...renderSpeciesFeatures(species, skinCol, sdark, b),
-          ...renderHair(hairStyle, hairCol, b, species),
-          ...renderFace(b, skinCol, sdark, eyeCol, hasGlasses, facialHair, hairCol),
-          ...renderHeadgear(equipped, classId, b),
-          ...renderEquipment(classId, equipped, b),
-        ]
-    ),
+    ...renderBody(b, skinCol, sdark, outfitColor, legColor, gender, classId),
+    ...renderSpeciesFeatures(species, skinCol, sdark, b),
+    ...renderHair(hairStyle, hairCol, b, species),
+    ...renderFace(b, skinCol, sdark, eyeCol, hasGlasses, facialHair, hairCol),
+    ...renderHeadgear(equipped, classId, b),
+    ...renderEquipment(classId, equipped, b),
     ...renderPet(equipped),
     ...renderEffect(equipped),
   ];
