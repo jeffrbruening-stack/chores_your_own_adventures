@@ -23,7 +23,8 @@ export const questDefinitionsTable = pgTable("quest_definitions", {
   goldReward: integer("gold_reward").notNull().default(10),
   partyGoldReward: integer("party_gold_reward").notNull().default(5),
   isRoutine: boolean("is_routine").notNull().default(false),
-  routineSchedule: text("routine_schedule"), // cron or "daily", "weekdays", etc.
+  routineSchedule: text("routine_schedule"), // JSON: { days: number[] } (0=Sun…6=Sat)
+  scheduledDate: text("scheduled_date"),     // ISO datetime string for one-time deadline
   timeWindowStart: text("time_window_start"), // "HH:MM"
   timeWindowEnd: text("time_window_end"),     // "HH:MM"
   isPaused: boolean("is_paused").notNull().default(false),

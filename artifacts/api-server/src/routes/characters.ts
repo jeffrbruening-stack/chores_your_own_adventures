@@ -10,12 +10,29 @@ import { requireAuth } from "../lib/auth.js";
 const router = Router();
 
 // GET /api/characters/me
+// Leaders always get cooldownUntil: null so the frontend never shows the lock.
 router.get("/me", requireAuth, async (req, res) => {
   try {
+    const userId = req.userId!;
     const [character] = await db.select().from(charactersTable)
-      .where(eq(charactersTable.userId, req.userId!)).limit(1);
+      .where(eq(charactersTable.userId, userId)).limit(1);
     if (!character) { res.status(404).json({ error: "No character" }); return; }
-    res.json(character);
+
+    // Check if this user is a party leader so we can strip the cooldown from the response
+    const [user] = await db.select({ activePartyId: usersTable.activePartyId })
+      .from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    let isLeader = false;
+    if (user?.activePartyId) {
+      const [membership] = await db.select({ role: partyMembersTable.role })
+        .from(partyMembersTable)
+        .where(and(
+          eq(partyMembersTable.partyId, user.activePartyId),
+          eq(partyMembersTable.userId, userId),
+        )).limit(1);
+      isLeader = membership?.role === "leader" || membership?.role === "adult";
+    }
+
+    res.json({ ...character, cooldownUntil: isLeader ? null : character.cooldownUntil });
   } catch {
     res.status(500).json({ error: "Failed" });
   }
@@ -40,7 +57,7 @@ router.put("/me", requireAuth, async (req, res) => {
           eq(partyMembersTable.partyId, user.activePartyId),
           eq(partyMembersTable.userId, userId),
         )).limit(1);
-      isLeader = membership?.role === "leader" || membership?.role === "founder";
+      isLeader = membership?.role === "leader" || membership?.role === "adult";
     }
 
     const [existing] = await db.select().from(charactersTable)
@@ -105,6 +122,24 @@ router.put("/me", requireAuth, async (req, res) => {
   } catch (err) {
     console.error("Character save error:", err);
     res.status(500).json({ error: "Failed" });
+  }
+});
+
+// POST /api/characters/me/reset — reset own progression to level 1 (keeps appearance)
+router.post("/me/reset", requireAuth, async (req, res) => {
+  try {
+    const userId = req.userId!;
+    // Reset XP, level, legendaryCompletions — keep gold and appearance
+    await db.update(usersTable)
+      .set({ lifetimeXp: 0, currentLevel: 1, legendaryCompletions: 0, updatedAt: new Date() })
+      .where(eq(usersTable.id, userId));
+    // Clear appearance cooldown so they can re-customise immediately after reset
+    await db.update(charactersTable)
+      .set({ cooldownUntil: null })
+      .where(eq(charactersTable.userId, userId));
+    res.json({ ok: true, message: "Character progression reset to level 1" });
+  } catch {
+    res.status(500).json({ error: "Reset failed" });
   }
 });
 

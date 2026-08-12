@@ -42,7 +42,7 @@ const CAT_TO_SLOT: Record<string, string> = {
 };
 
 export default function Shop() {
-  const { currentUser } = useAuth();
+  const { currentUser, refreshUser } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -74,9 +74,10 @@ export default function Shop() {
     }
   };
 
-  // Load on mount + tab change
+  // Load on mount + tab change; refresh gold balance on mount
   useEffect(() => {
     fetchItems(activeTab);
+    refreshUser();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
@@ -108,6 +109,7 @@ export default function Shop() {
         className: 'bg-primary text-primary-foreground font-bold border-none',
       });
       fetchItems(activeTab);
+      refreshUser(); // sync updated gold balance into auth context
       queryClient.invalidateQueries({ queryKey: getGetInventoryQueryKey() });
     } catch (e: any) {
       toast({ title: 'Purchase Failed', description: e.message, variant: 'destructive' });

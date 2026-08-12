@@ -8,3 +8,4 @@
 - [CYOA pixel character chin](cyoa-pixel-character-chin.md) — head must be flat rect; neck drawn before head shifted up 1px so head covers its top; taper creates visible dangling projection
 - [CYOA quest routing and status](cyoa-quest-routing.md) — Express route ordering critical; static paths must precede /:questId; status field is 'active' not 'available'; give-me-a-quest is GET /api/home/give-me-a-quest
 - [CYOA party admin](cyoa-party-admin.md) — appearance unlock endpoint PATCH /api/parties/:partyId/members/:memberId/unlock-appearance; leaders bypass 7-day character lock; ManagePartyMember sheet in party.tsx
+- [CYOA member roles](cyoa-member-roles.md) — only 3 valid member_role enum values: leader, adult, kid — "founder" does not exist; leaders+adults bypass character cooldown

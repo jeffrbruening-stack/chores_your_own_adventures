@@ -22,11 +22,12 @@ export interface QuestDefinition {
   isLegendary?: boolean;
   status: QuestDefinitionStatus;
   requiresVerification?: boolean;
-  scheduleType?: QuestDefinitionScheduleType;
+  isRoutine?: boolean;
+  /** @nullable */
+  routineSchedule?: string | null;
   /** @nullable */
   scheduledDate?: string | null;
-  /** @nullable */
-  recurrencePattern?: string | null;
+  scheduleType?: QuestDefinitionScheduleType;
   recurrenceDays?: number[];
   /** @nullable */
   timeWindowStart?: string | null;

@@ -2389,13 +2389,15 @@ components:
           enum: [active, paused, draft, proposed, declined, archived]
         requiresVerification:
           type: boolean
+        isRoutine:
+          type: boolean
+        routineSchedule:
+          type: ["string", "null"]
+        scheduledDate:
+          type: ["string", "null"]
         scheduleType:
           type: string
           enum: [anytime, date, recurring]
-        scheduledDate:
-          type: ["string", "null"]
-        recurrencePattern:
-          type: ["string", "null"]
         recurrenceDays:
           type: array
           items:

@@ -315,9 +315,10 @@ function renderSpeciesFeatures(species: string, skinCol: string, sdark: string, 
 function renderBody(
   b: Body, skinCol: string, sdark: string,
   outfitColor: string, legColor: string,
-  gender: string,
+  gender: string, classId: string = 'fighter',
 ): El[] {
   const out: El[] = [];
+  const isWizard = classId === 'wizard';
 
   // Feet / shoes
   out.push(R(b.lfx, b.lfy, b.lfw, b.lfh, '#3A2010'));
@@ -326,8 +327,30 @@ function renderBody(
   out.push(R(b.lfx + 1, b.lfy, b.lfw - 2, 1, '#5A3018'));
   out.push(R(b.rfx + 1, b.rfy, b.rfw - 2, 1, '#5A3018'));
 
-  // ── Lower body / legs — visually different by gender ────────
-  if (gender === 'feminine') {
+  // ── Lower body ──────────────────────────────────────────────
+  if (isWizard) {
+    // Full-length bell robe skirt — covers both legs, flares at hem
+    const sTopY = b.lly;
+    const sBottomY = b.lfy;
+    const sH = sBottomY - sTopY;
+    const sX = b.llx - 1;
+    const sW = (b.rlx + b.rlw) - b.llx + 2;
+    // Upper half: straight, torso-width
+    out.push(R(sX, sTopY, sW, Math.floor(sH * 0.5), outfitColor));
+    // Lower bell flare: 2px wider per side
+    out.push(R(sX - 2, sTopY + Math.floor(sH * 0.5), sW + 4, Math.ceil(sH * 0.5), outfitColor));
+    // Centre fold line (shadow strip)
+    const foldX = b.tx + Math.floor(b.tw / 2);
+    out.push(R(foldX, sTopY + 2, 1, sH - 2, shadeColor(outfitColor, -18)));
+    // Hem arcane sparkle dots
+    const hemY = sTopY + Math.floor(sH * 0.68);
+    const sparkle = '#D0B0FF';
+    out.push(R(sX + 1,                   hemY,     1, 1, sparkle));
+    out.push(R(sX + Math.floor(sW * 0.3), hemY + 2, 1, 1, sparkle));
+    out.push(R(foldX,                     hemY,     1, 1, sparkle));
+    out.push(R(sX + Math.floor(sW * 0.7), hemY + 2, 1, 1, sparkle));
+    out.push(R(sX + sW - 2,              hemY,     1, 1, sparkle));
+  } else if (gender === 'feminine') {
     // Skirt/tunic: one wider unified shape covering upper legs with a flared hem
     const skirtY = b.lly;
     const skirtH = Math.floor(b.llh * 0.48);
@@ -351,29 +374,52 @@ function renderBody(
     out.push(R(b.rlx + 1, b.rly + Math.floor(b.rlh * 0.45), b.rlw - 2, 2, shadeColor(legColor, 15)));
   }
 
-  // Arms (bare lower, sleeved upper)
-  out.push(R(b.lax, b.lay, b.law, b.lah, skinCol));
-  out.push(R(b.rax, b.ray, b.raw, b.rah, skinCol));
-  // Sleeve (outfit color on upper half)
-  const sleeveH = Math.floor(b.lah * 0.55);
-  out.push(R(b.lax, b.lay, b.law, sleeveH, outfitColor));
-  out.push(R(b.rax, b.ray, b.raw, sleeveH, outfitColor));
-  // Masculine: slight shoulder cap broadening
-  if (gender === 'masculine') {
+  // ── Arms ────────────────────────────────────────────────────
+  if (isWizard) {
+    // Full-length robe sleeves — no bare skin, bell cuffs at wrist
+    out.push(R(b.lax, b.lay, b.law, b.lah, outfitColor));
+    out.push(R(b.rax, b.ray, b.raw, b.rah, outfitColor));
+    // Bell cuffs (2px darker, 1px wider each side)
+    out.push(R(b.lax - 1, b.lay + b.lah - 3, b.law + 2, 3, shadeColor(outfitColor, -22)));
+    out.push(R(b.rax - 1, b.ray + b.rah - 3, b.raw + 2, 3, shadeColor(outfitColor, -22)));
+    // Shoulder broadening
     out.push(R(b.lax - 1, b.lay, 1, 3, outfitColor));
     out.push(R(b.rax + b.raw, b.ray, 1, 3, outfitColor));
+  } else {
+    // Normal arms (bare lower, sleeved upper)
+    out.push(R(b.lax, b.lay, b.law, b.lah, skinCol));
+    out.push(R(b.rax, b.ray, b.raw, b.rah, skinCol));
+    // Sleeve (outfit color on upper half)
+    const sleeveH = Math.floor(b.lah * 0.55);
+    out.push(R(b.lax, b.lay, b.law, sleeveH, outfitColor));
+    out.push(R(b.rax, b.ray, b.raw, sleeveH, outfitColor));
+    // Masculine: slight shoulder cap broadening
+    if (gender === 'masculine') {
+      out.push(R(b.lax - 1, b.lay, 1, 3, outfitColor));
+      out.push(R(b.rax + b.raw, b.ray, 1, 3, outfitColor));
+    }
   }
 
-  // Torso — shaped slightly by gender
+  // ── Torso ───────────────────────────────────────────────────
   const tw = gender === 'feminine' ? b.tw - 2 : gender === 'masculine' ? b.tw + 1 : b.tw;
   const tx = gender === 'feminine' ? b.tx + 1 : gender === 'masculine' ? b.tx - 1 : b.tx;
   out.push(R(tx, b.ty, tw, b.th, outfitColor));
-  out.push(R(tx, b.ty, 1, b.th, '#00000020'));       // left edge shading
+  out.push(R(tx, b.ty, 1, b.th, '#00000020'));           // left edge shading
   out.push(R(tx + tw - 1, b.ty, 1, b.th, '#FFFFFF10')); // right edge highlight
-  out.push(R(tx + 1, b.ty + b.th - 2, tw - 2, 2, shadeColor(outfitColor, -20))); // belt
-  // Feminine waist taper hint
-  if (gender === 'feminine') {
-    out.push(R(tx, b.ty + Math.floor(b.th * 0.5), tw, 2, shadeColor(outfitColor, 12)));
+  if (isWizard) {
+    // Sash / cord at lower waist instead of belt
+    const sashY = b.ty + Math.floor(b.th * 0.78);
+    out.push(R(tx, sashY, tw, 2, shadeColor(outfitColor, -30)));
+    // Sash knot in centre
+    const knotX = tx + Math.floor(tw / 2) - 1;
+    out.push(R(knotX, sashY - 1, 3, 4, shadeColor(outfitColor, -20)));
+    out.push(R(knotX + 1, sashY - 1, 1, 1, shadeColor(outfitColor, 20))); // knot highlight
+  } else {
+    out.push(R(tx + 1, b.ty + b.th - 2, tw - 2, 2, shadeColor(outfitColor, -20))); // belt
+    // Feminine waist taper hint
+    if (gender === 'feminine') {
+      out.push(R(tx, b.ty + Math.floor(b.th * 0.5), tw, 2, shadeColor(outfitColor, 12)));
+    }
   }
 
   // Neck — rendered before head so the head covers its top row; neck flows cleanly into shirt below chin
@@ -572,7 +618,7 @@ function getOutfitColors(equipped: EquippedItems, classId: string): { outfit: st
   const name = (equipped.outfit?.name ?? '').toLowerCase();
 
   if (name.includes("traveler") || name.includes("tunic"))
-    return { outfit: '#7A5230', legs: '#4A3018' };
+    return { outfit: '#4A7830', legs: '#2E5018' }; // forest green — matches the 👕 icon
   if (name.includes("leather armor") || name.includes("leather"))
     return { outfit: '#5A3818', legs: '#382208' };
   if (name.includes("chain") || name.includes("mail"))
@@ -1008,7 +1054,7 @@ export function PixelCharacter({ appearance = {}, equipped = {}, size = 192 }: P
 
   const elements: El[] = [
     ...renderBackground(equipped),
-    ...renderBody(b, skinCol, sdark, outfitColor, legColor, gender),
+    ...renderBody(b, skinCol, sdark, outfitColor, legColor, gender, classId),
     ...renderSpeciesFeatures(species, skinCol, sdark, b),
     ...renderHair(hairStyle, hairCol, b, species),
     ...renderFace(b, skinCol, sdark, eyeCol, hasGlasses, facialHair, hairCol),

@@ -1,8 +1,20 @@
 import { createPortal } from 'react-dom';
-import { X, Star, Coins, ShieldAlert, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, Star, Coins, ShieldAlert, Clock, CheckCircle2, AlertCircle, CalendarDays, RefreshCw } from 'lucide-react';
 import { format, isPast } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
 import { cn } from '@/lib/utils';
+
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function parseRecurrenceDays(routineSchedule: string | null | undefined): number[] {
+  if (!routineSchedule) return [];
+  try {
+    const parsed = JSON.parse(routineSchedule);
+    return Array.isArray(parsed?.days) ? parsed.days : [];
+  } catch {
+    return [];
+  }
+}
 
 // Accepts either a QuestAssignment (with status) or a QuestDefinition (without status).
 // Uses a loose shape so both work without casting at call sites.
@@ -22,6 +34,9 @@ export interface QuestLike {
   expiresAt?: string | null;
   timeWindowStart?: string | null;
   timeWindowEnd?: string | null;
+  isRoutine?: boolean;
+  routineSchedule?: string | null;
+  scheduledDate?: string | null;
 }
 
 interface QuestDetailSheetProps {
@@ -64,7 +79,10 @@ export function QuestDetailSheet({
     isPast(new Date(quest.expiresAt));
 
   return createPortal(
-    <>
+    // `contents` makes this wrapper box-less so it doesn't affect layout,
+    // but CSS custom properties (--card, --border, etc.) still cascade to
+    // children — required because the portal lives outside .game-theme.
+    <div className="contents dark game-theme">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/60 z-40 animate-in fade-in duration-150"
@@ -165,8 +183,53 @@ export function QuestDetailSheet({
             )}
           </div>
 
-          {/* Time / expiry */}
-          {(quest.timeWindowStart || quest.expiresAt) && (
+          {/* Recurring schedule */}
+          {quest.isRoutine && (() => {
+            const days = parseRecurrenceDays(quest.routineSchedule);
+            return (
+              <div className="flex items-start gap-2 text-sm px-4 py-3 rounded-xl border border-border bg-background text-muted-foreground">
+                <RefreshCw className="w-4 h-4 shrink-0 mt-0.5 text-primary" />
+                <div className="space-y-0.5">
+                  <span className="font-bold text-foreground text-xs uppercase tracking-wide">Recurring</span>
+                  {days.length > 0 && (
+                    <p>{days.map(d => DAYS[d]).join(', ')}</p>
+                  )}
+                  {quest.timeWindowStart && quest.timeWindowEnd && (
+                    <p className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {quest.timeWindowStart.substring(0, 5)} – {quest.timeWindowEnd.substring(0, 5)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* One-time deadline */}
+          {!quest.isRoutine && quest.scheduledDate && (
+            <div
+              className={cn(
+                'flex items-center gap-2 text-sm px-4 py-3 rounded-xl border',
+                isPast(new Date(quest.scheduledDate)) && quest.status !== 'completed'
+                  ? 'border-red-500/30 bg-red-500/10 text-red-400'
+                  : 'border-border bg-background text-muted-foreground',
+              )}
+            >
+              <CalendarDays className="w-4 h-4 shrink-0" />
+              <span>
+                {isPast(new Date(quest.scheduledDate)) && quest.status !== 'completed'
+                  ? 'Overdue — was due '
+                  : 'Due '}
+                {format(new Date(quest.scheduledDate), 'MMM d')}
+                {quest.scheduledDate.includes('T23:59')
+                  ? ' (end of day)'
+                  : ` at ${format(new Date(quest.scheduledDate), 'h:mm a')}`}
+              </span>
+            </div>
+          )}
+
+          {/* Time window only (no full recurring schedule) */}
+          {!quest.isRoutine && !quest.scheduledDate && (quest.timeWindowStart || quest.expiresAt) && (
             <div
               className={cn(
                 'flex items-center gap-2 text-sm px-4 py-3 rounded-xl border',
@@ -250,7 +313,7 @@ export function QuestDetailSheet({
           )}
         </div>
       </div>
-    </>,
+    </div>,
     document.body,
   );
 }

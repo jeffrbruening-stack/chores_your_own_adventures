@@ -27,6 +27,7 @@ const QUEST_SELECT = {
   partyGoldReward: questDefinitionsTable.partyGoldReward,
   isRoutine: questDefinitionsTable.isRoutine,
   routineSchedule: questDefinitionsTable.routineSchedule,
+  scheduledDate: questDefinitionsTable.scheduledDate,
   timeWindowStart: questDefinitionsTable.timeWindowStart,
   timeWindowEnd: questDefinitionsTable.timeWindowEnd,
   isPaused: questDefinitionsTable.isPaused,
@@ -89,12 +90,22 @@ router.post("/", requireAuth, async (req, res) => {
       difficulty, isLegendary, assignedUserIds, requiresVerification,
       xpReward, goldReward, partyGoldReward, isRoutine, routineSchedule,
       timeWindowStart, timeWindowEnd, schoolCalendarId,
+      // Schedule fields from new UI
+      scheduleType, scheduledDate, recurrenceDays,
     } = req.body;
     if (!partyId || !plainTitle) { res.status(400).json({ error: "partyId and plainTitle required" }); return; }
     const role = await getMemberRole(partyId, userId);
     if (!role) { res.status(403).json({ error: "Not a member" }); return; }
 
     const rewards = DIFFICULTY_REWARDS[difficulty as keyof typeof DIFFICULTY_REWARDS] ?? DIFFICULTY_REWARDS.normal;
+
+    // Derive isRoutine / routineSchedule from scheduleType + recurrenceDays when provided
+    const effectiveIsRoutine = scheduleType === 'recurring' ? true : (scheduleType === 'date' ? false : (isRoutine ?? false));
+    const effectiveRoutineSchedule =
+      Array.isArray(recurrenceDays) && recurrenceDays.length > 0
+        ? JSON.stringify({ days: recurrenceDays })
+        : (routineSchedule ?? null);
+    const effectiveScheduledDate = scheduleType === 'date' ? (scheduledDate ?? null) : null;
 
     const [quest] = await db.insert(questDefinitionsTable).values({
       partyId, creatorId: userId,
@@ -107,8 +118,9 @@ router.post("/", requireAuth, async (req, res) => {
       xpReward: xpReward ?? rewards.xp,
       goldReward: goldReward ?? rewards.gold,
       partyGoldReward: partyGoldReward ?? rewards.partyGold,
-      isRoutine: isRoutine ?? false,
-      routineSchedule: routineSchedule ?? null,
+      isRoutine: effectiveIsRoutine,
+      routineSchedule: effectiveRoutineSchedule,
+      scheduledDate: effectiveScheduledDate,
       timeWindowStart: timeWindowStart ?? null,
       timeWindowEnd: timeWindowEnd ?? null,
       schoolCalendarId: schoolCalendarId ?? null,
