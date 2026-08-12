@@ -10,4 +10,5 @@
 - [CYOA party admin](cyoa-party-admin.md) — appearance unlock endpoint PATCH /api/parties/:partyId/members/:memberId/unlock-appearance; leaders bypass 7-day character lock; ManagePartyMember sheet in party.tsx
 - [CYOA member roles](cyoa-member-roles.md) — only 3 valid member_role enum values: leader, adult, kid — "founder" does not exist; leaders+adults bypass character cooldown
 - [CYOA wizard AI sprite](cyoa-wizard-ai-sprite.md) — wizard renders an approved AI-generated PNG composite; modular layered assets pending; hard approval gate per class/species
+- [CYOA AI portraits](cyoa-ai-portraits.md) — per-kid gpt-image-1 portraits; unauthenticated image route for <img>; prompt must forbid chunky 8-bit; per-user lock+cooldown
 - [CYOA routine quest re-issuance](cyoa-routine-reissue.md) — recurring quests are lazily re-issued in listing endpoints via ensureRoutineAssignments; no scheduler exists

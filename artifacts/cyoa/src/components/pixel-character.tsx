@@ -109,6 +109,8 @@ export interface CharacterAppearance {
   gender?: string;
   class?: string;
   expression?: string;
+  /** URL of an AI-generated custom portrait; when set it replaces the base sprite. */
+  portraitUrl?: string;
 }
 
 export interface EquippedItems {
@@ -130,6 +132,15 @@ interface PixelCharacterProps {
 }
 
 // ─── EXPORTED CONSTANTS ───────────────────────────────────────────────────────
+
+/** Build the serving URL for a user's AI-generated portrait.
+ *  Returns undefined when no portrait exists. The portraitPath is appended
+ *  as a cache-buster: each regeneration produces a new path. */
+export function portraitImageUrl(userId?: number | null, portraitPath?: string | null): string | undefined {
+  if (!userId || !portraitPath) return undefined;
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  return `${base}/api/characters/portrait-image/${userId}?v=${encodeURIComponent(portraitPath)}`;
+}
 
 export const SKIN_TONES = [
   // Realistic range
@@ -1151,7 +1162,10 @@ export function PixelCharacter({ appearance = {}, equipped = {}, size = 192 }: P
   // Feminine characters get the female sprite variant when one exists;
   // falls back to the base sprite for species/classes without one.
   const spriteKey = `${species}_${classId}`;
-  const spriteSrc = (gender === 'feminine' && SPRITES[`${spriteKey}_female`]) || SPRITES[spriteKey];
+  // A custom AI-generated portrait takes priority over the stock class sprite.
+  const spriteSrc = appearance.portraitUrl
+    || (gender === 'feminine' && SPRITES[`${spriteKey}_female`])
+    || SPRITES[spriteKey];
 
   if (spriteSrc) {
     const bgElements = renderBackground(equipped);

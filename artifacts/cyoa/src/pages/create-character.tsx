@@ -52,6 +52,7 @@ export default function CreateCharacter() {
   const [adventurerName, setAdventurerName] = useState('');
   const [appearance, setAppearance] = useState<CharacterAppearance>({ ...DEFAULTS });
   const [saving, setSaving] = useState(false);
+  const [summoning, setSummoning] = useState(false);
   const [cooldownUntil, setCooldownUntil] = useState<Date | null>(null);
   const [loadingExisting, setLoadingExisting] = useState(hasCharacter);
 
@@ -128,6 +129,28 @@ export default function CreateCharacter() {
         const err = await res.json().catch(() => ({ error: 'Save failed' }));
         throw new Error(err.error ?? 'Save failed');
       }
+      // Generate the custom AI portrait from the saved appearance.
+      // Slow (~20-60s) — the "summoning" overlay is shown meanwhile.
+      setSummoning(true);
+      try {
+        const pRes = await fetch(`${BASE}/api/characters/me/portrait`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!pRes.ok) {
+          const err = await pRes.json().catch(() => ({}));
+          console.error('Portrait generation failed:', err);
+          toast({
+            title: 'Portrait delayed',
+            description: 'Your custom portrait couldn\u2019t be summoned right now — use the SUMMON PORTRAIT button on your character page to retry.',
+          });
+        }
+      } catch {
+        // Portrait failure is non-fatal; the stock class art is used until retried.
+      } finally {
+        setSummoning(false);
+      }
+
       // Refresh auth context and invalidate character/home caches so every screen shows the new appearance
       await refreshUser();
       queryClient.invalidateQueries({ queryKey: getGetMyCharacterQueryKey() });
@@ -149,6 +172,18 @@ export default function CreateCharacter() {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center">
         <p className="font-pixel animate-pulse text-primary">LOADING...</p>
+      </div>
+    );
+  }
+
+  if (summoning) {
+    return (
+      <div className="min-h-[100dvh] flex flex-col items-center justify-center gap-6 bg-background text-foreground px-8">
+        <PixelCharacter appearance={appearance} size={160} />
+        <p className="font-pixel text-primary animate-pulse text-center text-sm">SUMMONING YOUR HERO...</p>
+        <p className="text-xs text-muted-foreground text-center">
+          A one-of-a-kind portrait is being painted just for {adventurerName || 'your adventurer'}. This takes about half a minute.
+        </p>
       </div>
     );
   }

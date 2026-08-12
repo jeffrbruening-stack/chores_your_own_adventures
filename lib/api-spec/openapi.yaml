@@ -2135,6 +2135,8 @@ components:
           type: ["string", "null"]
         class:
           type: ["string", "null"]
+        portraitPath:
+          type: ["string", "null"]
         joinedAt:
           type: string
 
@@ -2258,6 +2260,8 @@ components:
         hasGlasses:
           type: boolean
         facialHair:
+          type: ["string", "null"]
+        portraitPath:
           type: ["string", "null"]
         cooldownUntil:
           type: ["string", "null"]

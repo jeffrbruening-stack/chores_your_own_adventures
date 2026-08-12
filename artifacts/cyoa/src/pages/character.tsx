@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { useGetMyCharacter, useGetInventory, getGetInventoryQueryKey } from '@workspace/api-client-react';
+import { useGetMyCharacter, getGetMyCharacterQueryKey, useGetInventory, getGetInventoryQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Progress } from '@/components/ui/progress';
-import { PixelCharacter, type EquippedItems } from '@/components/pixel-character';
+import { PixelCharacter, portraitImageUrl, type EquippedItems } from '@/components/pixel-character';
 import { Sparkles, Trophy, Settings as SettingsIcon, ShoppingBag, X } from 'lucide-react';
 import { Link } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
@@ -45,6 +45,31 @@ export default function Character() {
   const { data: character, isLoading: charLoading } = useGetMyCharacter();
   const { data: inventoryData, isLoading: invLoading } = useGetInventory();
   const [unequipping, setUnequipping] = useState<string | null>(null);
+  const [summoning, setSummoning] = useState(false);
+
+  // (Re)generate the AI portrait — independent of the appearance edit cooldown
+  const handleSummonPortrait = async () => {
+    if (summoning) return;
+    setSummoning(true);
+    try {
+      const token = localStorage.getItem('cyoa_token');
+      const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+      const res = await fetch(`${BASE}/api/characters/me/portrait`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? 'The summoning fizzled. Try again in a bit.');
+      }
+      await queryClient.invalidateQueries({ queryKey: getGetMyCharacterQueryKey() });
+      toast({ title: 'PORTRAIT SUMMONED!', className: 'bg-primary text-primary-foreground font-bold border-none' });
+    } catch (e: any) {
+      toast({ title: 'Summoning failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setSummoning(false);
+    }
+  };
 
   // Build equipped item map with names
   const { equippedItems, equippedWithNames } = useMemo(() => {
@@ -130,10 +155,23 @@ export default function Character() {
                 species: character?.species ?? undefined,
                 gender: character?.gender ?? undefined,
                 class: character?.class ?? undefined,
+                portraitUrl: portraitImageUrl(character?.userId, character?.portraitPath),
               }}
               equipped={equippedWithNames}
               size={160}
             />
+          </div>
+
+          {/* Summon / re-summon AI portrait */}
+          <div className="flex justify-center mt-2">
+            <button
+              onClick={handleSummonPortrait}
+              disabled={summoning}
+              className="font-pixel text-[10px] px-3 py-2 border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-colors disabled:opacity-60"
+              data-testid="button-summon-portrait"
+            >
+              {summoning ? 'SUMMONING...' : character?.portraitPath ? 'RE-SUMMON PORTRAIT' : 'SUMMON PORTRAIT'}
+            </button>
           </div>
 
           {/* Identity */}

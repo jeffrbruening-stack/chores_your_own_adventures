@@ -277,6 +277,7 @@ export const GetHomeDataResponse = zod.object({
   "eyeColor": zod.string(),
   "hasGlasses": zod.boolean(),
   "facialHair": zod.string().nullish(),
+  "portraitPath": zod.string().nullish(),
   "cooldownUntil": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().optional()
@@ -541,6 +542,7 @@ export const ListPartyMembersResponseItem = zod.object({
   "level": zod.number(),
   "species": zod.string().nullish(),
   "class": zod.string().nullish(),
+  "portraitPath": zod.string().nullish(),
   "joinedAt": zod.string().optional()
 })
 export const ListPartyMembersResponse = zod.array(ListPartyMembersResponseItem)
@@ -573,6 +575,7 @@ export const AddKidMemberResponse = zod.object({
   "level": zod.number(),
   "species": zod.string().nullish(),
   "class": zod.string().nullish(),
+  "portraitPath": zod.string().nullish(),
   "joinedAt": zod.string().optional()
 })
 
@@ -605,6 +608,7 @@ export const UpdatePartyMemberResponse = zod.object({
   "level": zod.number(),
   "species": zod.string().nullish(),
   "class": zod.string().nullish(),
+  "portraitPath": zod.string().nullish(),
   "joinedAt": zod.string().optional()
 })
 
@@ -754,6 +758,7 @@ export const GetMyCharacterResponse = zod.object({
   "eyeColor": zod.string(),
   "hasGlasses": zod.boolean(),
   "facialHair": zod.string().nullish(),
+  "portraitPath": zod.string().nullish(),
   "cooldownUntil": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().optional()
@@ -788,6 +793,7 @@ export const SaveCharacterResponse = zod.object({
   "eyeColor": zod.string(),
   "hasGlasses": zod.boolean(),
   "facialHair": zod.string().nullish(),
+  "portraitPath": zod.string().nullish(),
   "cooldownUntil": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().optional()
@@ -813,6 +819,7 @@ export const GetUserCharacterResponse = zod.object({
   "eyeColor": zod.string(),
   "hasGlasses": zod.boolean(),
   "facialHair": zod.string().nullish(),
+  "portraitPath": zod.string().nullish(),
   "cooldownUntil": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().optional()

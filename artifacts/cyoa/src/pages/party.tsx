@@ -15,7 +15,7 @@ import {
   Coins, X, UserPlus, Lock, ChevronRight, AlertTriangle, Key, Unlock,
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { PixelCharacter } from '@/components/pixel-character';
+import { PixelCharacter, portraitImageUrl } from '@/components/pixel-character';
 
 // ─── Manage Party Member Sheet ────────────────────────────────────────────────
 
@@ -36,6 +36,7 @@ interface Member {
   eyeColor?: string | null;
   hasGlasses?: boolean | null;
   facialHair?: string | null;
+  portraitPath?: string | null;
 }
 
 interface ManageMemberSheetProps {
@@ -163,6 +164,7 @@ function ManageMemberSheet({ member, partyId, onClose, onRefresh }: ManageMember
                 eyeColor: member.eyeColor ?? 'brown',
                 hasGlasses: member.hasGlasses ?? false,
                 facialHair: member.facialHair ?? 'none',
+                portraitUrl: portraitImageUrl(member.userId, member.portraitPath),
               }}
               size={60}
             />
@@ -612,6 +614,7 @@ export default function Party() {
                               eyeColor:   member.eyeColor   ?? 'brown',
                               hasGlasses: member.hasGlasses ?? false,
                               facialHair: member.facialHair ?? 'none',
+                              portraitUrl: portraitImageUrl(member.userId, member.portraitPath),
                             }}
                             size={80}
                           />

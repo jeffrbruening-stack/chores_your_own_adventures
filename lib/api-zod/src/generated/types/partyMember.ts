@@ -20,5 +20,7 @@ export interface PartyMember {
   species?: string | null;
   /** @nullable */
   class?: string | null;
+  /** @nullable */
+  portraitPath?: string | null;
   joinedAt?: string;
 }

@@ -140,6 +140,8 @@ export interface Character {
   /** @nullable */
   facialHair?: string | null;
   /** @nullable */
+  portraitPath?: string | null;
+  /** @nullable */
   cooldownUntil?: string | null;
   createdAt: string;
   updatedAt?: string;
@@ -394,6 +396,8 @@ export interface PartyMember {
   species?: string | null;
   /** @nullable */
   class?: string | null;
+  /** @nullable */
+  portraitPath?: string | null;
   joinedAt?: string;
 }
 

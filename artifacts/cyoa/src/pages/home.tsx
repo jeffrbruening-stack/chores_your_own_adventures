@@ -11,7 +11,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { Progress } from '@/components/ui/progress';
 import { QuestCard } from '@/components/quest-card';
 import { QuestDetailSheet, type QuestLike } from '@/components/quest-detail-sheet';
-import { PixelCharacter, type EquippedItems } from '@/components/pixel-character';
+import { PixelCharacter, portraitImageUrl, type EquippedItems } from '@/components/pixel-character';
 import { Sword, Coins, Bell, ChevronDown, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'wouter';
@@ -265,6 +265,7 @@ export default function Home() {
               species: character?.species ?? undefined,
               gender: character?.gender ?? undefined,
               class: character?.class ?? undefined,
+              portraitUrl: portraitImageUrl(character?.userId, character?.portraitPath),
             }}
             equipped={equippedWithNames}
             size={100}
