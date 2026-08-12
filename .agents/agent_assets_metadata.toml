@@ -7,3 +7,10 @@ uri = "file://attached_assets/generated_images/wizard_benchmark_v1.png"
 type = "image"
 title = "Benchmark wizard — AI-generated sprite"
 description = "The proposed new visual direction for the wizard. Approve it and I'll build the layered version and replace the old blocky sprite everywhere in the app."
+
+[[outputs]]
+id = "eGLUZwDjDI6U1AXQoZG6m"
+uri = "file://attached_assets/generated_images/benchmark-contact-sheet.png"
+type = "image"
+title = "Character art benchmarks — all classes & species"
+description = "One benchmark sprite per class/species combo (42 total) in the approved wizard style. Human wizard shown is the already-approved sprite for comparison."

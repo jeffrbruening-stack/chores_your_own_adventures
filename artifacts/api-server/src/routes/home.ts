@@ -143,10 +143,28 @@ router.get("/", requireAuth, async (req, res) => {
     if (!user) { res.status(404).json({ error: "Not found" }); return; }
 
     const partyId = user.activePartyId;
-
-    // Re-issue any routine (recurring) quests due today before listing
     const tz = tzOffsetFromHeader(req.headers["x-tz-offset"]);
-    if (partyId) await ensureRoutineAssignments(userId, partyId, tz);
+
+    // Fetch party data, membership, and goal in parallel before issuing routines.
+    const [activeParty, membership] = partyId ? await Promise.all([
+      db.select({
+        id: partiesTable.id,
+        name: partiesTable.name,
+        partyGoldReserve: partiesTable.partyGoldReserve,
+        routinesPaused: partiesTable.routinesPaused,
+      }).from(partiesTable).where(eq(partiesTable.id, partyId)).limit(1).then(r => r[0] ?? null),
+      db.select({ role: partyMembersTable.role })
+        .from(partyMembersTable)
+        .where(and(eq(partyMembersTable.partyId, partyId), eq(partyMembersTable.userId, userId)))
+        .limit(1).then(r => r[0] ?? null),
+    ]) : [null, null];
+
+    // Re-issue routine quests only when the user is an active member and
+    // the party has not paused routines. A stale activePartyId (user was
+    // removed) produces membership === null, so issuance is skipped.
+    if (partyId && membership && !activeParty?.routinesPaused) {
+      await ensureRoutineAssignments(userId, partyId, tz);
+    }
 
     // Character
     const [character] = await db.select().from(charactersTable)
@@ -185,23 +203,9 @@ router.get("/", requireAuth, async (req, res) => {
         eq(questDefinitionsTable.isArchived, false),
       )).then(rows => rows.filter((a) => isAssignmentVisibleNow(a, tz))) : [];
 
-    // Active party
-    const [activeParty] = partyId ? await db.select({
-      id: partiesTable.id,
-      name: partiesTable.name,
-      partyGoldReserve: partiesTable.partyGoldReserve,
-      routinesPaused: partiesTable.routinesPaused,
-    }).from(partiesTable).where(eq(partiesTable.id, partyId)).limit(1) : [null];
-
     // Active party goal
     const [activeGoal] = partyId ? await db.select().from(partyGoalsTable)
       .where(and(eq(partyGoalsTable.partyId, partyId), eq(partyGoalsTable.status, "active"))).limit(1) : [null];
-
-    // My role in party
-    const [membership] = partyId ? await db.select({ role: partyMembersTable.role })
-      .from(partyMembersTable)
-      .where(and(eq(partyMembersTable.partyId, partyId), eq(partyMembersTable.userId, userId)))
-      .limit(1) : [null];
 
     // Pending verifications count (for leaders)
     let pendingVerificationsCount = 0;

@@ -1,11 +1,14 @@
 ---
 name: CYOA routine quest re-issuance
-description: Recurring quests are lazily re-issued on read, not by a scheduler
+description: Recurring quests are lazily re-issued on read; ensureRoutineAssignments enforces membership, paused-party, and race-safety itself
 ---
-Recurring (routine) quests are metadata on quest_definitions (isRoutine + routineSchedule {days:[0-6]}); occurrences are NOT pre-generated. `ensureRoutineAssignments(userId, partyId)` in api-server `src/lib/routine.ts` lazily creates today's active assignment, called at the top of GET /api/quests/assignments/mine and GET /api/home.
 
-**Why:** Without re-issuance, a routine quest disappeared forever after first completion because all quest lists filter to active/submitted assignments only.
+**Design decision:** Routine (recurring) quests are NOT pre-generated on a schedule. They are lazily issued per-user at the top of assignment-listing endpoints via `ensureRoutineAssignments`.
 
-**How to apply:** Any new endpoint that lists a user's assignments should call ensureRoutineAssignments first. Participation = explicit assignedToUserIds OR any assignment history. Guards: skip if an open assignment exists or one was already created today (user-local midnight). Weekday schedules AND time windows are visibility gates: active assignments outside their HH:MM window are filtered from lists via isAssignmentVisibleNow (submitted ones stay visible). All time logic is user-local: the web client's custom-fetch (lib/api-client-react) sends an `x-tz-offset` header (getTimezoneOffset convention) that endpoints parse with tzOffsetFromHeader; no header = server clock fallback.
+**Why:** Avoids a background job; keeps all logic in the request path.
 
-Note: api-server `tsc --noEmit` has ~5 pre-existing type errors (stale schema typings: scheduledDate, assignedUserIds, "cancelled"/"founder" enums) — dev build (esbuild) runs fine despite them.
+**What ensureRoutineAssignments enforces internally:**
+1. Returns early if `parties.routinesPaused` is true — callers need not check.
+2. Uses a transaction-scoped advisory lock `pg_advisory_xact_lock(userId, defId)` per definition to serialize concurrent requests for the same (user, definition) pair, preventing duplicate assignments.
+
+**Caller obligation:** Confirm current party membership (`assertMember`) before calling `ensureRoutineAssignments`. The function does not re-verify membership — that is the caller's responsibility.

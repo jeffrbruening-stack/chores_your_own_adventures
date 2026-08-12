@@ -1,6 +1,6 @@
 import { db } from "@workspace/db";
-import { questDefinitionsTable, questAssignmentsTable } from "@workspace/db/schema";
-import { eq, and, inArray, gte } from "drizzle-orm";
+import { questDefinitionsTable, questAssignmentsTable, partiesTable } from "@workspace/db/schema";
+import { eq, and, inArray, sql } from "drizzle-orm";
 
 /**
  * Lazily re-issue routine (recurring) quests for a user.
@@ -95,6 +95,11 @@ export function tzOffsetFromHeader(headerValue: unknown): number | undefined {
 export async function ensureRoutineAssignments(userId: number, partyId: number, tzOffsetMin?: number): Promise<void> {
   if (!partyId) return;
 
+  // Skip issuance if the party has paused routines.
+  const [party] = await db.select({ routinesPaused: partiesTable.routinesPaused })
+    .from(partiesTable).where(eq(partiesTable.id, partyId)).limit(1);
+  if (!party || party.routinesPaused) return;
+
   const routineDefs = await db.select()
     .from(questDefinitionsTable)
     .where(and(
@@ -105,49 +110,81 @@ export async function ensureRoutineAssignments(userId: number, partyId: number, 
     ));
   if (routineDefs.length === 0) return;
 
-  const { startedTodayLocal } = localNow(tzOffsetMin);
-
   const dueDefs = routineDefs.filter((d) => isScheduledToday(d.routineSchedule, tzOffsetMin));
   if (dueDefs.length === 0) return;
 
-  const defIds = dueDefs.map((d) => d.id);
+  // Compute today's start in UTC so we can detect "already issued today".
+  // tzOffsetMin is the JS getTimezoneOffset() convention: minutes to add to
+  // local time to obtain UTC (positive = west of UTC, e.g. 300 for EST).
+  const off = Number.isFinite(tzOffsetMin) ? (tzOffsetMin as number) : 0;
+  const nowUtcMs = Date.now();
+  const nowLocalMs = nowUtcMs - off * 60000; // shift to local clock
+  const nowLocal = new Date(nowLocalMs);
+  const localMidnightMs = nowLocalMs - (
+    nowLocal.getUTCHours() * 3600000 +
+    nowLocal.getUTCMinutes() * 60000 +
+    nowLocal.getUTCSeconds() * 1000 +
+    nowLocal.getUTCMilliseconds()
+  );
+  const todayStartUtc = new Date(localMidnightMs + off * 60000);
 
-  // All of this user's assignments for these definitions (history determines
-  // participation; explicit assignedToUserIds also qualifies).
-  const existing = await db.select({
-    questDefinitionId: questAssignmentsTable.questDefinitionId,
-    status: questAssignmentsTable.status,
-    createdAt: questAssignmentsTable.createdAt,
-  })
-    .from(questAssignmentsTable)
-    .where(and(
-      eq(questAssignmentsTable.userId, userId),
-      inArray(questAssignmentsTable.questDefinitionId, defIds),
-    ));
-
-  const byDef = new Map<number, typeof existing>();
-  for (const a of existing) {
-    const list = byDef.get(a.questDefinitionId) ?? [];
-    list.push(a);
-    byDef.set(a.questDefinitionId, list);
-  }
-
-  const toCreate: { questDefinitionId: number; userId: number; partyId: number; status: "active" }[] = [];
+  // Issue each due definition in its own transaction with a per-(user, def)
+  // advisory lock so concurrent requests are serialized at the DB level.
+  // pg_advisory_xact_lock(int4, int4) is held until the transaction ends.
   for (const def of dueDefs) {
-    const history = byDef.get(def.id) ?? [];
     const explicitlyAssigned = Array.isArray(def.assignedToUserIds)
       ? (def.assignedToUserIds as unknown as number[]).includes(userId)
       : false;
-    // Participates if explicitly assigned or has ever had an assignment.
-    if (!explicitlyAssigned && history.length === 0) continue;
-    // Skip if there's already an open assignment, or one created today.
-    const hasOpen = history.some((a) => a.status === "active" || a.status === "submitted");
-    const hasToday = history.some((a) => a.createdAt && startedTodayLocal(new Date(a.createdAt)));
-    if (hasOpen || hasToday) continue;
-    toCreate.push({ questDefinitionId: def.id, userId, partyId, status: "active" });
-  }
+    const defId = def.id;
 
-  if (toCreate.length > 0) {
-    await db.insert(questAssignmentsTable).values(toCreate);
+    await db.transaction(async (tx) => {
+      // Serialize concurrent issuance for this (user, definition) pair.
+      // Two simultaneous transactions for the same pair will queue here;
+      // the second will then see the first's committed row and skip the insert.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(${userId}, ${defId})`);
+
+      // Check participation: explicitly assigned, or has prior assignment history.
+      if (!explicitlyAssigned) {
+        const [history] = await tx
+          .select({ id: questAssignmentsTable.id })
+          .from(questAssignmentsTable)
+          .where(and(
+            eq(questAssignmentsTable.questDefinitionId, defId),
+            eq(questAssignmentsTable.userId, userId),
+          ))
+          .limit(1);
+        if (!history) return; // not a participant — skip
+      }
+
+      // Skip if there is already an open assignment or one issued today.
+      const [blocker] = await tx
+        .select({ id: questAssignmentsTable.id })
+        .from(questAssignmentsTable)
+        .where(and(
+          eq(questAssignmentsTable.questDefinitionId, defId),
+          eq(questAssignmentsTable.userId, userId),
+          inArray(questAssignmentsTable.status, ["active", "submitted"]),
+        ))
+        .limit(1);
+      if (blocker) return;
+
+      const [issuedToday] = await tx
+        .select({ id: questAssignmentsTable.id })
+        .from(questAssignmentsTable)
+        .where(and(
+          eq(questAssignmentsTable.questDefinitionId, defId),
+          eq(questAssignmentsTable.userId, userId),
+          sql`${questAssignmentsTable.createdAt} >= ${todayStartUtc}`,
+        ))
+        .limit(1);
+      if (issuedToday) return;
+
+      await tx.insert(questAssignmentsTable).values({
+        questDefinitionId: defId,
+        userId,
+        partyId,
+        status: "active",
+      });
+    });
   }
 }

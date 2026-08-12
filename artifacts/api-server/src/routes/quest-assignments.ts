@@ -10,7 +10,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
-import { assertLeader } from "../lib/party.js";
+import { assertLeader, assertMember } from "../lib/party.js";
 import { DIFFICULTY_REWARDS, levelFromXp } from "../lib/rewards.js";
 import { ensureRoutineAssignments, isAssignmentVisibleNow, tzOffsetFromHeader } from "../lib/routine.js";
 
@@ -47,6 +47,8 @@ router.get("/", requireAuth, async (req, res) => {
   try {
     const partyId = parseInt(req.query.partyId as string);
     const tz = tzOffsetFromHeader(req.headers["x-tz-offset"]);
+    // Verify current membership before issuing routine assignments.
+    if (partyId) await assertMember(partyId, req.userId!);
     if (partyId) await ensureRoutineAssignments(req.userId!, partyId, tz);
     const assignments = await db.select(ASSIGNMENT_SELECT)
       .from(questAssignmentsTable)

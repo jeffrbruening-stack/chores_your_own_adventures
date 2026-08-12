@@ -58,6 +58,8 @@ const ASSIGNMENT_SELECT = {
   questType: questDefinitionsTable.questType,
   timeWindowStart: questDefinitionsTable.timeWindowStart,
   timeWindowEnd: questDefinitionsTable.timeWindowEnd,
+  isRoutine: questDefinitionsTable.isRoutine,
+  routineSchedule: questDefinitionsTable.routineSchedule,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -170,6 +172,8 @@ router.get("/assignments/mine", requireAuth, async (req, res) => {
   try {
     const partyId = parseInt(req.query.partyId as string);
     const tz = tzOffsetFromHeader(req.headers["x-tz-offset"]);
+    // Verify current membership before issuing routine assignments.
+    if (partyId) await assertMember(partyId, req.userId!);
     if (partyId) await ensureRoutineAssignments(req.userId!, partyId, tz);
     const assignments = await db.select(ASSIGNMENT_SELECT)
       .from(questAssignmentsTable)

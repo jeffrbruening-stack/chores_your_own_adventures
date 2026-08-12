@@ -4,7 +4,86 @@
  * Displayed crisp via image-rendering: pixelated at chosen size.
  */
 import React from 'react';
-import wizardAiSprite from '../assets/sprites/wizard-ai-benchmark-trimmed.png';
+
+// ─── SPRITE IMPORTS (one per species × class) ────────────────────────────────
+import sprite_human_fighter   from '../assets/sprites/sprite_human_fighter.png';
+import sprite_human_ranger    from '../assets/sprites/sprite_human_ranger.png';
+import sprite_human_wizard    from '../assets/sprites/sprite_human_wizard.png';
+import sprite_human_rogue     from '../assets/sprites/sprite_human_rogue.png';
+import sprite_human_cleric    from '../assets/sprites/sprite_human_cleric.png';
+import sprite_human_barbarian from '../assets/sprites/sprite_human_barbarian.png';
+
+import sprite_elf_fighter   from '../assets/sprites/sprite_elf_fighter.png';
+import sprite_elf_ranger    from '../assets/sprites/sprite_elf_ranger.png';
+import sprite_elf_wizard    from '../assets/sprites/sprite_elf_wizard.png';
+import sprite_elf_rogue     from '../assets/sprites/sprite_elf_rogue.png';
+import sprite_elf_cleric    from '../assets/sprites/sprite_elf_cleric.png';
+import sprite_elf_barbarian from '../assets/sprites/sprite_elf_barbarian.png';
+
+import sprite_dwarf_fighter   from '../assets/sprites/sprite_dwarf_fighter.png';
+import sprite_dwarf_ranger    from '../assets/sprites/sprite_dwarf_ranger.png';
+import sprite_dwarf_wizard    from '../assets/sprites/sprite_dwarf_wizard.png';
+import sprite_dwarf_rogue     from '../assets/sprites/sprite_dwarf_rogue.png';
+import sprite_dwarf_cleric    from '../assets/sprites/sprite_dwarf_cleric.png';
+import sprite_dwarf_barbarian from '../assets/sprites/sprite_dwarf_barbarian.png';
+
+import sprite_gnome_fighter   from '../assets/sprites/sprite_gnome_fighter.png';
+import sprite_gnome_ranger    from '../assets/sprites/sprite_gnome_ranger.png';
+import sprite_gnome_wizard    from '../assets/sprites/sprite_gnome_wizard.png';
+import sprite_gnome_rogue     from '../assets/sprites/sprite_gnome_rogue.png';
+import sprite_gnome_cleric    from '../assets/sprites/sprite_gnome_cleric.png';
+import sprite_gnome_barbarian from '../assets/sprites/sprite_gnome_barbarian.png';
+
+import sprite_halfling_fighter   from '../assets/sprites/sprite_halfling_fighter.png';
+import sprite_halfling_ranger    from '../assets/sprites/sprite_halfling_ranger.png';
+import sprite_halfling_wizard    from '../assets/sprites/sprite_halfling_wizard.png';
+import sprite_halfling_rogue     from '../assets/sprites/sprite_halfling_rogue.png';
+import sprite_halfling_cleric    from '../assets/sprites/sprite_halfling_cleric.png';
+import sprite_halfling_barbarian from '../assets/sprites/sprite_halfling_barbarian.png';
+
+import sprite_orc_fighter   from '../assets/sprites/sprite_orc_fighter.png';
+import sprite_orc_ranger    from '../assets/sprites/sprite_orc_ranger.png';
+import sprite_orc_wizard    from '../assets/sprites/sprite_orc_wizard.png';
+import sprite_orc_rogue     from '../assets/sprites/sprite_orc_rogue.png';
+import sprite_orc_cleric    from '../assets/sprites/sprite_orc_cleric.png';
+import sprite_orc_barbarian from '../assets/sprites/sprite_orc_barbarian.png';
+
+import sprite_goblin_fighter   from '../assets/sprites/sprite_goblin_fighter.png';
+import sprite_goblin_ranger    from '../assets/sprites/sprite_goblin_ranger.png';
+import sprite_goblin_wizard    from '../assets/sprites/sprite_goblin_wizard.png';
+import sprite_goblin_rogue     from '../assets/sprites/sprite_goblin_rogue.png';
+import sprite_goblin_cleric    from '../assets/sprites/sprite_goblin_cleric.png';
+import sprite_goblin_barbarian from '../assets/sprites/sprite_goblin_barbarian.png';
+
+const SPRITES: Record<string, string> = {
+  human_fighter: sprite_human_fighter,   human_ranger: sprite_human_ranger,
+  human_wizard:  sprite_human_wizard,    human_rogue:  sprite_human_rogue,
+  human_cleric:  sprite_human_cleric,    human_barbarian: sprite_human_barbarian,
+
+  elf_fighter: sprite_elf_fighter,   elf_ranger: sprite_elf_ranger,
+  elf_wizard:  sprite_elf_wizard,    elf_rogue:  sprite_elf_rogue,
+  elf_cleric:  sprite_elf_cleric,    elf_barbarian: sprite_elf_barbarian,
+
+  dwarf_fighter: sprite_dwarf_fighter,   dwarf_ranger: sprite_dwarf_ranger,
+  dwarf_wizard:  sprite_dwarf_wizard,    dwarf_rogue:  sprite_dwarf_rogue,
+  dwarf_cleric:  sprite_dwarf_cleric,    dwarf_barbarian: sprite_dwarf_barbarian,
+
+  gnome_fighter: sprite_gnome_fighter,   gnome_ranger: sprite_gnome_ranger,
+  gnome_wizard:  sprite_gnome_wizard,    gnome_rogue:  sprite_gnome_rogue,
+  gnome_cleric:  sprite_gnome_cleric,    gnome_barbarian: sprite_gnome_barbarian,
+
+  halfling_fighter: sprite_halfling_fighter,   halfling_ranger: sprite_halfling_ranger,
+  halfling_wizard:  sprite_halfling_wizard,    halfling_rogue:  sprite_halfling_rogue,
+  halfling_cleric:  sprite_halfling_cleric,    halfling_barbarian: sprite_halfling_barbarian,
+
+  orc_fighter: sprite_orc_fighter,   orc_ranger: sprite_orc_ranger,
+  orc_wizard:  sprite_orc_wizard,    orc_rogue:  sprite_orc_rogue,
+  orc_cleric:  sprite_orc_cleric,    orc_barbarian: sprite_orc_barbarian,
+
+  goblin_fighter: sprite_goblin_fighter,   goblin_ranger: sprite_goblin_ranger,
+  goblin_wizard:  sprite_goblin_wizard,    goblin_rogue:  sprite_goblin_rogue,
+  goblin_cleric:  sprite_goblin_cleric,    goblin_barbarian: sprite_goblin_barbarian,
+};
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -1748,16 +1827,14 @@ export function PixelCharacter({ appearance = {}, equipped = {}, size = 192 }: P
 
   const { outfit: outfitColor, legs: legColor } = getOutfitColors(equipped, classId);
 
-  // Wizard class → upgraded 48×72 pixel-grid renderer (background/pet/effect included).
-  // All other classes → original 32×48 renderer, unchanged.
-  const isWizard = classId === 'wizard';
+  // All classes & species → AI-generated sprite renderer.
+  // Background renders behind via SVG; pet/effect render in front via SVG.
+  // Wearable equipment (headgear/weapons) is baked into the composite sprites
+  // until the layered asset set is built in a follow-up task.
+  const spriteKey = `${species}_${classId}`;
+  const spriteSrc = SPRITES[spriteKey];
 
-  if (isWizard) {
-    // Approved AI-generated benchmark sprite (single composite image).
-    // Layered modular assets will replace this composite in a follow-up.
-    // Equipped background renders behind the sprite; pet/effect render in front.
-    // Wearable equipment (headgear/weapons) is baked into the composite until
-    // the layered asset set exists.
+  if (spriteSrc) {
     const bgElements = renderBackground(equipped);
     const fgElements = [...renderPet(equipped), ...renderEffect(equipped)];
     const h = Math.round(size * 1.5);
@@ -1788,14 +1865,15 @@ export function PixelCharacter({ appearance = {}, equipped = {}, size = 192 }: P
       >
         {overlaySvg(bgElements, 0)}
         <img
-          src={wizardAiSprite}
-          alt="Wizard character"
+          src={spriteSrc}
+          alt={`${species} ${classId} character`}
           style={{
             position: 'relative',
             zIndex: 1,
             maxWidth: '100%',
             maxHeight: '100%',
             imageRendering: 'pixelated',
+            objectFit: 'contain',
           } as React.CSSProperties}
         />
         {overlaySvg(fgElements, 2)}
@@ -1803,7 +1881,7 @@ export function PixelCharacter({ appearance = {}, equipped = {}, size = 192 }: P
     );
   }
 
-  // Non-wizard: original 32×48 renderer — background, body, hair, face, headgear, equipment, pet, effect
+  // Fallback: original 32×48 SVG renderer (no sprite found)
   const elements: El[] = [
     ...renderBackground(equipped),
     ...renderBody(b, skinCol, sdark, outfitColor, legColor, gender, classId),
