@@ -1,0 +1,9 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "XPFxSyl6NUlXmjWHYpQGt"
+uri = "file://attached_assets/generated_images/wizard_benchmark_v1.png"
+type = "image"
+title = "Benchmark wizard — AI-generated sprite"
+description = "The proposed new visual direction for the wizard. Approve it and I'll build the layered version and replace the old blocky sprite everywhere in the app."
