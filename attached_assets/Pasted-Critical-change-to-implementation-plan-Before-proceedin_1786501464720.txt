@@ -1,0 +1,95 @@
+Critical change to implementation plan
+
+Before proceeding with the full redesign, create ONE benchmark character only and stop for visual approval.
+
+The benchmark should be a human wizard, because that is the visual style reference we have already established.
+
+Do not create the fighter, other classes, other species, hairstyles, or equipment library yet.
+
+Benchmark Wizard
+
+Create one complete modular human wizard using the new pixel-art system.
+
+It should visually approach the supplied/reference wizard:
+
+recognizable head and jaw
+expressive face
+visible eyebrows
+nose
+mouth
+optional beard
+shaped hair
+visible neck
+naturally sloped shoulders
+upper and lower arms
+visible hands
+robe sleeves that taper rather than rectangular arms
+robe with folds, trim, sash/belt and dimensional shading
+separate legs beneath the robe where appropriate
+shaped boots
+wizard hat with curved/floppy silhouette
+detailed staff with gem/crystal
+approximately 3–5 tones for major materials
+selective single-pixel highlights
+strong readable silhouette
+
+The character must still be made from interchangeable layers and use the existing appearance/equipment architecture.
+
+Modularity
+
+Maintain separate layers for at least:
+
+body/skin → face → facial hair → hair → outfit → cape/back → headgear → main hand → off hand/accessory.
+
+All layers must share a common logical canvas and common anchor points.
+
+Clothing should conform to the body rather than forcing the body into rectangular shapes.
+
+Rendering implementation
+
+Do not require one SVG <rect> DOM element for every visible pixel if another implementation is more efficient.
+
+Use whatever rendering technique gives us:
+
+deliberate pixel-grid artwork
+nearest-neighbor/crisp scaling
+palette swapping
+modular layers
+good performance
+easy future editing
+Resolution
+
+Start by testing the existing 32×48 logical resolution.
+
+However, do not treat 32×48 as an absolute requirement.
+
+If the benchmark wizard cannot achieve the visual quality of the supplied reference at 32×48, test 48×64 before simplifying the artwork.
+
+I would rather slightly increase logical resolution than lose the character detail and personality we are trying to achieve.
+
+Approval gate
+
+Once the benchmark wizard is complete:
+
+STOP.
+
+Show me the resulting character at:
+
+native logical pixel scale
+60px
+80px
+192px
+240px
+
+Do not convert additional classes, species, hair styles, equipment, shop assets, or existing characters until I approve the benchmark.
+
+That last part is really important.
+
+Right now their plan says:
+
+Step 2: make fighter
+Step 3: make all hair
+Step 4: make all faces
+Step 5: make all classes
+Step 6: make all equipment
+Step 7: make all species
