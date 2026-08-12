@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, lazy, Suspense } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -108,6 +108,7 @@ function Router() {
           <Route path="/school-calendars"><ProtectedRoute component={SchoolCalendars} /></Route>
           <Route path="/settings"><ProtectedRoute component={Settings} /></Route>
           <Route path="/admin"><ProtectedRoute component={Admin} adminOnly /></Route>
+          <Route path="/wizard-test">{() => { const WizardTest = lazy(() => import('./pages/wizard-test')); return <Suspense fallback={null}><WizardTest /></Suspense>; }}</Route>
 
           <Route component={NotFound} />
         </Switch>
