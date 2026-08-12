@@ -14,3 +14,17 @@ uri = "file://attached_assets/generated_images/benchmark-contact-sheet.png"
 type = "image"
 title = "Character art benchmarks — all classes & species"
 description = "One benchmark sprite per class/species combo (42 total) in the approved wizard style. Human wizard shown is the already-approved sprite for comparison."
+
+[[outputs]]
+id = "KHI7yVZMc7XusZNQ6I9Ro"
+uri = "file://artifacts/cyoa/src/assets/sprites/sprite_human_wizard_female_draft.png"
+type = "image"
+title = "Female Wizard — benchmark draft"
+description = "Proposed female wizard sprite in the approved pixel-art style"
+
+[[outputs]]
+id = "5uig1IRJJzMT3JlZa7b-m"
+uri = "file://artifacts/cyoa/src/assets/sprites/sprite_human_wizard.png"
+type = "image"
+title = "Male Wizard — current approved art"
+description = "For side-by-side style comparison"
