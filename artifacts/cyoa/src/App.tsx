@@ -109,6 +109,7 @@ function Router() {
           <Route path="/settings"><ProtectedRoute component={Settings} /></Route>
           <Route path="/admin"><ProtectedRoute component={Admin} adminOnly /></Route>
           <Route path="/wizard-test">{() => { const WizardTest = lazy(() => import('./pages/wizard-test')); return <Suspense fallback={null}><WizardTest /></Suspense>; }}</Route>
+          <Route path="/wizard-benchmark">{() => { const WizardBenchmark = lazy(() => import('./pages/wizard-benchmark')); return <Suspense fallback={null}><WizardBenchmark /></Suspense>; }}</Route>
 
           <Route component={NotFound} />
         </Switch>
