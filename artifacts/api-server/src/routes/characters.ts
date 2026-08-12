@@ -6,7 +6,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
-import { generateAndStorePortrait } from "../lib/portrait.js";
+import { generateAndStorePortrait, fetchPortraitGear } from "../lib/portrait.js";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage.js";
 
 const router = Router();
@@ -37,6 +37,7 @@ router.post("/me/portrait", requireAuth, async (req, res) => {
       .where(eq(charactersTable.userId, userId)).limit(1);
     if (!character) { res.status(404).json({ error: "No character" }); return; }
 
+    const gear = await fetchPortraitGear(userId);
     const portraitPath = await generateAndStorePortrait({
       class: character.class,
       gender: character.gender,
@@ -46,7 +47,7 @@ router.post("/me/portrait", requireAuth, async (req, res) => {
       eyeColor: character.eyeColor,
       hasGlasses: character.hasGlasses,
       facialHair: character.facialHair,
-    });
+    }, gear);
 
     await db.update(charactersTable)
       .set({ portraitPath, updatedAt: new Date() })

@@ -58,9 +58,30 @@ export interface PortraitAppearance {
   facialHair: string;
 }
 
-export function buildPortraitPrompt(a: PortraitAppearance): string {
+export interface PortraitGearItem {
+  slot: string;        // outfit | head | main_hand | off_hand
+  name: string;
+  description?: string | null;
+}
+
+const GEAR_SLOT_PHRASE: Record<string, string> = {
+  outfit: "wearing as their outfit",
+  head: "wearing on their head",
+  main_hand: "holding in their main hand",
+  off_hand: "holding in their off hand",
+};
+
+export function buildPortraitPrompt(a: PortraitAppearance, gear: PortraitGearItem[] = []): string {
   const genderWord = a.gender === "feminine" ? "female" : a.gender === "masculine" ? "male" : "androgynous";
   const classLook = CLASS_LOOK[a.class] ?? CLASS_LOOK.fighter;
+
+  // Equipped shop gear overrides the matching parts of the default class look
+  const wearable = gear.filter((g) => GEAR_SLOT_PHRASE[g.slot]);
+  const gearClause = wearable.length
+    ? ` The character's equipped gear REPLACES the matching default ${a.class} equipment: ${wearable
+        .map((g) => `${GEAR_SLOT_PHRASE[g.slot]} "${g.name}"${g.description ? ` (${g.description})` : ""}`)
+        .join("; ")}.`
+    : "";
 
   const features: string[] = [];
   features.push(SKIN[a.skinTone] ?? "medium tan skin");
@@ -76,13 +97,13 @@ export function buildPortraitPrompt(a: PortraitAppearance): string {
   if (fh) features.push(fh);
   else if (genderWord === "male") features.push("clean-shaven");
 
-  return `Highly detailed 16-bit SNES-era JRPG pixel art character sprite, full body, front-facing, confident heroic pose, a ${genderWord} human ${classLook}. The character has ${features.join(", ")}. The face, hair and features must be clearly visible. Fine pixel resolution with intricate shading, rich color depth and crisp pixel clusters — NOT chunky low-res 8-bit style. Dark outline, single character centered on a plain solid very dark navy background (#101020), no text, no border.`;
+  return `Highly detailed 16-bit SNES-era JRPG pixel art character sprite, full body, front-facing, confident heroic pose, a ${genderWord} human ${classLook}.${gearClause} The character has ${features.join(", ")}. The face, hair and features must be clearly visible. Fine pixel resolution with intricate shading, rich color depth and crisp pixel clusters — NOT chunky low-res 8-bit style. Dark outline, single character centered on a plain solid very dark navy background (#101020), no text, no border.`;
 }
 
 /** Generates the portrait PNG and uploads it to object storage.
  *  Returns the object path (e.g. "/objects/portraits/<uuid>.png"). */
-export async function generateAndStorePortrait(a: PortraitAppearance): Promise<string> {
-  const prompt = buildPortraitPrompt(a);
+export async function generateAndStorePortrait(a: PortraitAppearance, gear: PortraitGearItem[] = []): Promise<string> {
+  const prompt = buildPortraitPrompt(a, gear);
 
   const resp = await fetch(`${AI_BASE_URL}/images/generations`, {
     method: "POST",
@@ -116,4 +137,75 @@ export async function generateAndStorePortrait(a: PortraitAppearance): Promise<s
   await file.save(buffer, { contentType: "image/png" });
 
   return `/objects/${objectName}`;
+}
+
+/** Loads the user's equipped wearable gear (outfit/head/weapons) with names. */
+export async function fetchPortraitGear(userId: number): Promise<PortraitGearItem[]> {
+  const { db } = await import("@workspace/db");
+  const { equippedItemsTable, shopItemsTable } = await import("@workspace/db/schema");
+  const { eq } = await import("drizzle-orm");
+  const rows = await db.select({
+    slot: equippedItemsTable.slot,
+    name: shopItemsTable.name,
+    description: shopItemsTable.description,
+  }).from(equippedItemsTable)
+    .innerJoin(shopItemsTable, eq(shopItemsTable.id, equippedItemsTable.shopItemId))
+    .where(eq(equippedItemsTable.userId, userId));
+  return rows.filter((r) => ["outfit", "head", "main_hand", "off_hand"].includes(r.slot));
+}
+
+// ─── Background refresh (debounced) ─────────────────────────────────────────
+// When gear changes, we re-summon the portrait once things settle instead of
+// once per equip click. Only refreshes users who already have a portrait.
+const refreshTimers = new Map<number, NodeJS.Timeout>();
+const refreshInProgress = new Set<number>();
+const REFRESH_DEBOUNCE_MS = 15_000;
+
+export function schedulePortraitRefresh(userId: number): void {
+  const existing = refreshTimers.get(userId);
+  if (existing) clearTimeout(existing);
+  refreshTimers.set(userId, setTimeout(() => {
+    refreshTimers.delete(userId);
+    refreshPortraitNow(userId).catch((err) =>
+      console.error(`Background portrait refresh failed for user ${userId}:`, err));
+  }, REFRESH_DEBOUNCE_MS));
+}
+
+async function refreshPortraitNow(userId: number): Promise<void> {
+  if (refreshInProgress.has(userId)) return;
+  refreshInProgress.add(userId);
+  try {
+    const { db } = await import("@workspace/db");
+    const { charactersTable } = await import("@workspace/db/schema");
+    const { eq } = await import("drizzle-orm");
+    const [character] = await db.select().from(charactersTable)
+      .where(eq(charactersTable.userId, userId)).limit(1);
+    // Only refresh characters that already summoned a portrait
+    if (!character?.portraitPath) return;
+
+    const gear = await fetchPortraitGear(userId);
+    const newPath = await generateAndStorePortrait({
+      class: character.class,
+      gender: character.gender,
+      skinTone: character.skinTone,
+      hairStyle: character.hairStyle,
+      hairColor: character.hairColor,
+      eyeColor: character.eyeColor,
+      hasGlasses: character.hasGlasses,
+      facialHair: character.facialHair,
+    }, gear);
+
+    await db.update(charactersTable)
+      .set({ portraitPath: newPath, updatedAt: new Date() })
+      .where(eq(charactersTable.userId, userId));
+
+    // Best-effort cleanup of the superseded object
+    try {
+      const storage = new ObjectStorageService();
+      const oldFile = await storage.getObjectEntityFile(character.portraitPath);
+      await oldFile.delete();
+    } catch { /* ignore */ }
+  } finally {
+    refreshInProgress.delete(userId);
+  }
 }

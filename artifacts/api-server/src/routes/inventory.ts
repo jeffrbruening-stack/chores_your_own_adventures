@@ -5,6 +5,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
+import { schedulePortraitRefresh } from "../lib/portrait.js";
 
 const router = Router();
 
@@ -73,6 +74,10 @@ router.post("/equip", requireAuth, async (req, res) => {
     } else {
       await db.insert(equippedItemsTable).values({ userId, slot, shopItemId });
     }
+    // Wearable gear changes trigger a debounced background portrait re-summon
+    if (["outfit", "head", "main_hand", "off_hand"].includes(slot)) {
+      schedulePortraitRefresh(userId);
+    }
     res.json({ message: "Equipped", slot, shopItemId });
   } catch {
     res.status(500).json({ error: "Failed" });
@@ -85,6 +90,9 @@ router.delete("/equip/:slot", requireAuth, async (req, res) => {
     const slot = String(req.params.slot);
     await db.delete(equippedItemsTable)
       .where(and(eq(equippedItemsTable.userId, req.userId!), eq(equippedItemsTable.slot, slot)));
+    if (["outfit", "head", "main_hand", "off_hand"].includes(slot)) {
+      schedulePortraitRefresh(req.userId!);
+    }
     res.status(204).send();
   } catch {
     res.status(500).json({ error: "Failed" });
