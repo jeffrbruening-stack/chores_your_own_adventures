@@ -19,6 +19,12 @@ import { cn } from '@/lib/utils';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+const DAY_GROUPS = [
+  { id: 'weekday', label: 'WEEKDAYS', days: [1, 2, 3, 4, 5] },
+  { id: 'weekend', label: 'WEEKEND',  days: [0, 6] },
+  { id: 'allweek', label: 'ALL WEEK', days: [0, 1, 2, 3, 4, 5, 6] },
+];
+
 const TIME_PRESETS = [
   { id: 'morning',   label: 'MORNING',   range: '5am–12pm', icon: '🌅', start: '05:00', end: '12:00' },
   { id: 'afternoon', label: 'AFTERNOON', range: '12–5pm',   icon: '☀️', start: '12:00', end: '17:00' },
@@ -45,7 +51,8 @@ export default function QuestCreate() {
   // Step 3: Schedule
   const [scheduleType, setScheduleType] = useState<'anytime' | 'date' | 'recurring'>('anytime');
   const [recurrenceDays, setRecurrenceDays] = useState<number[]>([]);       // 0=Sun…6=Sat
-  const [timeWindowStart, setTimeWindowStart] = useState('');               // "HH:MM"
+  const [selectedPresets, setSelectedPresets] = useState<string[]>([]);     // multi-select time-of-day presets
+  const [timeWindowStart, setTimeWindowStart] = useState('');               // "HH:MM" custom window
   const [timeWindowEnd, setTimeWindowEnd] = useState('');
   const [deadlineDate, setDeadlineDate] = useState('');                     // "YYYY-MM-DD"
   const [deadlineTime, setDeadlineTime] = useState('');                     // "HH:MM"
@@ -107,35 +114,52 @@ export default function QuestCreate() {
     return `${deadlineDate}T23:59:00`;
   };
 
-  const handleSave = () => {
-    createQuestMutation.mutate({
-      data: {
-        partyId: activePartyId!,
-        plainTitle,
-        adventureTitle: adventureTitle || plainTitle,
-        questType,
-        difficulty,
-        isLegendary,
-        assignedUserIds: questType === 'individual' ? assignedUserIds : undefined,
-        scheduleType,
-        scheduledDate: scheduleType === 'date' ? buildScheduledDate() : undefined,
-        recurrenceDays: scheduleType === 'recurring' ? recurrenceDays : undefined,
-        timeWindowStart: (scheduleType === 'recurring' && timeWindowStart) ? timeWindowStart : undefined,
-        timeWindowEnd: (scheduleType === 'recurring' && timeWindowEnd) ? timeWindowEnd : undefined,
-      } as any,
-    }, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListMyQuestAssignmentsQueryKey({ partyId: activePartyId! }) });
-        queryClient.invalidateQueries({ queryKey: getListOpenQuestsQueryKey({ partyId: activePartyId! }) });
-        queryClient.invalidateQueries({ queryKey: getGetHomeDataQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getListQuestsQueryKey({ partyId: activePartyId! }) });
-        toast({ title: 'Quest Created!' });
-        setLocation('/quests');
-      },
-      onError: (err: any) => {
-        toast({ title: 'Error', description: err.message, variant: 'destructive' });
-      },
-    });
+  // Resolve the time windows to create quests for (recurring only).
+  // Multiple selected presets → one quest per window, suffixed with its label.
+  const resolveTimeWindows = (): { start?: string; end?: string; suffix?: string }[] => {
+    if (scheduleType !== 'recurring') return [{}];
+    const windows: { start?: string; end?: string; suffix?: string }[] = selectedPresets
+      .map(id => TIME_PRESETS.find(p => p.id === id))
+      .filter((p): p is typeof TIME_PRESETS[number] => !!p)
+      .map(p => ({ start: p.start, end: p.end, suffix: p.label.charAt(0) + p.label.slice(1).toLowerCase() }));
+    if (timeWindowStart && timeWindowEnd) {
+      windows.push({ start: timeWindowStart, end: timeWindowEnd, suffix: 'Custom' });
+    }
+    return windows.length > 0 ? windows : [{}];
+  };
+
+  const handleSave = async () => {
+    const windows = resolveTimeWindows();
+    const multi = windows.length > 1;
+    try {
+      for (const w of windows) {
+        const titleSuffix = multi && w.suffix ? ` (${w.suffix})` : '';
+        await createQuestMutation.mutateAsync({
+          data: {
+            partyId: activePartyId!,
+            plainTitle: plainTitle + titleSuffix,
+            adventureTitle: (adventureTitle || plainTitle) + titleSuffix,
+            questType,
+            difficulty,
+            isLegendary,
+            assignedUserIds: questType === 'individual' ? assignedUserIds : undefined,
+            scheduleType,
+            scheduledDate: scheduleType === 'date' ? buildScheduledDate() : undefined,
+            recurrenceDays: scheduleType === 'recurring' ? recurrenceDays : undefined,
+            timeWindowStart: w.start,
+            timeWindowEnd: w.end,
+          } as any,
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: getListMyQuestAssignmentsQueryKey({ partyId: activePartyId! }) });
+      queryClient.invalidateQueries({ queryKey: getListOpenQuestsQueryKey({ partyId: activePartyId! }) });
+      queryClient.invalidateQueries({ queryKey: getGetHomeDataQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getListQuestsQueryKey({ partyId: activePartyId! }) });
+      toast({ title: multi ? `${windows.length} Quests Created!` : 'Quest Created!' });
+      setLocation('/quests');
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
   };
 
   if (!activePartyId) return null;
@@ -330,6 +354,26 @@ export default function QuestCreate() {
                   <div className="flex items-center gap-2 text-sm font-bold text-primary">
                     <RefreshCw className="w-4 h-4" /> REPEAT ON
                   </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {DAY_GROUPS.map(g => {
+                      const active = g.days.every(d => recurrenceDays.includes(d)) && recurrenceDays.length === g.days.length;
+                      return (
+                        <button
+                          key={g.id}
+                          type="button"
+                          onClick={() => setRecurrenceDays(active ? [] : g.days)}
+                          className={cn(
+                            'rounded-lg py-1.5 text-[10px] font-bold transition-all border',
+                            active
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'bg-muted text-muted-foreground border-border'
+                          )}
+                        >
+                          {g.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                   <div className="grid grid-cols-7 gap-1">
                     {DAYS.map((day, i) => (
                       <button
@@ -359,14 +403,15 @@ export default function QuestCreate() {
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     {TIME_PRESETS.map(p => {
-                      const selected = timeWindowStart === p.start && timeWindowEnd === p.end;
+                      const selected = selectedPresets.includes(p.id);
                       return (
                         <button
                           key={p.id}
                           type="button"
                           onClick={() => {
-                            if (selected) { setTimeWindowStart(''); setTimeWindowEnd(''); }
-                            else { setTimeWindowStart(p.start); setTimeWindowEnd(p.end); }
+                            setSelectedPresets(prev =>
+                              prev.includes(p.id) ? prev.filter(id => id !== p.id) : [...prev, p.id]
+                            );
                           }}
                           className={cn(
                             'rounded-xl px-2 py-2 text-center transition-all border',
@@ -382,9 +427,12 @@ export default function QuestCreate() {
                       );
                     })}
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Pick one or more — e.g. Morning + Evening creates a quest for each time.
+                  </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs text-muted-foreground block mb-1">FROM</label>
+                      <label className="text-xs text-muted-foreground block mb-1">CUSTOM FROM</label>
                       <input
                         type="time"
                         value={timeWindowStart}
@@ -393,7 +441,7 @@ export default function QuestCreate() {
                       />
                     </div>
                     <div>
-                      <label className="text-xs text-muted-foreground block mb-1">TO</label>
+                      <label className="text-xs text-muted-foreground block mb-1">CUSTOM TO</label>
                       <input
                         type="time"
                         value={timeWindowEnd}
@@ -477,7 +525,7 @@ export default function QuestCreate() {
                 <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                   <RefreshCw className="w-3 h-3" />
                   {recurrenceDays.map(d => DAYS[d]).join(', ')}
-                  {timeWindowStart && timeWindowEnd && ` • ${timeWindowStart}–${timeWindowEnd}`}
+                  {resolveTimeWindows().filter(w => w.start).map(w => ` • ${w.start}–${w.end}`).join('')}
                 </div>
               )}
               {scheduleType === 'date' && deadlineDate && (
