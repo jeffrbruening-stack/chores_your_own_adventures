@@ -463,6 +463,8 @@ function WizardSVG({ size }: { size: number }) {
   );
 }
 
+import wizardAiSprite from '../assets/sprites/wizard-ai-benchmark.png';
+
 export default function WizardBenchmark() {
   const sizes: { label: string; px: number }[] = [
     { label: '48px — native 1×', px: 48 },
@@ -481,6 +483,25 @@ export default function WizardBenchmark() {
         open-front coat · gold trim · tall hat · crystal staff · approval gate
       </p>
 
+      <h2 style={{ fontSize: 12, letterSpacing: 2, marginBottom: 16, color: '#F8D840' }}>
+        A — AI-GENERATED SPRITE (new direction)
+      </h2>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 48, alignItems: 'flex-end', marginBottom: 48 }}>
+        {sizes.map(({ label, px }) => (
+          <div key={`ai-${px}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+            <img
+              src={wizardAiSprite}
+              alt="AI-generated wizard sprite"
+              style={{ height: px * 1.5, width: 'auto', imageRendering: 'pixelated' }}
+            />
+            <span style={{ fontSize: 10, color: '#6850A8' }}>{label}</span>
+          </div>
+        ))}
+      </div>
+
+      <h2 style={{ fontSize: 12, letterSpacing: 2, marginBottom: 16, color: '#F8D840' }}>
+        B — CODE-DRAWN SPRITE (previous benchmark)
+      </h2>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 48, alignItems: 'flex-end' }}>
         {sizes.map(({ label, px }) => (
           <div key={px} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
