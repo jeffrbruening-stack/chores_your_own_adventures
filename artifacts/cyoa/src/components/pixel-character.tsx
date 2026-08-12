@@ -13,6 +13,13 @@ import sprite_human_rogue     from '../assets/sprites/sprite_human_rogue.png';
 import sprite_human_cleric    from '../assets/sprites/sprite_human_cleric.png';
 import sprite_human_barbarian from '../assets/sprites/sprite_human_barbarian.png';
 
+import sprite_human_fighter_female   from '../assets/sprites/sprite_human_fighter_female.png';
+import sprite_human_ranger_female    from '../assets/sprites/sprite_human_ranger_female.png';
+import sprite_human_wizard_female    from '../assets/sprites/sprite_human_wizard_female.png';
+import sprite_human_rogue_female     from '../assets/sprites/sprite_human_rogue_female.png';
+import sprite_human_cleric_female    from '../assets/sprites/sprite_human_cleric_female.png';
+import sprite_human_barbarian_female from '../assets/sprites/sprite_human_barbarian_female.png';
+
 import sprite_elf_fighter   from '../assets/sprites/sprite_elf_fighter.png';
 import sprite_elf_ranger    from '../assets/sprites/sprite_elf_ranger.png';
 import sprite_elf_wizard    from '../assets/sprites/sprite_elf_wizard.png';
@@ -59,6 +66,10 @@ const SPRITES: Record<string, string> = {
   human_fighter: sprite_human_fighter,   human_ranger: sprite_human_ranger,
   human_wizard:  sprite_human_wizard,    human_rogue:  sprite_human_rogue,
   human_cleric:  sprite_human_cleric,    human_barbarian: sprite_human_barbarian,
+
+  human_fighter_female: sprite_human_fighter_female,   human_ranger_female: sprite_human_ranger_female,
+  human_wizard_female:  sprite_human_wizard_female,    human_rogue_female:  sprite_human_rogue_female,
+  human_cleric_female:  sprite_human_cleric_female,    human_barbarian_female: sprite_human_barbarian_female,
 
   elf_fighter: sprite_elf_fighter,   elf_ranger: sprite_elf_ranger,
   elf_wizard:  sprite_elf_wizard,    elf_rogue:  sprite_elf_rogue,
@@ -1831,8 +1842,10 @@ export function PixelCharacter({ appearance = {}, equipped = {}, size = 192 }: P
   // Background renders behind via SVG; pet/effect render in front via SVG.
   // Wearable equipment (headgear/weapons) is baked into the composite sprites
   // until the layered asset set is built in a follow-up task.
+  // Feminine characters get the female sprite variant when one exists;
+  // falls back to the base sprite for species/classes without one.
   const spriteKey = `${species}_${classId}`;
-  const spriteSrc = SPRITES[spriteKey];
+  const spriteSrc = (gender === 'feminine' && SPRITES[`${spriteKey}_female`]) || SPRITES[spriteKey];
 
   if (spriteSrc) {
     const bgElements = renderBackground(equipped);

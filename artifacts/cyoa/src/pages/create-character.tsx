@@ -72,7 +72,7 @@ export default function CreateCharacter() {
             eyeColor: c.eyeColor ?? 'brown',
             hasGlasses: c.hasGlasses ?? false,
             facialHair: c.facialHair ?? 'none',
-            species: c.species ?? 'human',
+            species: 'human', // species removed for now — everyone is human
             gender: c.gender ?? 'any',
             class: c.class ?? 'fighter',
           });

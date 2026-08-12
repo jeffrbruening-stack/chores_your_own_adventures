@@ -129,8 +129,24 @@ export default function QuestCreate() {
   };
 
   const handleSave = async () => {
+    // Validation
+    if (scheduleType === 'recurring') {
+      if (recurrenceDays.length === 0) {
+        toast({ title: 'Pick at least one day', description: 'A repeating quest needs days to repeat on.', variant: 'destructive' });
+        return;
+      }
+      if ((timeWindowStart && !timeWindowEnd) || (!timeWindowStart && timeWindowEnd)) {
+        toast({ title: 'Incomplete custom time', description: 'Fill in both FROM and TO, or clear both.', variant: 'destructive' });
+        return;
+      }
+      if (timeWindowStart && timeWindowEnd && timeWindowStart === timeWindowEnd) {
+        toast({ title: 'Invalid custom time', description: 'FROM and TO can\u2019t be the same time.', variant: 'destructive' });
+        return;
+      }
+    }
     const windows = resolveTimeWindows();
     const multi = windows.length > 1;
+    let created = 0;
     try {
       for (const w of windows) {
         const titleSuffix = multi && w.suffix ? ` (${w.suffix})` : '';
@@ -150,16 +166,34 @@ export default function QuestCreate() {
             timeWindowEnd: w.end,
           } as any,
         });
+        created++;
       }
-      queryClient.invalidateQueries({ queryKey: getListMyQuestAssignmentsQueryKey({ partyId: activePartyId! }) });
-      queryClient.invalidateQueries({ queryKey: getListOpenQuestsQueryKey({ partyId: activePartyId! }) });
-      queryClient.invalidateQueries({ queryKey: getGetHomeDataQueryKey() });
-      queryClient.invalidateQueries({ queryKey: getListQuestsQueryKey({ partyId: activePartyId! }) });
+      invalidateQuestCaches();
       toast({ title: multi ? `${windows.length} Quests Created!` : 'Quest Created!' });
       setLocation('/quests');
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      // Partial failure: some windows may already be created — refresh caches
+      // and tell the user exactly what happened so a retry doesn't duplicate.
+      invalidateQuestCaches();
+      if (created > 0) {
+        const doneSuffixes = windows.slice(0, created).map(w => w.suffix).filter(Boolean).join(', ');
+        toast({
+          title: `Created ${created} of ${windows.length}`,
+          description: `${doneSuffixes || created} already created — only re-create the missing one(s). Error: ${err.message}`,
+          variant: 'destructive',
+        });
+        setLocation('/quests');
+      } else {
+        toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      }
     }
+  };
+
+  const invalidateQuestCaches = () => {
+    queryClient.invalidateQueries({ queryKey: getListMyQuestAssignmentsQueryKey({ partyId: activePartyId! }) });
+    queryClient.invalidateQueries({ queryKey: getListOpenQuestsQueryKey({ partyId: activePartyId! }) });
+    queryClient.invalidateQueries({ queryKey: getGetHomeDataQueryKey() });
+    queryClient.invalidateQueries({ queryKey: getListQuestsQueryKey({ partyId: activePartyId! }) });
   };
 
   if (!activePartyId) return null;
@@ -465,7 +499,7 @@ export default function QuestCreate() {
 
             <button
               onClick={handleNext}
-              disabled={scheduleType === 'date' && !deadlineDate}
+              disabled={(scheduleType === 'date' && !deadlineDate) || (scheduleType === 'recurring' && recurrenceDays.length === 0)}
               className="w-full mt-4 bg-primary text-primary-foreground font-pixel py-4 px-4 rounded-xl pixel-corners border-b-4 border-r-4 border-black active:border-b-0 active:border-r-0 active:translate-y-1 active:translate-x-1 transition-all disabled:opacity-50"
             >
               NEXT: REWARDS

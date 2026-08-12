@@ -103,6 +103,14 @@ router.post("/", requireAuth, async (req, res) => {
     const rewards = DIFFICULTY_REWARDS[difficulty as keyof typeof DIFFICULTY_REWARDS] ?? DIFFICULTY_REWARDS.normal;
 
     // Derive isRoutine / routineSchedule from scheduleType + recurrenceDays when provided
+    if (scheduleType === 'recurring' && (!Array.isArray(recurrenceDays) || recurrenceDays.length === 0) && !routineSchedule) {
+      res.status(400).json({ error: "Recurring quests need at least one repeat day" });
+      return;
+    }
+    if ((timeWindowStart && !timeWindowEnd) || (!timeWindowStart && timeWindowEnd)) {
+      res.status(400).json({ error: "Time window needs both start and end" });
+      return;
+    }
     const effectiveIsRoutine = scheduleType === 'recurring' ? true : (scheduleType === 'date' ? false : (isRoutine ?? false));
     const effectiveRoutineSchedule =
       Array.isArray(recurrenceDays) && recurrenceDays.length > 0
