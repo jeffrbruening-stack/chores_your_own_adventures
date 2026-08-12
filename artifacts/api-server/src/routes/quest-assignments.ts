@@ -12,6 +12,7 @@ import { eq, and, inArray } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { assertLeader } from "../lib/party.js";
 import { DIFFICULTY_REWARDS, levelFromXp } from "../lib/rewards.js";
+import { ensureRoutineAssignments, isAssignmentVisibleNow, tzOffsetFromHeader } from "../lib/routine.js";
 
 const router = Router();
 
@@ -36,6 +37,8 @@ const ASSIGNMENT_SELECT = {
   questType: questDefinitionsTable.questType,
   timeWindowStart: questDefinitionsTable.timeWindowStart,
   timeWindowEnd: questDefinitionsTable.timeWindowEnd,
+  isRoutine: questDefinitionsTable.isRoutine,
+  routineSchedule: questDefinitionsTable.routineSchedule,
 };
 
 // GET /api/quest-assignments?partyId=
@@ -43,6 +46,8 @@ const ASSIGNMENT_SELECT = {
 router.get("/", requireAuth, async (req, res) => {
   try {
     const partyId = parseInt(req.query.partyId as string);
+    const tz = tzOffsetFromHeader(req.headers["x-tz-offset"]);
+    if (partyId) await ensureRoutineAssignments(req.userId!, partyId, tz);
     const assignments = await db.select(ASSIGNMENT_SELECT)
       .from(questAssignmentsTable)
       .innerJoin(questDefinitionsTable, eq(questDefinitionsTable.id, questAssignmentsTable.questDefinitionId))
@@ -52,8 +57,9 @@ router.get("/", requireAuth, async (req, res) => {
         inArray(questAssignmentsTable.status, ["active", "submitted"]),
         eq(questDefinitionsTable.isArchived, false),
       ));
-    res.json(assignments);
-  } catch {
+    res.json(assignments.filter((a) => isAssignmentVisibleNow(a, tz)));
+  } catch (err) {
+    console.error("quest-assignments error:", err);
     res.status(500).json({ error: "Failed" });
   }
 });
@@ -79,7 +85,7 @@ router.post("/:assignmentId/complete", requireAuth, async (req, res) => {
     await db.update(questAssignmentsTable).set({
       status: newStatus,
       completedAt: now,
-      verificationNote: req.body.note ?? null,
+      verificationNote: req.body?.note ?? null,
       xpAwarded: quest.xpReward,
       goldAwarded: quest.goldReward,
       partyGoldAwarded: quest.partyGoldReward,
@@ -115,7 +121,8 @@ router.post("/:assignmentId/complete", requireAuth, async (req, res) => {
     }
 
     res.json({ status: newStatus, xpAwarded: quest.xpReward, goldAwarded: quest.goldReward, xpGained, goldGained, newLevel, leveledUp });
-  } catch {
+  } catch (err) {
+    console.error("quest-assignments error:", err);
     res.status(500).json({ error: "Failed" });
   }
 });
@@ -136,10 +143,11 @@ router.post("/:assignmentId/submit-verification", requireAuth, async (req, res) 
     await db.update(questAssignmentsTable).set({
       status: "submitted",
       completedAt: new Date(),
-      verificationNote: req.body.note ?? null,
+      verificationNote: req.body?.note ?? null,
     }).where(eq(questAssignmentsTable.id, assignmentId));
     res.json({ status: "submitted" });
-  } catch {
+  } catch (err) {
+    console.error("quest-assignments error:", err);
     res.status(500).json({ error: "Failed" });
   }
 });

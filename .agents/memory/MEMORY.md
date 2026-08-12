@@ -9,3 +9,5 @@
 - [CYOA quest routing and status](cyoa-quest-routing.md) — Express route ordering critical; static paths must precede /:questId; status field is 'active' not 'available'; give-me-a-quest is GET /api/home/give-me-a-quest
 - [CYOA party admin](cyoa-party-admin.md) — appearance unlock endpoint PATCH /api/parties/:partyId/members/:memberId/unlock-appearance; leaders bypass 7-day character lock; ManagePartyMember sheet in party.tsx
 - [CYOA member roles](cyoa-member-roles.md) — only 3 valid member_role enum values: leader, adult, kid — "founder" does not exist; leaders+adults bypass character cooldown
+- [CYOA wizard AI sprite](cyoa-wizard-ai-sprite.md) — wizard renders an approved AI-generated PNG composite; modular layered assets pending; hard approval gate per class/species
+- [CYOA routine quest re-issuance](cyoa-routine-reissue.md) — recurring quests are lazily re-issued in listing endpoints via ensureRoutineAssignments; no scheduler exists

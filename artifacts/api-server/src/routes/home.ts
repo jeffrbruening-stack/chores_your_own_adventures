@@ -11,6 +11,7 @@ import { requireAuth } from "../lib/auth.js";
 import { xpForLevel } from "../lib/rewards.js";
 import { toUserProfile } from "./auth.js";
 import { assertMember } from "../lib/party.js";
+import { ensureRoutineAssignments, isAssignmentVisibleNow, tzOffsetFromHeader } from "../lib/routine.js";
 
 const router = Router();
 
@@ -36,6 +37,8 @@ const ASSIGNMENT_SELECT = {
   questType: questDefinitionsTable.questType,
   timeWindowStart: questDefinitionsTable.timeWindowStart,
   timeWindowEnd: questDefinitionsTable.timeWindowEnd,
+  isRoutine: questDefinitionsTable.isRoutine,
+  routineSchedule: questDefinitionsTable.routineSchedule,
 };
 
 // GET /api/home/give-me-a-quest?partyId=
@@ -46,6 +49,9 @@ router.get("/give-me-a-quest", requireAuth, async (req, res) => {
     const partyId = parseInt(req.query.partyId as string);
     if (!partyId) { res.status(400).json({ error: "partyId required" }); return; }
     await assertMember(partyId, req.userId!);
+
+    // Re-issue any routine quests due today so "Give me a quest!" sees them
+    await ensureRoutineAssignments(req.userId!, partyId, tzOffsetFromHeader(req.headers["x-tz-offset"]));
 
     // 1. Check for existing active/submitted assignments (same filter as Home)
     const activeAssignments = await db.select(ASSIGNMENT_SELECT)
@@ -58,9 +64,11 @@ router.get("/give-me-a-quest", requireAuth, async (req, res) => {
         eq(questDefinitionsTable.isArchived, false),
       ));
 
-    if (activeAssignments.length > 0) {
+    const tz = tzOffsetFromHeader(req.headers["x-tz-offset"]);
+    const visibleAssignments = activeAssignments.filter((a) => isAssignmentVisibleNow(a, tz));
+    if (visibleAssignments.length > 0) {
       // Prioritise: expiring soonest → submitted (needs action) → then any active
-      const sorted = [...activeAssignments].sort((a, b) => {
+      const sorted = [...visibleAssignments].sort((a, b) => {
         // Timed quests with expiry come first (ascending expiry)
         if (a.expiresAt && b.expiresAt) return new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime();
         if (a.expiresAt && !b.expiresAt) return -1;
@@ -136,6 +144,10 @@ router.get("/", requireAuth, async (req, res) => {
 
     const partyId = user.activePartyId;
 
+    // Re-issue any routine (recurring) quests due today before listing
+    const tz = tzOffsetFromHeader(req.headers["x-tz-offset"]);
+    if (partyId) await ensureRoutineAssignments(userId, partyId, tz);
+
     // Character
     const [character] = await db.select().from(charactersTable)
       .where(eq(charactersTable.userId, userId)).limit(1);
@@ -162,6 +174,8 @@ router.get("/", requireAuth, async (req, res) => {
       questType: questDefinitionsTable.questType,
       timeWindowStart: questDefinitionsTable.timeWindowStart,
       timeWindowEnd: questDefinitionsTable.timeWindowEnd,
+      isRoutine: questDefinitionsTable.isRoutine,
+      routineSchedule: questDefinitionsTable.routineSchedule,
     }).from(questAssignmentsTable)
       .innerJoin(questDefinitionsTable, eq(questDefinitionsTable.id, questAssignmentsTable.questDefinitionId))
       .where(and(
@@ -169,7 +183,7 @@ router.get("/", requireAuth, async (req, res) => {
         eq(questAssignmentsTable.partyId, partyId),
         inArray(questAssignmentsTable.status, ["active", "submitted"]),
         eq(questDefinitionsTable.isArchived, false),
-      )) : [];
+      )).then(rows => rows.filter((a) => isAssignmentVisibleNow(a, tz))) : [];
 
     // Active party
     const [activeParty] = partyId ? await db.select({

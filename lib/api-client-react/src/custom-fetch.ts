@@ -349,6 +349,17 @@ export async function customFetch<T = unknown>(
     headers.set("accept", DEFAULT_JSON_ACCEPT);
   }
 
+  // Send the client's timezone offset so the server can evaluate
+  // time-of-day logic (e.g. quest time windows) in the user's local time.
+  // JS convention: minutes to ADD to local time to get UTC (positive west of UTC).
+  if (!headers.has("x-tz-offset")) {
+    try {
+      headers.set("x-tz-offset", String(new Date().getTimezoneOffset()));
+    } catch {
+      /* non-critical */
+    }
+  }
+
   // Attach bearer token when an auth getter is configured and no
   // Authorization header has been explicitly provided.
   if (_authTokenGetter && !headers.has("authorization")) {

@@ -19,6 +19,12 @@ import { cn } from '@/lib/utils';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+const TIME_PRESETS = [
+  { id: 'morning',   label: 'MORNING',   range: '5am–12pm', icon: '🌅', start: '05:00', end: '12:00' },
+  { id: 'afternoon', label: 'AFTERNOON', range: '12–5pm',   icon: '☀️', start: '12:00', end: '17:00' },
+  { id: 'evening',   label: 'EVENING',   range: '5–10pm',   icon: '🌙', start: '17:00', end: '22:00' },
+];
+
 export default function QuestCreate() {
   const [, setLocation] = useLocation();
   const { activePartyId } = useAuth();
@@ -350,6 +356,31 @@ export default function QuestCreate() {
                 <div className="bg-card border border-border rounded-xl p-4 space-y-3">
                   <div className="flex items-center gap-2 text-sm font-bold text-primary">
                     <Clock className="w-4 h-4" /> TIME WINDOW (OPTIONAL)
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {TIME_PRESETS.map(p => {
+                      const selected = timeWindowStart === p.start && timeWindowEnd === p.end;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => {
+                            if (selected) { setTimeWindowStart(''); setTimeWindowEnd(''); }
+                            else { setTimeWindowStart(p.start); setTimeWindowEnd(p.end); }
+                          }}
+                          className={cn(
+                            'rounded-xl px-2 py-2 text-center transition-all border',
+                            selected
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'bg-muted text-muted-foreground border-border'
+                          )}
+                        >
+                          <div className="text-sm leading-none mb-1">{p.icon}</div>
+                          <div className="text-[11px] font-bold leading-tight">{p.label}</div>
+                          <div className="text-[9px] opacity-75 leading-tight">{p.range}</div>
+                        </button>
+                      );
+                    })}
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
