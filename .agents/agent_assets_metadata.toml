@@ -63,3 +63,17 @@ uri = "file://artifacts/cyoa/src/assets/sprites/sprite_human_barbarian_female_dr
 type = "image"
 title = "Female Barbarian — draft"
 description = "Female class sprite in the approved pixel-art style"
+
+[[outputs]]
+id = "mwKzzWi0RZi_x81x8QTdv"
+uri = "file://attached_assets/paperdoll/preview_wizard_masculine.png"
+type = "image"
+title = "Paper-Doll Wizard — Benchmark"
+description = "Human masculine base body wearing snap-on wizard robe, hat, and staff — assembled from 4 separate transparent layers."
+
+[[outputs]]
+id = "Ajx6JaQ6mwutNErvUbwFn"
+uri = "file://attached_assets/paperdoll/preview_layers.png"
+type = "image"
+title = "The 4 Separate Layers"
+description = "Base body, robe, hat, and staff as individual transparent pieces that snap onto anchor points."

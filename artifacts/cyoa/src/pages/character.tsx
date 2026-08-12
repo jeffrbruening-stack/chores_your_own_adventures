@@ -101,12 +101,6 @@ export default function Character() {
       );
       queryClient.invalidateQueries({ queryKey: getGetInventoryQueryKey() });
       toast({ title: 'Unequipped', description: `Removed ${SLOT_LABELS[slot]}` });
-      if (['outfit', 'head', 'main_hand', 'off_hand'].includes(slot)) {
-        // Server repaints the portrait in the background; refresh when it lands
-        for (const delay of [85_000, 120_000]) {
-          setTimeout(() => queryClient.invalidateQueries({ queryKey: getGetMyCharacterQueryKey() }), delay);
-        }
-      }
     } catch {
       toast({ title: 'Error', description: 'Failed to unequip', variant: 'destructive' });
     } finally {

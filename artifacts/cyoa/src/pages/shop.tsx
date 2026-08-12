@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Coins, Lock, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { getGetInventoryQueryKey, getGetMyCharacterQueryKey } from '@workspace/api-client-react';
+import { getGetInventoryQueryKey } from '@workspace/api-client-react';
 
 interface ShopItem {
   id: number;
@@ -133,22 +133,12 @@ export default function Shop() {
         body: JSON.stringify({ shopItemId: item.id, slot }),
       });
       if (!res.ok) throw new Error('Equip failed');
-      const isWearable = ['outfit', 'head', 'main_hand', 'off_hand'].includes(slot);
       toast({
         title: 'Equipped!',
-        description: isWearable
-          ? `${item.name} is now equipped — your portrait is being repainted!`
-          : `${item.name} is now equipped.`,
+        description: `${item.name} is now equipped.`,
         className: 'bg-green-600 text-white font-bold border-none',
       });
       queryClient.invalidateQueries({ queryKey: getGetInventoryQueryKey() });
-      if (isWearable) {
-        // The server repaints the portrait in the background (~15s debounce + ~60s
-        // generation). Refresh the character so the new portrait pops in.
-        for (const delay of [85_000, 120_000]) {
-          setTimeout(() => queryClient.invalidateQueries({ queryKey: getGetMyCharacterQueryKey() }), delay);
-        }
-      }
     } catch (e: any) {
       toast({ title: 'Equip Failed', description: e.message, variant: 'destructive' });
     } finally {
