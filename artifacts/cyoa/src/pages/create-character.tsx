@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { PixelCharacter, type CharacterAppearance } from '@/components/pixel-character';
 import {
   SKIN_TONES, HAIR_COLORS, EYE_COLORS, HAIR_STYLES,
-  SPECIES_LIST, CLASSES_LIST, FACIAL_HAIR_OPTIONS,
+  CLASSES_LIST, FACIAL_HAIR_OPTIONS,
 } from '@/components/pixel-character';
 import { Dices, Sparkles, ChevronRight, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -98,7 +98,7 @@ export default function CreateCharacter() {
       eyeColor: rand(EYE_COLORS).id,
       hasGlasses: Math.random() < 0.2,
       facialHair: rand(FACIAL_HAIR_OPTIONS).id,
-      species: rand(SPECIES_LIST).id,
+      species: 'human',
       gender: rand(['masculine', 'feminine', 'any']),
       class: rand(CLASSES_LIST).id,
     });
@@ -189,7 +189,6 @@ export default function CreateCharacter() {
           <div className="text-center">
             <p className="font-pixel text-sm text-primary">{adventurerName || '???'}</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {SPECIES_LIST.find(s => s.id === appearance.species)?.label ?? 'Human'}{' · '}
               {CLASSES_LIST.find(c => c.id === appearance.class)?.label ?? 'Fighter'}
             </p>
           </div>
@@ -233,16 +232,7 @@ export default function CreateCharacter() {
           </div>
         </Section>
 
-        {/* Species */}
-        <Section title="SPECIES">
-          <div className="grid grid-cols-4 gap-2">
-            {SPECIES_LIST.map(s => (
-              <OptionButton key={s.id} selected={appearance.species === s.id} onClick={() => set('species')(s.id)}>
-                {s.label}
-              </OptionButton>
-            ))}
-          </div>
-        </Section>
+        {/* Species selection removed for now — everyone is human. Bring back in a later version. */}
 
         {/* Class */}
         <Section title="CLASS">
