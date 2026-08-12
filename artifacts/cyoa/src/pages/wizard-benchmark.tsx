@@ -463,7 +463,7 @@ function WizardSVG({ size }: { size: number }) {
   );
 }
 
-import wizardAiSprite from '../assets/sprites/wizard-ai-benchmark.png';
+import wizardAiSprite from '../assets/sprites/wizard-ai-benchmark-trimmed.png';
 
 export default function WizardBenchmark() {
   const sizes: { label: string; px: number }[] = [

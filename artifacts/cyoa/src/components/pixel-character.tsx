@@ -4,6 +4,7 @@
  * Displayed crisp via image-rendering: pixelated at chosen size.
  */
 import React from 'react';
+import wizardAiSprite from '../assets/sprites/wizard-ai-benchmark-trimmed.png';
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -1752,20 +1753,53 @@ export function PixelCharacter({ appearance = {}, equipped = {}, size = 192 }: P
   const isWizard = classId === 'wizard';
 
   if (isWizard) {
-    const wizardElements = renderWizardSprite(
-      appearance, equipped, skinCol, sdark, hairCol, eyeCol, outfitColor,
-    );
+    // Approved AI-generated benchmark sprite (single composite image).
+    // Layered modular assets will replace this composite in a follow-up.
+    // Equipped background renders behind the sprite; pet/effect render in front.
+    // Wearable equipment (headgear/weapons) is baked into the composite until
+    // the layered asset set exists.
+    const bgElements = renderBackground(equipped);
+    const fgElements = [...renderPet(equipped), ...renderEffect(equipped)];
+    const h = Math.round(size * 1.5);
+    const overlaySvg = (els: El[], z: number) =>
+      els.length === 0 ? null : (
+        <svg
+          width={size}
+          height={h}
+          viewBox="0 0 32 48"
+          xmlns="http://www.w3.org/2000/svg"
+          preserveAspectRatio="none"
+          style={{ position: 'absolute', inset: 0, zIndex: z, imageRendering: 'pixelated' } as React.CSSProperties}
+          shapeRendering="crispEdges"
+        >
+          {els}
+        </svg>
+      );
     return (
-      <svg
-        width={size}
-        height={Math.round(size * 1.5)}
-        viewBox="0 0 48 72"
-        xmlns="http://www.w3.org/2000/svg"
-        style={{ imageRendering: 'pixelated' } as React.CSSProperties}
-        shapeRendering="crispEdges"
+      <div
+        style={{
+          position: 'relative',
+          width: size,
+          height: h,
+          display: 'flex',
+          alignItems: 'flex-end',
+          justifyContent: 'center',
+        }}
       >
-        {wizardElements}
-      </svg>
+        {overlaySvg(bgElements, 0)}
+        <img
+          src={wizardAiSprite}
+          alt="Wizard character"
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            maxWidth: '100%',
+            maxHeight: '100%',
+            imageRendering: 'pixelated',
+          } as React.CSSProperties}
+        />
+        {overlaySvg(fgElements, 2)}
+      </div>
     );
   }
 
