@@ -28,3 +28,38 @@ uri = "file://artifacts/cyoa/src/assets/sprites/sprite_human_wizard.png"
 type = "image"
 title = "Male Wizard — current approved art"
 description = "For side-by-side style comparison"
+
+[[outputs]]
+id = "C17c1rzLS-7Yd-L-KxFRP"
+uri = "file://artifacts/cyoa/src/assets/sprites/sprite_human_fighter_female_draft.png"
+type = "image"
+title = "Female Fighter — draft"
+description = "Female class sprite in the approved pixel-art style"
+
+[[outputs]]
+id = "ZYf-rWaF6G-fCaOO-524a"
+uri = "file://artifacts/cyoa/src/assets/sprites/sprite_human_ranger_female_draft.png"
+type = "image"
+title = "Female Ranger — draft"
+description = "Female class sprite in the approved pixel-art style"
+
+[[outputs]]
+id = "HbRg6FG8lPpWepKXRho9I"
+uri = "file://artifacts/cyoa/src/assets/sprites/sprite_human_rogue_female_draft.png"
+type = "image"
+title = "Female Rogue — draft"
+description = "Female class sprite in the approved pixel-art style"
+
+[[outputs]]
+id = "YFteog29jgRtM4kKpXu6-"
+uri = "file://artifacts/cyoa/src/assets/sprites/sprite_human_cleric_female_draft.png"
+type = "image"
+title = "Female Cleric — draft"
+description = "Female class sprite in the approved pixel-art style"
+
+[[outputs]]
+id = "nd8Epdsxd351mSRdSHaDv"
+uri = "file://artifacts/cyoa/src/assets/sprites/sprite_human_barbarian_female_draft.png"
+type = "image"
+title = "Female Barbarian — draft"
+description = "Female class sprite in the approved pixel-art style"
