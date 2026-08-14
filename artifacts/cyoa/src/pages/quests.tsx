@@ -13,6 +13,8 @@ import {
 } from '@workspace/api-client-react';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
+import { celebrateQuestComplete, celebrateLevelUp } from '@/lib/celebrate';
+import { playTadaSound, playLevelUpSound } from '@/lib/sounds';
 import { QuestCard } from '@/components/quest-card';
 import { QuestDetailSheet, type QuestLike } from '@/components/quest-detail-sheet';
 import { Plus } from 'lucide-react';
@@ -68,6 +70,13 @@ export default function Quests() {
         throw new Error(err.error ?? 'Failed');
       }
       const result = await res.json();
+      if (result.leveledUp) {
+        celebrateLevelUp();
+        if (currentUser?.soundEnabled) playLevelUpSound();
+      } else {
+        celebrateQuestComplete();
+        if (currentUser?.soundEnabled) playTadaSound();
+      }
       toast({
         title: result.leveledUp ? '⚡ LEVEL UP!' : '✅ Quest Complete!',
         description: result.leveledUp

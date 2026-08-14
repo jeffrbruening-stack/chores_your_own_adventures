@@ -15,7 +15,8 @@ import { PixelCharacter, portraitImageUrl, type EquippedItems } from '@/componen
 import { Sword, Coins, Bell, ChevronDown, Plus, Settings as SettingsIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'wouter';
-import { playSuccessSound, playLevelUpSound } from '@/lib/sounds';
+import { playSuccessSound, playLevelUpSound, playTadaSound } from '@/lib/sounds';
+import { celebrateQuestComplete, celebrateLevelUp } from '@/lib/celebrate';
 import { cn } from '@/lib/utils';
 
 // Pixel-art broom SVG — used for the "Give Me a Quest!" action
@@ -183,6 +184,7 @@ export default function Home() {
       onSuccess: (res) => {
         if (currentUser?.hapticsEnabled && 'vibrate' in navigator) navigator.vibrate([100, 50, 100, 50, 200]);
         if (res.leveledUp) {
+          celebrateLevelUp();
           if (currentUser?.soundEnabled) playLevelUpSound();
           toast({
             title: '⚡ LEVEL UP!',
@@ -190,7 +192,8 @@ export default function Home() {
             className: 'bg-yellow-500 text-black border-none font-bold',
           });
         } else {
-          if (currentUser?.soundEnabled) playSuccessSound();
+          celebrateQuestComplete();
+          if (currentUser?.soundEnabled) playTadaSound();
           toast({
             title: 'Quest Complete!',
             description: `+${res.xpGained} XP  +${res.goldGained} Gold`,
