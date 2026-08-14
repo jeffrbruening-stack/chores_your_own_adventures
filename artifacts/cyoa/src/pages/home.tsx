@@ -12,7 +12,7 @@ import { Progress } from '@/components/ui/progress';
 import { QuestCard } from '@/components/quest-card';
 import { QuestDetailSheet, type QuestLike } from '@/components/quest-detail-sheet';
 import { PixelCharacter, portraitImageUrl, type EquippedItems } from '@/components/pixel-character';
-import { Sword, Coins, Bell, ChevronDown, Plus } from 'lucide-react';
+import { Sword, Coins, Bell, ChevronDown, Plus, Settings as SettingsIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'wouter';
 import { playSuccessSound, playLevelUpSound } from '@/lib/sounds';
@@ -240,13 +240,21 @@ export default function Home() {
             {activeParty?.name ?? '—'} <ChevronDown className="w-3 h-3" />
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <div className="text-right">
             <div className="text-[10px] text-muted-foreground font-bold">PARTY GOLD</div>
             <div className="font-pixel text-[11px] text-yellow-400 flex items-center gap-1 justify-end mt-0.5">
               {partyGoldReserve ?? 0} <Coins className="w-3 h-3" />
             </div>
           </div>
+          <Link
+            href="/settings"
+            className="p-2 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            aria-label="Settings & exit"
+            data-testid="link-settings"
+          >
+            <SettingsIcon className="w-4 h-4" />
+          </Link>
         </div>
       </div>
 
