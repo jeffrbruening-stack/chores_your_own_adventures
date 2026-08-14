@@ -15,3 +15,8 @@ description: Art direction + layering lessons for the modular paper-doll charact
 - Assets live in `attached_assets/paperdoll/` (v2_* = chunky style, trim_* = fuzz-trimmed); composites tuned with magick -geometry offsets — these offsets are the prototype anchor-point data.
 
 **Why:** user cares deeply about "dressed, not doll behind cutout" look and deliberate simplification; violations caused two rejection rounds.
+
+**PIVOT (Aug 2026): AI-generated art abandoned — user supplies sprite packs.** All AI-generated benchmark attempts rejected (patch-edits degrade pixel art; garments read "pasted on"). User now provides the GandalfHardcore Character Asset Pack (license: commercial game use OK; no resale/redistribution/AI-training). Assets in `artifacts/cyoa/public/paperdoll/gandalf/` (kebab-case renames + LICENSE.txt).
+- Sheet format: 800×448 PNG, 80×64 px cell grid, all layer sheets pixel-aligned — compositing = stacking sheets and cropping the same cell. Idle frame = cell (0,0).
+- Renderer proof: `/paperdoll-preview` route (unprotected) in cyoa; CSS background-position crop, backgroundSize = sheet×scale, image-rendering: pixelated. Layer order: skin → boots → pants/skirt → shirt/corset → hair → hand item.
+- Process gate: user wants incremental integration — base pack proven first, expansion packs added only after explicit approval. Do NOT generate or redraw any art.

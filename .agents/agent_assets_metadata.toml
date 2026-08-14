@@ -77,3 +77,10 @@ uri = "file://attached_assets/paperdoll/preview_layers.png"
 type = "image"
 title = "Updated Layers"
 description = "Base body, fully closed robe, hat, and staff."
+
+[[outputs]]
+id = "3kZyisir1eDSZDvQSP5Q1"
+uri = "file://screenshots/paperdoll-preview.jpg"
+type = "image"
+title = "Your Sprite Pack — Composited In-App"
+description = "Male and female characters assembled live in the app from stacked layers: skin, boots, pants/skirt, shirt/corset, hair, and sword. No art generated — 100% your pack's files."
