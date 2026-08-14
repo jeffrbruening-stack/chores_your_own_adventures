@@ -9,6 +9,7 @@ import {
 import { useAuth } from '@/contexts/auth-context';
 import { Progress } from '@/components/ui/progress';
 import { QuestCard } from '@/components/quest-card';
+import { PartyGoalCard } from '@/components/party-goal-card';
 import { QuestDetailSheet, type QuestLike } from '@/components/quest-detail-sheet';
 import { Sword, Coins, Bell, ChevronDown, ChevronRight, Plus, Settings as SettingsIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -352,20 +353,7 @@ export default function Home() {
 
       {/* Active party goal */}
       {activeGoal && (
-        <div className="bg-card border-2 border-yellow-900/40 p-4 rounded-xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 bg-yellow-700/80 text-white text-[9px] font-pixel px-2 py-1 rounded-bl-lg">
-            PARTY GOAL
-          </div>
-          <h3 className="font-pixel text-[11px] text-yellow-400 mb-2">{activeGoal.name}</h3>
-          <Progress
-            value={(activeGoal.currentGold / Math.max(1, activeGoal.targetGold)) * 100}
-            indicatorColor="bg-yellow-500"
-            className="h-2.5"
-          />
-          <div className="text-right mt-1 text-[9px] text-muted-foreground font-bold">
-            {activeGoal.currentGold} / {activeGoal.targetGold} GOLD
-          </div>
-        </div>
+        <PartyGoalCard goal={activeGoal} isLeader={isLeader} partyId={activePartyId!} compact />
       )}
 
       {/* Quest detail sheet */}

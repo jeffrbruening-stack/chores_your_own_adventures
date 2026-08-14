@@ -6,6 +6,7 @@ import { Link } from 'wouter';
 import { ArrowLeft, Target, Coins, Plus, CheckCircle, Trophy } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
+import { PartyGoalCard } from '@/components/party-goal-card';
 
 export default function PartyGoals() {
   const { activePartyId, currentUser } = useAuth();
@@ -114,21 +115,25 @@ export default function PartyGoals() {
             {activeGoal ? (
               <div>
                 <h3 className="font-pixel text-xs text-muted-foreground mb-3">CURRENT GOAL</h3>
-                <div className="bg-card border-2 border-yellow-500/50 p-5 rounded-xl">
-                  <h2 className="font-bold text-lg mb-1">{activeGoal.name}</h2>
-                  {activeGoal.description && (
-                    <p className="text-sm text-muted-foreground mb-4">{activeGoal.description}</p>
-                  )}
-                  <div className="flex justify-between text-[10px] font-pixel text-yellow-500 mb-2">
-                    <span>PROGRESS</span>
-                    <span>{activeGoal.currentGold ?? 0} / {activeGoal.targetGold} GOLD</span>
+                {(activeGoal.currentGold ?? 0) >= activeGoal.targetGold ? (
+                  <PartyGoalCard goal={activeGoal} isLeader={isLeader} partyId={activePartyId!} />
+                ) : (
+                  <div className="bg-card border-2 border-yellow-500/50 p-5 rounded-xl">
+                    <h2 className="font-bold text-lg mb-1">{activeGoal.name}</h2>
+                    {activeGoal.description && (
+                      <p className="text-sm text-muted-foreground mb-4">{activeGoal.description}</p>
+                    )}
+                    <div className="flex justify-between text-[10px] font-pixel text-yellow-500 mb-2">
+                      <span>PROGRESS</span>
+                      <span>{activeGoal.currentGold ?? 0} / {activeGoal.targetGold} GOLD</span>
+                    </div>
+                    <Progress
+                      value={((activeGoal.currentGold ?? 0) / Math.max(1, activeGoal.targetGold)) * 100}
+                      indicatorColor="bg-yellow-500"
+                      className="h-3"
+                    />
                   </div>
-                  <Progress
-                    value={((activeGoal.currentGold ?? 0) / Math.max(1, activeGoal.targetGold)) * 100}
-                    indicatorColor="bg-yellow-500"
-                    className="h-3"
-                  />
-                </div>
+                )}
               </div>
             ) : (
               <div className="bg-card border-2 border-border rounded-xl p-8 text-center">

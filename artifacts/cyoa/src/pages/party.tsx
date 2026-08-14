@@ -14,7 +14,7 @@ import {
   Shield, Users, Target, Settings as SettingsIcon, Crown, Plus,
   Coins, X, UserPlus, Lock, ChevronRight, AlertTriangle, Key, Unlock, ScrollText,
 } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
+import { PartyGoalCard } from '@/components/party-goal-card';
 
 // ─── Manage Party Member Sheet ────────────────────────────────────────────────
 import { CharacterSprite } from '@/components/character-sprite';
@@ -657,18 +657,7 @@ export default function Party() {
               </div>
 
               {activeGoal ? (
-                <div className="bg-card border-2 border-yellow-900/40 rounded-xl p-4">
-                  <h4 className="font-bold text-sm mb-2">{activeGoal.name}</h4>
-                  <Progress
-                    value={Math.min(100, ((activeGoal.currentGold ?? 0) / Math.max(1, activeGoal.targetGold)) * 100)}
-                    indicatorColor="bg-yellow-500"
-                    className="h-3"
-                  />
-                  <div className="flex justify-between mt-1.5 text-[10px] text-muted-foreground font-bold">
-                    <span>{activeGoal.currentGold ?? 0} gold saved</span>
-                    <span>{activeGoal.targetGold} goal</span>
-                  </div>
-                </div>
+                <PartyGoalCard goal={activeGoal} isLeader={isLeader} partyId={activePartyId!} />
               ) : (
                 <div className="border-2 border-dashed border-border rounded-xl p-6 text-center text-muted-foreground">
                   <Target className="w-8 h-8 mx-auto mb-2 opacity-30" />
