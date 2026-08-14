@@ -11,8 +11,9 @@ import bcrypt from "bcrypt";
 
 const router = Router();
 
+// Only unambiguous characters: no 0/O/Q, 1/I/L, 5/S, 2/Z, 8/B, 6/G, U/V
 function generateHouseholdCode(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const chars = "ACDEFHJKMNPRTWXY3479";
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 }
 
@@ -46,10 +47,14 @@ router.post("/", requireAuth, async (req, res) => {
     const userId = req.userId!;
     const { name } = req.body;
     if (!name) { res.status(400).json({ error: "name required" }); return; }
+    // Retry until unique — stays 6 characters (the app expects exactly 6)
     let householdCode = generateHouseholdCode();
-    const [existing] = await db.select({ id: partiesTable.id })
-      .from(partiesTable).where(eq(partiesTable.householdCode, householdCode)).limit(1);
-    if (existing) householdCode = generateHouseholdCode() + Math.floor(Math.random()*9);
+    for (let i = 0; i < 10; i++) {
+      const [existing] = await db.select({ id: partiesTable.id })
+        .from(partiesTable).where(eq(partiesTable.householdCode, householdCode)).limit(1);
+      if (!existing) break;
+      householdCode = generateHouseholdCode();
+    }
 
     const [party] = await db.insert(partiesTable).values({
       name, householdCode, founderId: userId,

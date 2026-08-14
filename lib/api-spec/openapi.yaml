@@ -644,6 +644,46 @@ paths:
                 $ref: "#/components/schemas/Party"
 
   # ─── CHARACTER ───────────────────────────────────────────────────────────────
+  /party-recap:
+    get:
+      operationId: getPartyRecap
+      tags: [parties]
+      summary: Recap of a member's (or whole party's) accomplishments in a time window (adults/leaders only)
+      parameters:
+        - name: partyId
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: number
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: tzOffset
+          in: query
+          required: false
+          description: Viewer timezone offset in minutes (JS Date.getTimezoneOffset())
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Recap summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecapResponse"
+
   /character:
     get:
       operationId: getMyCharacter
@@ -1846,6 +1886,71 @@ components:
       properties:
         message:
           type: string
+
+    RecapQuest:
+      type: object
+      required: [assignmentId, title, completedAt, xpAwarded, goldAwarded]
+      properties:
+        assignmentId:
+          type: number
+        title:
+          type: string
+        adventureTitle:
+          type: ["string", "null"]
+        completedAt:
+          type: string
+        xpAwarded:
+          type: number
+        goldAwarded:
+          type: number
+        userId:
+          type: ["number", "null"]
+        userName:
+          type: ["string", "null"]
+
+    RecapDay:
+      type: object
+      required: [date, count]
+      properties:
+        date:
+          type: string
+        count:
+          type: number
+
+    RecapResponse:
+      type: object
+      required: [from, to, questsCompleted, totalAssigned, completedCount, completionRate, xpEarned, goldEarned, levelUps, byDay]
+      properties:
+        from:
+          type: string
+        to:
+          type: string
+        userId:
+          type: ["number", "null"]
+        userName:
+          type: ["string", "null"]
+        questsCompleted:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecapQuest"
+        totalAssigned:
+          type: number
+        completedCount:
+          type: number
+        completionRate:
+          type: number
+        xpEarned:
+          type: number
+        goldEarned:
+          type: number
+        levelUps:
+          type: number
+        currentLevel:
+          type: ["number", "null"]
+        byDay:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecapDay"
 
     # ─── AUTH SCHEMAS ──────────────────────────────────────────────────────────
     RegisterInput:

@@ -18,6 +18,7 @@ import questAssignmentsRouter from "./quest-assignments.js";
 import characterRouter from "./character.js";
 import openQuestsRouter from "./open-quests.js";
 import quickQuestsRouter from "./quick-quests.js";
+import partyRecapRouter from "./party-recap.js";
 
 const router: IRouter = Router();
 
@@ -40,5 +41,6 @@ router.use("/quest-assignments", questAssignmentsRouter);
 router.use("/character", characterRouter);
 router.use("/open-quests", openQuestsRouter);
 router.use("/quick-quests", quickQuestsRouter);
+router.use("/party-recap", partyRecapRouter);
 
 export default router;

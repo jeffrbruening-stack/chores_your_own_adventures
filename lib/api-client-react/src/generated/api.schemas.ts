@@ -17,6 +17,44 @@ export interface MessageResponse {
   message: string;
 }
 
+export interface RecapQuest {
+  assignmentId: number;
+  title: string;
+  /** @nullable */
+  adventureTitle?: string | null;
+  completedAt: string;
+  xpAwarded: number;
+  goldAwarded: number;
+  /** @nullable */
+  userId?: number | null;
+  /** @nullable */
+  userName?: string | null;
+}
+
+export interface RecapDay {
+  date: string;
+  count: number;
+}
+
+export interface RecapResponse {
+  from: string;
+  to: string;
+  /** @nullable */
+  userId?: number | null;
+  /** @nullable */
+  userName?: string | null;
+  questsCompleted: RecapQuest[];
+  totalAssigned: number;
+  completedCount: number;
+  completionRate: number;
+  xpEarned: number;
+  goldEarned: number;
+  levelUps: number;
+  /** @nullable */
+  currentLevel?: number | null;
+  byDay: RecapDay[];
+}
+
 export interface RegisterInput {
   email: string;
   /** @minLength 8 */
@@ -1128,6 +1166,17 @@ export interface AuditLog {
 
 export type GiveMeAQuestParams = {
 partyId: number;
+};
+
+export type GetPartyRecapParams = {
+partyId: number;
+userId?: number;
+from: string;
+to: string;
+/**
+ * Viewer timezone offset in minutes (JS Date.getTimezoneOffset())
+ */
+tzOffset?: number;
 };
 
 export type ListQuestsParams = {

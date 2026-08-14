@@ -41,6 +41,7 @@ import type {
   GameConfig,
   GameConfigUpdate,
   GetCatFoleyParams,
+  GetPartyRecapParams,
   GiveMeAQuestParams,
   GiveMeAQuestResult,
   HealthStatus,
@@ -91,6 +92,7 @@ import type {
   QuestProposalReview,
   QuestRewardResult,
   QuickQuest,
+  RecapResponse,
   RegisterInput,
   ResetPasswordInput,
   SchoolCalendar,
@@ -2186,6 +2188,90 @@ export const useJoinParty = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getJoinPartyMutationOptions(options));
     }
+
+export const getGetPartyRecapUrl = (params: GetPartyRecapParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/party-recap?${stringifiedParams}` : `/api/party-recap`
+}
+
+/**
+ * @summary Recap of a member's (or whole party's) accomplishments in a time window (adults/leaders only)
+ */
+export const getPartyRecap = async (params: GetPartyRecapParams, options?: Parameters<typeof customFetch>[1]): Promise<RecapResponse> => {
+
+  return customFetch<RecapResponse>(getGetPartyRecapUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPartyRecapQueryKey = (params?: GetPartyRecapParams,) => {
+    return [
+    `/api/party-recap`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPartyRecapQueryOptions = <TData = Awaited<ReturnType<typeof getPartyRecap>>, TError = ErrorType<unknown>>(params: GetPartyRecapParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartyRecap>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPartyRecapQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPartyRecap>>> = ({ signal }) => getPartyRecap(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPartyRecap>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPartyRecapQueryResult = NonNullable<Awaited<ReturnType<typeof getPartyRecap>>>
+export type GetPartyRecapQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Recap of a member's (or whole party's) accomplishments in a time window (adults/leaders only)
+ */
+
+export function useGetPartyRecap<TData = Awaited<ReturnType<typeof getPartyRecap>>, TError = ErrorType<unknown>>(
+ params: GetPartyRecapParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPartyRecap>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPartyRecapQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetMyCharacterUrl = () => {
 

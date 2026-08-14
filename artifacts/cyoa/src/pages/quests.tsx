@@ -188,7 +188,7 @@ export default function Quests() {
           loadingOpen ? <LoadingState /> :
           openQuests?.length
             ? openQuests.map(q => <QuestCard key={q.id} quest={q as QuestLike} onClick={() => setSelectedQuest(q as QuestLike)} />)
-            : <EmptyState text="No open quests available." />
+            : <EmptyState text="No open quests to claim. Open quests are 'anyone can grab it' chores — pick OPEN QUEST when creating one." />
         )}
 
         {activeTab === 'pending' && isLeader && (

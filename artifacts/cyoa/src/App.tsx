@@ -26,6 +26,7 @@ import QuestCreate from '@/pages/quest-create';
 import Character from '@/pages/character';
 import Shop from '@/pages/shop';
 import Party from '@/pages/party';
+import Recap from '@/pages/recap';
 import Projects from '@/pages/projects';
 import PartyGoals from '@/pages/party-goals';
 import SchoolCalendars from '@/pages/school-calendars';
@@ -105,6 +106,7 @@ function Router() {
           <Route path="/character"><ProtectedRoute component={Character} /></Route>
           <Route path="/shop"><ProtectedRoute component={Shop} /></Route>
           <Route path="/party"><ProtectedRoute component={Party} /></Route>
+          <Route path="/recap"><ProtectedRoute component={Recap} /></Route>
           <Route path="/projects"><ProtectedRoute component={Projects} /></Route>
           <Route path="/party-goals"><ProtectedRoute component={PartyGoals} /></Route>
           <Route path="/school-calendars"><ProtectedRoute component={SchoolCalendars} /></Route>

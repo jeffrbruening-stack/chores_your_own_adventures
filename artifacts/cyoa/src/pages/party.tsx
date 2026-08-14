@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Link } from 'wouter';
 import {
   Shield, Users, Target, Settings as SettingsIcon, Crown, Plus,
-  Coins, X, UserPlus, Lock, ChevronRight, AlertTriangle, Key, Unlock,
+  Coins, X, UserPlus, Lock, ChevronRight, AlertTriangle, Key, Unlock, ScrollText,
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { PixelCharacter, portraitImageUrl } from '@/components/pixel-character';
@@ -466,6 +466,17 @@ export default function Party() {
                 <h3 className="font-pixel text-[10px] text-muted-foreground flex items-center gap-2">
                   <Users className="w-3 h-3" /> PARTY MEMBERS
                 </h3>
+                <div className="flex items-center gap-2">
+                {(isLeader || currentUser?.userType === 'adult') && (
+                  <Link href="/recap">
+                    <button
+                      className="flex items-center gap-1.5 text-[10px] font-pixel text-purple-400 bg-purple-400/10 border border-purple-400/30 rounded-lg px-2 py-1.5 hover:bg-purple-400/20 transition-colors"
+                      data-testid="link-recap"
+                    >
+                      <ScrollText className="w-3 h-3" /> RECAP
+                    </button>
+                  </Link>
+                )}
                 {isLeader && (
                   <button
                     onClick={() => setShowAddMember(v => !v)}
@@ -475,6 +486,7 @@ export default function Party() {
                     {showAddMember ? 'CANCEL' : 'ADD MEMBER'}
                   </button>
                 )}
+                </div>
               </div>
 
               {/* Add member form */}

@@ -166,7 +166,7 @@ router.post("/change-password", requireAuth, async (req, res) => {
 });
 
 // GET /api/auth/household/:code — list characters in household
-router.get("/household/:code", async (req, res) => {
+router.get(["/household/:code", "/household/:code/adventurers"], async (req, res) => {
   try {
     const { code } = req.params;
     const [party] = await db.select({ id: partiesTable.id })

@@ -744,6 +744,46 @@ export const JoinPartyResponse = zod.object({
 
 
 /**
+ * @summary Recap of a member's (or whole party's) accomplishments in a time window (adults/leaders only)
+ */
+export const GetPartyRecapQueryParams = zod.object({
+  "partyId": zod.coerce.number(),
+  "userId": zod.coerce.number().optional(),
+  "from": zod.coerce.string(),
+  "to": zod.coerce.string(),
+  "tzOffset": zod.coerce.number().optional().describe('Viewer timezone offset in minutes (JS Date.getTimezoneOffset())')
+})
+
+export const GetPartyRecapResponse = zod.object({
+  "from": zod.string(),
+  "to": zod.string(),
+  "userId": zod.number().nullish(),
+  "userName": zod.string().nullish(),
+  "questsCompleted": zod.array(zod.object({
+  "assignmentId": zod.number(),
+  "title": zod.string(),
+  "adventureTitle": zod.string().nullish(),
+  "completedAt": zod.string(),
+  "xpAwarded": zod.number(),
+  "goldAwarded": zod.number(),
+  "userId": zod.number().nullish(),
+  "userName": zod.string().nullish()
+})),
+  "totalAssigned": zod.number(),
+  "completedCount": zod.number(),
+  "completionRate": zod.number(),
+  "xpEarned": zod.number(),
+  "goldEarned": zod.number(),
+  "levelUps": zod.number(),
+  "currentLevel": zod.number().nullish(),
+  "byDay": zod.array(zod.object({
+  "date": zod.string(),
+  "count": zod.number()
+}))
+})
+
+
+/**
  * @summary Get current user's character
  */
 export const GetMyCharacterResponse = zod.object({
