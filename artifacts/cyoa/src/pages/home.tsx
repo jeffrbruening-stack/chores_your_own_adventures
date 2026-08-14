@@ -10,7 +10,6 @@ import { useAuth } from '@/contexts/auth-context';
 import { Progress } from '@/components/ui/progress';
 import { QuestCard } from '@/components/quest-card';
 import { QuestDetailSheet, type QuestLike } from '@/components/quest-detail-sheet';
-import { PixelCharacter, portraitImageUrl, type EquippedItems } from '@/components/pixel-character';
 import { Sword, Coins, Bell, ChevronDown, ChevronRight, Plus, Settings as SettingsIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'wouter';
@@ -20,6 +19,8 @@ import { uploadQuestProof, completeQuestAssignment } from '@/lib/quest-proof';
 import { cn } from '@/lib/utils';
 
 // Pixel-art broom SVG — used for the "Give Me a Quest!" action
+import { type EquippedItems } from '@/components/pixel-character';
+import { CharacterSprite } from '@/components/character-sprite';
 function BroomIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} style={{ imageRendering: 'pixelated' }}>
@@ -277,22 +278,7 @@ export default function Home() {
       <div className="bg-card border-2 border-border rounded-2xl p-4 flex items-start gap-4 relative overflow-hidden">
         {/* Pixel character display */}
         <div className="shrink-0 flex items-center justify-center">
-          <PixelCharacter
-            appearance={{
-              skinTone: character?.skinTone ?? undefined,
-              hairStyle: character?.hairStyle ?? undefined,
-              hairColor: character?.hairColor ?? undefined,
-              eyeColor: character?.eyeColor ?? undefined,
-              hasGlasses: character?.hasGlasses ?? false,
-              facialHair: character?.facialHair ?? undefined,
-              species: character?.species ?? undefined,
-              gender: character?.gender ?? undefined,
-              class: character?.class ?? undefined,
-              portraitUrl: portraitImageUrl(character?.userId, character?.portraitPath),
-            }}
-            equipped={equippedWithNames}
-            size={100}
-          />
+          <CharacterSprite character={character as any} size={140} />
         </div>
 
         <div className="flex-1 min-w-0 flex flex-col gap-2">

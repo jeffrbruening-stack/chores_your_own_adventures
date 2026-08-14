@@ -185,6 +185,12 @@ router.get("/:partyId/members", requireAuth, async (req, res) => {
       eyeColor: charactersTable.eyeColor,
       hasGlasses: charactersTable.hasGlasses,
       facialHair: charactersTable.facialHair,
+      spriteBody: charactersTable.spriteBody,
+      spriteSkin: charactersTable.spriteSkin,
+      spriteHair: charactersTable.spriteHair,
+      spriteEars: charactersTable.spriteEars,
+      spriteMask: charactersTable.spriteMask,
+      spritePath: charactersTable.spritePath,
       portraitPath: charactersTable.portraitPath,
       // For admin: appearance lock status
       cooldownUntil: charactersTable.cooldownUntil,

@@ -15,9 +15,9 @@ import {
   Coins, X, UserPlus, Lock, ChevronRight, AlertTriangle, Key, Unlock, ScrollText,
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { PixelCharacter, portraitImageUrl } from '@/components/pixel-character';
 
 // ─── Manage Party Member Sheet ────────────────────────────────────────────────
+import { CharacterSprite } from '@/components/character-sprite';
 
 interface Member {
   userId: number;
@@ -153,21 +153,7 @@ function ManageMemberSheet({ member, partyId, onClose, onRefresh }: ManageMember
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-2 pb-4 border-b border-border">
           <div className="flex items-center gap-3">
-            <PixelCharacter
-              appearance={{
-                species: member.species ?? 'human',
-                class: member.class ?? 'fighter',
-                gender: member.gender ?? 'any',
-                skinTone: member.skinTone ?? 'medium',
-                hairStyle: member.hairStyle ?? 'short',
-                hairColor: member.hairColor ?? 'brown',
-                eyeColor: member.eyeColor ?? 'brown',
-                hasGlasses: member.hasGlasses ?? false,
-                facialHair: member.facialHair ?? 'none',
-                portraitUrl: portraitImageUrl(member.userId, member.portraitPath),
-              }}
-              size={60}
-            />
+            <CharacterSprite character={member as any} size={80} />
             <div>
               <h2 className="font-bold text-base">{member.adventurerName ?? member.displayName}</h2>
               <p className="text-xs text-muted-foreground">{member.displayName}</p>
@@ -615,21 +601,7 @@ export default function Party() {
                         className={`bg-card border border-border rounded-xl flex items-center gap-4 p-3 transition-all ${tappable ? 'cursor-pointer active:scale-[0.99] active:brightness-90 hover:border-primary/40' : ''}`}
                       >
                         <div className="shrink-0">
-                          <PixelCharacter
-                            appearance={{
-                              species:    member.species    ?? 'human',
-                              class:      member.class      ?? 'fighter',
-                              gender:     member.gender     ?? 'any',
-                              skinTone:   member.skinTone   ?? 'medium',
-                              hairStyle:  member.hairStyle  ?? 'short',
-                              hairColor:  member.hairColor  ?? 'brown',
-                              eyeColor:   member.eyeColor   ?? 'brown',
-                              hasGlasses: member.hasGlasses ?? false,
-                              facialHair: member.facialHair ?? 'none',
-                              portraitUrl: portraitImageUrl(member.userId, member.portraitPath),
-                            }}
-                            size={80}
-                          />
+                          <CharacterSprite character={member as any} size={100} />
                         </div>
 
                         <div className="flex-1 min-w-0">

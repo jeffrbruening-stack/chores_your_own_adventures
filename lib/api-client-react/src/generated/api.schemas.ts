@@ -178,7 +178,19 @@ export interface Character {
   /** @nullable */
   facialHair?: string | null;
   /** @nullable */
+  spriteBody?: string | null;
+  /** @nullable */
+  spriteSkin?: string | null;
+  /** @nullable */
+  spriteHair?: string | null;
+  /** @nullable */
+  spriteEars?: string | null;
+  /** @nullable */
+  spriteMask?: string | null;
+  /** @nullable */
   portraitPath?: string | null;
+  /** @nullable */
+  spritePath?: string | null;
   /** @nullable */
   cooldownUntil?: string | null;
   createdAt: string;
@@ -512,6 +524,16 @@ export interface CharacterInput {
   hasGlasses?: boolean;
   /** @nullable */
   facialHair?: string | null;
+  /** @nullable */
+  spriteBody?: string | null;
+  /** @nullable */
+  spriteSkin?: string | null;
+  /** @nullable */
+  spriteHair?: string | null;
+  /** @nullable */
+  spriteEars?: string | null;
+  /** @nullable */
+  spriteMask?: string | null;
 }
 
 export interface CooldownResponse {
@@ -1261,4 +1283,3 @@ userId?: number;
 partyId?: number;
 limit?: number;
 };
-

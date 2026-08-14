@@ -2339,6 +2339,16 @@ components:
           type: boolean
         facialHair:
           type: ["string", "null"]
+        spriteBody:
+          type: ["string", "null"]
+        spriteSkin:
+          type: ["string", "null"]
+        spriteHair:
+          type: ["string", "null"]
+        spriteEars:
+          type: ["string", "null"]
+        spriteMask:
+          type: ["string", "null"]
 
     Character:
       type: object
@@ -2366,7 +2376,19 @@ components:
           type: boolean
         facialHair:
           type: ["string", "null"]
+        spriteBody:
+          type: ["string", "null"]
+        spriteSkin:
+          type: ["string", "null"]
+        spriteHair:
+          type: ["string", "null"]
+        spriteEars:
+          type: ["string", "null"]
+        spriteMask:
+          type: ["string", "null"]
         portraitPath:
+          type: ["string", "null"]
+        spritePath:
           type: ["string", "null"]
         cooldownUntil:
           type: ["string", "null"]

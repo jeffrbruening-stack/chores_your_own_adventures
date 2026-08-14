@@ -18,4 +18,14 @@ export interface CharacterInput {
   hasGlasses?: boolean;
   /** @nullable */
   facialHair?: string | null;
+  /** @nullable */
+  spriteBody?: string | null;
+  /** @nullable */
+  spriteSkin?: string | null;
+  /** @nullable */
+  spriteHair?: string | null;
+  /** @nullable */
+  spriteEars?: string | null;
+  /** @nullable */
+  spriteMask?: string | null;
 }

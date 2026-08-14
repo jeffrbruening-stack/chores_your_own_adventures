@@ -7,6 +7,7 @@ import {
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { generateAndStorePortrait, fetchPortraitGear } from "../lib/portrait.js";
+import { generateAndStoreSprite } from "../lib/pixellabSprite.js";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage.js";
 
 const router = Router();
@@ -69,6 +70,84 @@ router.post("/me/portrait", requireAuth, async (req, res) => {
     res.status(500).json({ error: err.message ?? "Portrait generation failed" });
   } finally {
     portraitInProgress.delete(userId);
+  }
+});
+
+// ─── PixelLab character sprite ───────────────────────────────────────────────
+// Per-user guards mirroring the portrait ones (generation takes ~5-20s).
+const spriteInProgress = new Set<number>();
+const spriteLastGeneratedAt = new Map<number, number>();
+const SPRITE_COOLDOWN_MS = 20 * 1000;
+
+// POST /api/characters/me/sprite — (re)generate the character sprite from the
+// current saved appearance via PixelLab.
+router.post("/me/sprite", requireAuth, async (req, res) => {
+  const userId = req.userId!;
+  if (spriteInProgress.has(userId)) {
+    res.status(409).json({ error: "Your hero is already being drawn. Hang tight!" });
+    return;
+  }
+  if (Date.now() - (spriteLastGeneratedAt.get(userId) ?? 0) < SPRITE_COOLDOWN_MS) {
+    res.status(429).json({ error: "The pixel artist needs a moment. Try again shortly." });
+    return;
+  }
+  spriteInProgress.add(userId);
+  try {
+    const [character] = await db.select().from(charactersTable)
+      .where(eq(charactersTable.userId, userId)).limit(1);
+    if (!character) { res.status(404).json({ error: "No character" }); return; }
+
+    const spritePath = await generateAndStoreSprite({
+      class: character.class,
+      gender: character.gender,
+      skinTone: character.skinTone,
+      hairStyle: character.hairStyle,
+      hairColor: character.hairColor,
+    });
+
+    await db.update(charactersTable)
+      .set({ spritePath, updatedAt: new Date() })
+      .where(eq(charactersTable.userId, userId));
+    spriteLastGeneratedAt.set(userId, Date.now());
+
+    // Best-effort cleanup of the superseded sprite object
+    if (character.spritePath && character.spritePath !== spritePath) {
+      try {
+        const storage = new ObjectStorageService();
+        const oldFile = await storage.getObjectEntityFile(character.spritePath);
+        await oldFile.delete();
+      } catch { /* ignore */ }
+    }
+
+    res.json({ spritePath });
+  } catch (err: any) {
+    console.error("Sprite generation failed:", err);
+    res.status(500).json({ error: err.message ?? "Sprite generation failed" });
+  } finally {
+    spriteInProgress.delete(userId);
+  }
+});
+
+// GET /api/characters/sprite-image/:userId — serve a character's sprite PNG.
+// Unauthenticated on purpose (same rationale as portrait-image below).
+router.get("/sprite-image/:userId", async (req, res) => {
+  try {
+    const targetId = parseInt(String(req.params.userId));
+    if (!targetId) { res.status(400).json({ error: "Invalid user id" }); return; }
+    const [character] = await db.select({ spritePath: charactersTable.spritePath })
+      .from(charactersTable).where(eq(charactersTable.userId, targetId)).limit(1);
+    if (!character?.spritePath) { res.status(404).json({ error: "No sprite" }); return; }
+
+    const storage = new ObjectStorageService();
+    const file = await storage.getObjectEntityFile(character.spritePath);
+    const response = await storage.downloadObject(file, 86400);
+    response.headers.forEach((v, k) => res.setHeader(k, v));
+    const buf = Buffer.from(await response.arrayBuffer());
+    res.end(buf);
+  } catch (err) {
+    if (err instanceof ObjectNotFoundError) { res.status(404).json({ error: "No sprite" }); return; }
+    console.error("Sprite serve failed:", err);
+    if (!res.headersSent) res.status(500).json({ error: "Failed" });
   }
 });
 
@@ -159,7 +238,7 @@ router.put("/me", requireAuth, async (req, res) => {
       return;
     }
 
-    const ALLOWED = ["adventurerName","species","class","gender","skinTone","hairStyle","hairColor","eyeColor","hasGlasses","facialHair"];
+    const ALLOWED = ["adventurerName","species","class","gender","skinTone","hairStyle","hairColor","eyeColor","hasGlasses","facialHair","spriteBody","spriteSkin","spriteHair","spriteEars","spriteMask"];
     const updates: any = { updatedAt: new Date(), configured: true };
     for (const k of ALLOWED) { if (req.body[k] !== undefined) updates[k] = req.body[k]; }
 

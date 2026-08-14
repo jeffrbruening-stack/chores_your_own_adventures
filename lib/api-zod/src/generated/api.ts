@@ -22,8 +22,6 @@ export const HealthCheckResponse = zod.object({
 export const registerAdultBodyPasswordMin = 8;
 
 
-
-
 export const RegisterAdultBody = zod.object({
   "email": zod.string(),
   "password": zod.string().min(registerAdultBodyPasswordMin),
@@ -136,7 +134,6 @@ export const ForgotPasswordResponse = zod.object({
 export const resetPasswordBodyPasswordMin = 8;
 
 
-
 export const ResetPasswordBody = zod.object({
   "token": zod.string(),
   "password": zod.string().min(resetPasswordBodyPasswordMin)
@@ -151,7 +148,6 @@ export const ResetPasswordResponse = zod.object({
  * @summary Change current user password
  */
 export const changePasswordBodyNewPasswordMin = 8;
-
 
 
 export const ChangePasswordBody = zod.object({
@@ -188,7 +184,6 @@ export const GetHouseholdAdventurersResponse = zod.array(GetHouseholdAdventurers
  */
 export const loginKidBodyPinMin = 4;
 export const loginKidBodyPinMax = 4;
-
 
 
 export const LoginKidBody = zod.object({
@@ -229,7 +224,6 @@ export const changePINBodyOldPinMax = 4;
 
 export const changePINBodyNewPinMin = 4;
 export const changePINBodyNewPinMax = 4;
-
 
 
 export const ChangePINBody = zod.object({
@@ -277,7 +271,13 @@ export const GetHomeDataResponse = zod.object({
   "eyeColor": zod.string(),
   "hasGlasses": zod.boolean(),
   "facialHair": zod.string().nullish(),
+  "spriteBody": zod.string().nullish(),
+  "spriteSkin": zod.string().nullish(),
+  "spriteHair": zod.string().nullish(),
+  "spriteEars": zod.string().nullish(),
+  "spriteMask": zod.string().nullish(),
   "portraitPath": zod.string().nullish(),
+  "spritePath": zod.string().nullish(),
   "cooldownUntil": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().optional()
@@ -449,7 +449,6 @@ export const ListMyPartiesResponse = zod.array(ListMyPartiesResponseItem)
  */
 
 
-
 export const CreatePartyBody = zod.object({
   "name": zod.string().min(1)
 })
@@ -560,7 +559,6 @@ export const addKidMemberBodyPinMin = 4;
 export const addKidMemberBodyPinMax = 4;
 
 
-
 export const AddKidMemberBody = zod.object({
   "displayName": zod.string().min(1),
   "pin": zod.string().min(addKidMemberBodyPinMin).max(addKidMemberBodyPinMax)
@@ -590,7 +588,6 @@ export const UpdatePartyMemberParams = zod.object({
 
 export const updatePartyMemberBodyResetPinMin = 4;
 export const updatePartyMemberBodyResetPinMax = 4;
-
 
 
 export const UpdatePartyMemberBody = zod.object({
@@ -798,7 +795,13 @@ export const GetMyCharacterResponse = zod.object({
   "eyeColor": zod.string(),
   "hasGlasses": zod.boolean(),
   "facialHair": zod.string().nullish(),
+  "spriteBody": zod.string().nullish(),
+  "spriteSkin": zod.string().nullish(),
+  "spriteHair": zod.string().nullish(),
+  "spriteEars": zod.string().nullish(),
+  "spriteMask": zod.string().nullish(),
   "portraitPath": zod.string().nullish(),
+  "spritePath": zod.string().nullish(),
   "cooldownUntil": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().optional()
@@ -818,7 +821,12 @@ export const SaveCharacterBody = zod.object({
   "hairColor": zod.string(),
   "eyeColor": zod.string(),
   "hasGlasses": zod.boolean().optional(),
-  "facialHair": zod.string().nullish()
+  "facialHair": zod.string().nullish(),
+  "spriteBody": zod.string().nullish(),
+  "spriteSkin": zod.string().nullish(),
+  "spriteHair": zod.string().nullish(),
+  "spriteEars": zod.string().nullish(),
+  "spriteMask": zod.string().nullish()
 })
 
 export const SaveCharacterResponse = zod.object({
@@ -833,7 +841,13 @@ export const SaveCharacterResponse = zod.object({
   "eyeColor": zod.string(),
   "hasGlasses": zod.boolean(),
   "facialHair": zod.string().nullish(),
+  "spriteBody": zod.string().nullish(),
+  "spriteSkin": zod.string().nullish(),
+  "spriteHair": zod.string().nullish(),
+  "spriteEars": zod.string().nullish(),
+  "spriteMask": zod.string().nullish(),
   "portraitPath": zod.string().nullish(),
+  "spritePath": zod.string().nullish(),
   "cooldownUntil": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().optional()
@@ -859,7 +873,13 @@ export const GetUserCharacterResponse = zod.object({
   "eyeColor": zod.string(),
   "hasGlasses": zod.boolean(),
   "facialHair": zod.string().nullish(),
+  "spriteBody": zod.string().nullish(),
+  "spriteSkin": zod.string().nullish(),
+  "spriteHair": zod.string().nullish(),
+  "spriteEars": zod.string().nullish(),
+  "spriteMask": zod.string().nullish(),
   "portraitPath": zod.string().nullish(),
+  "spritePath": zod.string().nullish(),
   "cooldownUntil": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string().optional()
@@ -915,7 +935,6 @@ export const ListQuestsResponse = zod.array(ListQuestsResponseItem)
 /**
  * @summary Create a quest definition (leader only)
  */
-
 
 
 export const CreateQuestBody = zod.object({
@@ -1474,7 +1493,6 @@ export const ListProposedQuestsResponse = zod.array(ListProposedQuestsResponseIt
 /**
  * @summary Adventurer proposes a new quest
  */
-
 
 
 export const ProposeQuestBody = zod.object({
@@ -2203,7 +2221,6 @@ export const ListPartyGoalsResponse = zod.object({
  */
 
 
-
 export const CreatePartyGoalBody = zod.object({
   "partyId": zod.number(),
   "name": zod.string().min(1),
@@ -2357,7 +2374,6 @@ export const ListProjectsResponse = zod.array(ListProjectsResponseItem)
 /**
  * @summary Create a project or boss battle (leader only)
  */
-
 
 
 export const CreateProjectBody = zod.object({
@@ -2674,7 +2690,6 @@ export const ListSchoolCalendarsResponse = zod.array(ListSchoolCalendarsResponse
  */
 
 
-
 export const CreateSchoolCalendarBody = zod.object({
   "partyId": zod.number(),
   "name": zod.string().min(1),
@@ -2852,8 +2867,6 @@ export const AdminAdjustUserParams = zod.object({
 })
 
 
-
-
 export const AdminAdjustUserBody = zod.object({
   "xpDelta": zod.number().nullish(),
   "goldDelta": zod.number().nullish(),
@@ -3021,7 +3034,6 @@ export const AdminGetAuditLogsResponse = zod.array(AdminGetAuditLogsResponseItem
  */
 
 
-
 export const LeaderAdjustMemberBody = zod.object({
   "partyId": zod.number(),
   "targetUserId": zod.number(),
@@ -3033,5 +3045,3 @@ export const LeaderAdjustMemberBody = zod.object({
 export const LeaderAdjustMemberResponse = zod.object({
   "message": zod.string()
 })
-
-

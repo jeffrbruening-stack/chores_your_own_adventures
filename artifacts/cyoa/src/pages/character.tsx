@@ -3,7 +3,8 @@ import { useAuth } from '@/contexts/auth-context';
 import { useGetMyCharacter, getGetMyCharacterQueryKey, useGetInventory, getGetInventoryQueryKey } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Progress } from '@/components/ui/progress';
-import { PixelCharacter, portraitImageUrl, type EquippedItems } from '@/components/pixel-character';
+import { type EquippedItems } from '@/components/pixel-character';
+import { CharacterSprite } from '@/components/character-sprite';
 import { Sparkles, Trophy, Settings as SettingsIcon, ShoppingBag, X } from 'lucide-react';
 import { Link } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
@@ -144,22 +145,7 @@ export default function Character() {
         <div className="bg-card border-2 border-border rounded-2xl p-6 flex flex-col items-center gap-4">
           {/* Sprite */}
           <div className="flex items-center justify-center">
-            <PixelCharacter
-              appearance={{
-                skinTone: character?.skinTone ?? undefined,
-                hairStyle: character?.hairStyle ?? undefined,
-                hairColor: character?.hairColor ?? undefined,
-                eyeColor: character?.eyeColor ?? undefined,
-                hasGlasses: character?.hasGlasses ?? false,
-                facialHair: character?.facialHair ?? undefined,
-                species: character?.species ?? undefined,
-                gender: character?.gender ?? undefined,
-                class: character?.class ?? undefined,
-                portraitUrl: portraitImageUrl(character?.userId, character?.portraitPath),
-              }}
-              equipped={equippedWithNames}
-              size={160}
-            />
+            <CharacterSprite character={character as any} size={220} />
           </div>
 
           {/* Summon / re-summon AI portrait */}

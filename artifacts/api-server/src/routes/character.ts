@@ -53,7 +53,7 @@ router.put("/", requireAuth, async (req, res) => {
       return;
     }
 
-    const ALLOWED = ["adventurerName","species","class","gender","skinTone","hairStyle","hairColor","eyeColor","hasGlasses","facialHair"];
+    const ALLOWED = ["adventurerName","species","class","gender","skinTone","hairStyle","hairColor","eyeColor","hasGlasses","facialHair","spriteBody","spriteSkin","spriteHair","spriteEars","spriteMask"];
     const updates: any = { updatedAt: new Date(), configured: true };
     for (const k of ALLOWED) { if (req.body[k] !== undefined) updates[k] = req.body[k]; }
 
