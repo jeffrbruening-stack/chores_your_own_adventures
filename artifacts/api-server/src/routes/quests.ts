@@ -23,6 +23,7 @@ const QUEST_SELECT = {
   difficulty: questDefinitionsTable.difficulty,
   isLegendary: questDefinitionsTable.isLegendary,
   requiresVerification: questDefinitionsTable.requiresVerification,
+  verificationType: questDefinitionsTable.verificationType,
   xpReward: questDefinitionsTable.xpReward,
   goldReward: questDefinitionsTable.goldReward,
   partyGoldReward: questDefinitionsTable.partyGoldReward,
@@ -52,6 +53,8 @@ const ASSIGNMENT_SELECT = {
   difficulty: questDefinitionsTable.difficulty,
   isLegendary: questDefinitionsTable.isLegendary,
   requiresVerification: questDefinitionsTable.requiresVerification,
+  verificationType: questDefinitionsTable.verificationType,
+  proofPhotoPath: questAssignmentsTable.proofPhotoPath,
   xpReward: questDefinitionsTable.xpReward,
   goldReward: questDefinitionsTable.goldReward,
   partyGoldReward: questDefinitionsTable.partyGoldReward,
@@ -90,7 +93,7 @@ router.post("/", requireAuth, async (req, res) => {
     const userId = req.userId!;
     const {
       partyId, plainTitle, adventureTitle, description, questType,
-      difficulty, isLegendary, assignedUserIds, requiresVerification,
+      difficulty, isLegendary, assignedUserIds, requiresVerification, verificationType,
       xpReward, goldReward, partyGoldReward, isRoutine, routineSchedule,
       timeWindowStart, timeWindowEnd, schoolCalendarId,
       // Schedule fields from new UI
@@ -124,8 +127,11 @@ router.post("/", requireAuth, async (req, res) => {
       questType: questType ?? "individual",
       difficulty: difficulty ?? "normal",
       isLegendary: isLegendary ?? false,
-      assignedUserIds: assignedUserIds ?? null,
-      requiresVerification: requiresVerification ?? false,
+      assignedToUserIds: assignedUserIds ?? null,
+      requiresVerification: (requiresVerification ?? false) || !!verificationType,
+      verificationType: verificationType === 'photo' || verificationType === 'inspection'
+        ? verificationType
+        : (requiresVerification ? 'inspection' : null),
       xpReward: xpReward ?? rewards.xp,
       goldReward: goldReward ?? rewards.gold,
       partyGoldReward: partyGoldReward ?? rewards.partyGold,
@@ -217,14 +223,31 @@ router.post("/assignments/:assignmentId/complete", requireAuth, async (req, res)
     const newStatus = quest.requiresVerification ? "submitted" : "completed";
     const now = new Date();
 
-    await db.update(questAssignmentsTable).set({
+    // Photo verification: a proof photo is required to submit
+    let proofPhotoPath: string | null = null;
+    if (quest.requiresVerification && quest.verificationType === "photo") {
+      const photoPath = req.body?.photoPath;
+      if (typeof photoPath !== "string" || !photoPath.startsWith("/objects/uploads/")) {
+        res.status(400).json({ error: "This quest needs a photo as proof" });
+        return;
+      }
+      proofPhotoPath = photoPath;
+    }
+
+    // Compare-and-set: only one concurrent complete can win the active→done transition
+    const updated = await db.update(questAssignmentsTable).set({
       status: newStatus,
       completedAt: now,
       verificationNote: req.body?.note ?? null,
+      proofPhotoPath,
       xpAwarded: quest.xpReward,
       goldAwarded: quest.goldReward,
       partyGoldAwarded: quest.partyGoldReward,
-    }).where(eq(questAssignmentsTable.id, assignmentId));
+    }).where(and(
+      eq(questAssignmentsTable.id, assignmentId),
+      eq(questAssignmentsTable.status, "active"),
+    )).returning({ id: questAssignmentsTable.id });
+    if (updated.length === 0) { res.status(400).json({ error: "Quest not active" }); return; }
 
     let xpGained = 0;
     let goldGained = 0;
@@ -263,6 +286,71 @@ router.post("/assignments/:assignmentId/complete", requireAuth, async (req, res)
   }
 });
 
+// POST /api/quests/assignments/:assignmentId/proof-upload-url — signed URL for the kid to upload a proof photo
+router.post("/assignments/:assignmentId/proof-upload-url", requireAuth, async (req, res) => {
+  try {
+    const assignmentId = parseInt(String(req.params.assignmentId));
+    const [assignment] = await db.select().from(questAssignmentsTable)
+      .where(eq(questAssignmentsTable.id, assignmentId)).limit(1);
+    if (!assignment || assignment.userId !== req.userId) {
+      res.status(403).json({ error: "Not your quest" }); return;
+    }
+    if (assignment.status !== "active") {
+      res.status(400).json({ error: "Quest not active" }); return;
+    }
+    const [quest] = await db.select({
+      requiresVerification: questDefinitionsTable.requiresVerification,
+      verificationType: questDefinitionsTable.verificationType,
+    }).from(questDefinitionsTable)
+      .where(eq(questDefinitionsTable.id, assignment.questDefinitionId)).limit(1);
+    if (!quest?.requiresVerification || quest.verificationType !== "photo") {
+      res.status(400).json({ error: "This quest doesn't need a photo" }); return;
+    }
+    const { ObjectStorageService } = await import("../lib/objectStorage.js");
+    const storage = new ObjectStorageService();
+    const uploadURL = await storage.getObjectEntityUploadURL();
+    const objectPath = storage.normalizeObjectEntityPath(uploadURL.split("?")[0]);
+    res.json({ uploadURL, objectPath });
+  } catch (err: any) {
+    res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
+  }
+});
+
+// GET /api/quests/assignments/:assignmentId/proof-image?token= — serve the proof photo.
+// <img> tags can't send Authorization headers, so the JWT is passed as a query
+// param. Unlike portraits, chore photos are private: only party members may view.
+router.get("/assignments/:assignmentId/proof-image", async (req, res) => {
+  try {
+    const assignmentId = parseInt(String(req.params.assignmentId));
+    if (!assignmentId) { res.status(400).json({ error: "Invalid id" }); return; }
+    const { verifyToken } = await import("../lib/auth.js");
+    const payload = verifyToken(String(req.query.token ?? ""));
+    if (!payload) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const [assignment] = await db.select({
+      proofPhotoPath: questAssignmentsTable.proofPhotoPath,
+      partyId: questAssignmentsTable.partyId,
+    }).from(questAssignmentsTable).where(eq(questAssignmentsTable.id, assignmentId)).limit(1);
+    if (!assignment?.proofPhotoPath) { res.status(404).json({ error: "No photo" }); return; }
+    const role = await getMemberRole(assignment.partyId, payload.userId);
+    if (!role) { res.status(403).json({ error: "Not a member" }); return; }
+    const { ObjectStorageService, ObjectNotFoundError } = await import("../lib/objectStorage.js");
+    const storage = new ObjectStorageService();
+    try {
+      const file = await storage.getObjectEntityFile(assignment.proofPhotoPath);
+      const response = await storage.downloadObject(file, 3600);
+      response.headers.forEach((v: string, k: string) => res.setHeader(k, v));
+      const buf = Buffer.from(await response.arrayBuffer());
+      res.end(buf);
+    } catch (err) {
+      if (err instanceof ObjectNotFoundError) { res.status(404).json({ error: "No photo" }); return; }
+      throw err;
+    }
+  } catch (err) {
+    console.error("Proof photo serve failed:", err);
+    if (!res.headersSent) res.status(500).json({ error: "Failed" });
+  }
+});
+
 // POST /api/quests/assignments/:assignmentId/verify (leader verifies submitted quest)
 router.post("/assignments/:assignmentId/verify", requireAuth, async (req, res) => {
   try {
@@ -277,11 +365,18 @@ router.post("/assignments/:assignmentId/verify", requireAuth, async (req, res) =
     const newStatus = approved ? "completed" : "active";
     const now = new Date();
 
-    await db.update(questAssignmentsTable).set({
+    // Compare-and-set: only one concurrent verify can win the submitted→done transition
+    const updated = await db.update(questAssignmentsTable).set({
       status: newStatus,
       reviewedBy: req.userId!,
       verificationNote: note ?? assignment.verificationNote,
-    }).where(eq(questAssignmentsTable.id, assignmentId));
+      // Rejected: clear the proof photo so a fresh one is required next time
+      ...(approved ? {} : { proofPhotoPath: null, completedAt: null }),
+    }).where(and(
+      eq(questAssignmentsTable.id, assignmentId),
+      eq(questAssignmentsTable.status, "submitted"),
+    )).returning({ id: questAssignmentsTable.id });
+    if (updated.length === 0) { res.status(400).json({ error: "Not submitted" }); return; }
 
     if (approved && assignment.userId) {
       const [quest] = await db.select().from(questDefinitionsTable)
@@ -371,12 +466,14 @@ router.get("/pending-verification", requireAuth, async (req, res) => {
       status: questAssignmentsTable.status,
       completedAt: questAssignmentsTable.completedAt,
       verificationNote: questAssignmentsTable.verificationNote,
+      proofPhotoPath: questAssignmentsTable.proofPhotoPath,
       plainTitle: questDefinitionsTable.plainTitle,
       adventureTitle: questDefinitionsTable.adventureTitle,
       description: questDefinitionsTable.description,
       difficulty: questDefinitionsTable.difficulty,
       isLegendary: questDefinitionsTable.isLegendary,
       requiresVerification: questDefinitionsTable.requiresVerification,
+      verificationType: questDefinitionsTable.verificationType,
       xpReward: questDefinitionsTable.xpReward,
       goldReward: questDefinitionsTable.goldReward,
       partyGoldReward: questDefinitionsTable.partyGoldReward,

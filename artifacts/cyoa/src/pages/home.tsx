@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   useGetHomeData, getGetHomeDataQueryKey,
-  useCompleteQuest,
   useListMyParties,
   useGetMyCharacter,
   useGetInventory,
@@ -17,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Link } from 'wouter';
 import { playSuccessSound, playLevelUpSound, playTadaSound } from '@/lib/sounds';
 import { celebrateQuestComplete, celebrateLevelUp } from '@/lib/celebrate';
+import { uploadQuestProof, completeQuestAssignment } from '@/lib/quest-proof';
 import { cn } from '@/lib/utils';
 
 // Pixel-art broom SVG — used for the "Give Me a Quest!" action
@@ -126,7 +126,6 @@ export default function Home() {
   const { data: character } = useGetMyCharacter();
   const { data: inventoryData } = useGetInventory();
 
-  const completeQuestMutation = useCompleteQuest();
 
   // Build equipped item map with names for PixelCharacter
   const equippedWithNames = useMemo((): EquippedItems => {
@@ -179,34 +178,47 @@ export default function Home() {
     }
   };
 
-  const handleComplete = (questId: number) => {
-    completeQuestMutation.mutate({ assignmentId: questId }, {
-      onSuccess: (res) => {
-        if (currentUser?.hapticsEnabled && 'vibrate' in navigator) navigator.vibrate([100, 50, 100, 50, 200]);
-        if (res.leveledUp) {
-          celebrateLevelUp();
-          if (currentUser?.soundEnabled) playLevelUpSound();
-          toast({
-            title: '⚡ LEVEL UP!',
-            description: `You reached Level ${res.newLevel}!`,
-            className: 'bg-yellow-500 text-black border-none font-bold',
-          });
-        } else {
-          celebrateQuestComplete();
-          if (currentUser?.soundEnabled) playTadaSound();
-          toast({
-            title: 'Quest Complete!',
-            description: `+${res.xpGained} XP  +${res.goldGained} Gold`,
-            className: 'bg-green-600 text-white border-none font-bold',
-          });
-        }
-        refetch();
-        queryClient.invalidateQueries({ queryKey: getGetHomeDataQueryKey() });
-      },
-      onError: (err: any) => {
-        toast({ title: 'Error', description: err.message, variant: 'destructive' });
-      },
-    });
+  const handleComplete = async (questId: number, photoFile?: File) => {
+    let photoPath: string | undefined;
+    if (photoFile) {
+      try {
+        photoPath = await uploadQuestProof(questId, photoFile);
+      } catch (e: any) {
+        toast({ title: 'Photo upload failed', description: e.message, variant: 'destructive' });
+        return;
+      }
+    }
+    try {
+      const res = await completeQuestAssignment(questId, photoPath);
+      if (currentUser?.hapticsEnabled && 'vibrate' in navigator) navigator.vibrate([100, 50, 100, 50, 200]);
+      if (res.status === 'submitted') {
+        toast({
+          title: '📨 Sent for Review!',
+          description: 'A grown-up will check it — rewards come after approval.',
+          className: 'bg-orange-500 text-white border-none font-bold',
+        });
+      } else if (res.leveledUp) {
+        celebrateLevelUp();
+        if (currentUser?.soundEnabled) playLevelUpSound();
+        toast({
+          title: '⚡ LEVEL UP!',
+          description: `You reached Level ${res.newLevel}!`,
+          className: 'bg-yellow-500 text-black border-none font-bold',
+        });
+      } else {
+        celebrateQuestComplete();
+        if (currentUser?.soundEnabled) playTadaSound();
+        toast({
+          title: 'Quest Complete!',
+          description: `+${res.xpGained} XP  +${res.goldGained} Gold`,
+          className: 'bg-green-600 text-white border-none font-bold',
+        });
+      }
+      refetch();
+      queryClient.invalidateQueries({ queryKey: getGetHomeDataQueryKey() });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
   };
 
   if (isLoading || !homeData) {
@@ -373,7 +385,7 @@ export default function Home() {
           onClose={() => setSelectedQuest(null)}
           onComplete={
             selectedQuest.status === 'active'
-              ? () => { handleComplete(selectedQuest.id); setSelectedQuest(null); }
+              ? (photoFile?: File) => { handleComplete(selectedQuest.id, photoFile); setSelectedQuest(null); }
               : undefined
           }
           isLeader={isLeader}
@@ -414,7 +426,11 @@ export default function Home() {
               <QuestCard
                 key={quest.id}
                 quest={quest as QuestLike}
-                onComplete={() => handleComplete(quest.id)}
+                onComplete={
+                  quest.requiresVerification && quest.verificationType === 'photo'
+                    ? () => setSelectedQuest(quest as QuestLike) // photo needed → open sheet
+                    : () => handleComplete(quest.id)
+                }
                 onClick={() => setSelectedQuest(quest as QuestLike)}
               />
             ))}

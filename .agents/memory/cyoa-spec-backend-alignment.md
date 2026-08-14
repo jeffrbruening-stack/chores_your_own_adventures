@@ -36,3 +36,13 @@ Also: `QuestAssignmentStatus` enum in the spec had `available | claimed | pendin
 - After changing the spec enum values, always run `pnpm orval` in `lib/api-spec/` then rebuild `lib/api-client-react` with tsc --build.
 - Use `pnpm --filter @workspace/cyoa exec tsc --noEmit` to catch type mismatches before runtime. If it fails with project-reference errors, run `pnpm exec tsc --build lib/api-client-react/tsconfig.json` first.
 - The existing `/api/quests/...` and `/api/characters/...` routes still exist — they're not removed. New spec-aligned routes are additions, not replacements.
+
+## Duplicate route families must change in lockstep
+Quest assignment logic exists TWICE: `routes/quests.ts` (/api/quests/assignments/...) and `routes/quest-assignments.ts` (/api/quest-assignments/..., spec-aligned, used by generated client). Any change to completion/verification behavior must be applied to BOTH files or one path silently keeps old behavior. Frontend pages mix generated-client calls and manual fetches to the /api/quests/... family.
+
+## Quest verification feature (Aug 2026)
+- quest_definitions.verification_type ('photo'|'inspection'|null); quest_assignments.proof_photo_path.
+- Photo proof: POST proof-upload-url (owner, active, photo quests only) → signed PUT → complete with photoPath (must start /objects/uploads/).
+- proof-image route authenticates via ?token= JWT query param (img tags can't send headers) + party membership check — unlike portraits, chore photos are private.
+- Status transitions use compare-and-set (WHERE status='active'/'submitted' ... RETURNING) to prevent double reward payment.
+- Reject clears proof_photo_path + completed_at so re-submission needs a fresh photo.

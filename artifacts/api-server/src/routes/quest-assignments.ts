@@ -31,6 +31,8 @@ const ASSIGNMENT_SELECT = {
   difficulty: questDefinitionsTable.difficulty,
   isLegendary: questDefinitionsTable.isLegendary,
   requiresVerification: questDefinitionsTable.requiresVerification,
+  verificationType: questDefinitionsTable.verificationType,
+  proofPhotoPath: questAssignmentsTable.proofPhotoPath,
   xpReward: questDefinitionsTable.xpReward,
   goldReward: questDefinitionsTable.goldReward,
   partyGoldReward: questDefinitionsTable.partyGoldReward,
@@ -84,14 +86,31 @@ router.post("/:assignmentId/complete", requireAuth, async (req, res) => {
     const newStatus = quest.requiresVerification ? "submitted" : "completed";
     const now = new Date();
 
-    await db.update(questAssignmentsTable).set({
+    // Photo verification: a proof photo is required to submit
+    let proofPhotoPath: string | null = null;
+    if (quest.requiresVerification && quest.verificationType === "photo") {
+      const photoPath = req.body?.photoPath;
+      if (typeof photoPath !== "string" || !photoPath.startsWith("/objects/uploads/")) {
+        res.status(400).json({ error: "This quest needs a photo as proof" });
+        return;
+      }
+      proofPhotoPath = photoPath;
+    }
+
+    // Compare-and-set: only one concurrent complete can win the active→done transition
+    const updated = await db.update(questAssignmentsTable).set({
       status: newStatus,
       completedAt: now,
       verificationNote: req.body?.note ?? null,
+      proofPhotoPath,
       xpAwarded: quest.xpReward,
       goldAwarded: quest.goldReward,
       partyGoldAwarded: quest.partyGoldReward,
-    }).where(eq(questAssignmentsTable.id, assignmentId));
+    }).where(and(
+      eq(questAssignmentsTable.id, assignmentId),
+      eq(questAssignmentsTable.status, "active"),
+    )).returning({ id: questAssignmentsTable.id });
+    if (updated.length === 0) { res.status(400).json({ error: "Quest not active" }); return; }
 
     let xpGained = 0;
     let goldGained = 0;
@@ -169,11 +188,18 @@ router.post("/:assignmentId/verify", requireAuth, async (req, res) => {
     const newStatus = approved ? "completed" : "active";
     const now = new Date();
 
-    await db.update(questAssignmentsTable).set({
+    // Compare-and-set: only one concurrent verify can win the submitted→done transition
+    const updated = await db.update(questAssignmentsTable).set({
       status: newStatus,
       reviewedBy: req.userId!,
       verificationNote: note ?? assignment.verificationNote,
-    }).where(eq(questAssignmentsTable.id, assignmentId));
+      // Rejected: clear the proof photo so a fresh one is required next time
+      ...(approved ? {} : { proofPhotoPath: null, completedAt: null }),
+    }).where(and(
+      eq(questAssignmentsTable.id, assignmentId),
+      eq(questAssignmentsTable.status, "submitted"),
+    )).returning({ id: questAssignmentsTable.id });
+    if (updated.length === 0) { res.status(400).json({ error: "Not submitted" }); return; }
 
     if (approved && assignment.userId) {
       const [quest] = await db.select().from(questDefinitionsTable)

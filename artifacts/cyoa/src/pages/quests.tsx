@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { celebrateQuestComplete, celebrateLevelUp } from '@/lib/celebrate';
 import { playTadaSound, playLevelUpSound } from '@/lib/sounds';
+import { uploadQuestProof } from '@/lib/quest-proof';
 import { QuestCard } from '@/components/quest-card';
 import { QuestDetailSheet, type QuestLike } from '@/components/quest-detail-sheet';
 import { Plus } from 'lucide-react';
@@ -56,34 +57,46 @@ export default function Quests() {
 
   const [selectedQuest, setSelectedQuest] = useState<QuestLike | null>(null);
 
-  const handleComplete = async (assignmentId: number) => {
+  const handleComplete = async (assignmentId: number, photoFile?: File) => {
     try {
       const token = localStorage.getItem('cyoa_token');
       const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+      let photoPath: string | undefined;
+      if (photoFile) {
+        photoPath = await uploadQuestProof(assignmentId, photoFile);
+      }
       const res = await fetch(`${BASE}/api/quests/assignments/${assignmentId}/complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({}),
+        body: JSON.stringify(photoPath ? { photoPath } : {}),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Failed' }));
         throw new Error(err.error ?? 'Failed');
       }
       const result = await res.json();
-      if (result.leveledUp) {
-        celebrateLevelUp();
-        if (currentUser?.soundEnabled) playLevelUpSound();
+      if (result.status === 'submitted') {
+        toast({
+          title: '📨 Sent for Review!',
+          description: 'A grown-up will check it — rewards come after approval.',
+          className: 'bg-orange-500 text-white border-none font-bold',
+        });
       } else {
-        celebrateQuestComplete();
-        if (currentUser?.soundEnabled) playTadaSound();
+        if (result.leveledUp) {
+          celebrateLevelUp();
+          if (currentUser?.soundEnabled) playLevelUpSound();
+        } else {
+          celebrateQuestComplete();
+          if (currentUser?.soundEnabled) playTadaSound();
+        }
+        toast({
+          title: result.leveledUp ? '⚡ LEVEL UP!' : '✅ Quest Complete!',
+          description: result.leveledUp
+            ? `You reached Level ${result.newLevel}!`
+            : `+${result.xpGained ?? result.xpAwarded} XP  +${result.goldGained ?? result.goldAwarded} Gold`,
+          className: result.leveledUp ? 'bg-yellow-500 text-black border-none font-bold' : 'bg-green-600 text-white border-none font-bold',
+        });
       }
-      toast({
-        title: result.leveledUp ? '⚡ LEVEL UP!' : '✅ Quest Complete!',
-        description: result.leveledUp
-          ? `You reached Level ${result.newLevel}!`
-          : `+${result.xpGained ?? result.xpAwarded} XP  +${result.goldGained ?? result.goldAwarded} Gold`,
-        className: result.leveledUp ? 'bg-yellow-500 text-black border-none font-bold' : 'bg-green-600 text-white border-none font-bold',
-      });
       // Refresh all relevant caches
       queryClient.invalidateQueries({ queryKey: getListMyQuestAssignmentsQueryKey({ partyId: activePartyId! }) });
       queryClient.invalidateQueries({ queryKey: getGetHomeDataQueryKey() });
@@ -94,17 +107,19 @@ export default function Quests() {
     }
   };
 
-  const handleVerify = async (assignmentId: number) => {
+  const handleVerify = async (assignmentId: number, approved: boolean = true) => {
     try {
       const token = localStorage.getItem('cyoa_token');
       const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
       const res = await fetch(`${BASE}/api/quests/assignments/${assignmentId}/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ approved: true }),
+        body: JSON.stringify({ approved }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? 'Failed');
-      toast({ title: '✅ Quest Verified!', description: 'Rewards have been awarded.', className: 'bg-green-600 text-white border-none font-bold' });
+      toast(approved
+        ? { title: '✅ Quest Verified!', description: 'Rewards have been awarded.', className: 'bg-green-600 text-white border-none font-bold' }
+        : { title: '↩️ Sent Back', description: 'The quest is active again for another try.', className: 'bg-orange-500 text-white border-none font-bold' });
       queryClient.invalidateQueries({ queryKey: getListPendingVerificationQueryKey({ partyId: activePartyId! }) });
       queryClient.invalidateQueries({ queryKey: getGetHomeDataQueryKey() });
       refetchPending();
@@ -156,7 +171,13 @@ export default function Quests() {
                 <QuestCard
                   key={q.id}
                   quest={q as QuestLike}
-                  onComplete={q.status === 'active' ? () => handleComplete(q.id) : undefined}
+                  onComplete={
+                    q.status === 'active'
+                      ? ((q as any).requiresVerification && (q as any).verificationType === 'photo'
+                          ? () => setSelectedQuest(q as QuestLike) // photo needed → open sheet
+                          : () => handleComplete(q.id))
+                      : undefined
+                  }
                   onClick={() => setSelectedQuest(q as QuestLike)}
                 />
               ))
@@ -198,12 +219,12 @@ export default function Quests() {
             onClose={() => setSelectedQuest(null)}
             onComplete={
               selectedQuest.status === 'active'
-                ? () => handleComplete(selectedQuest.id)
+                ? (photoFile?: File) => handleComplete(selectedQuest.id, photoFile)
                 : undefined
             }
             onVerify={
               isLeader && (selectedQuest.status === 'submitted' || selectedQuest.status === 'pending_verification')
-                ? () => handleVerify(selectedQuest.id)
+                ? (approved: boolean) => handleVerify(selectedQuest.id, approved)
                 : undefined
             }
             isLeader={isLeader}

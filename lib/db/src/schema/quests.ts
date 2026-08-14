@@ -19,6 +19,7 @@ export const questDefinitionsTable = pgTable("quest_definitions", {
   isLegendary: boolean("is_legendary").notNull().default(false),
   assignedToUserIds: text("assigned_to_user_ids").array(), // null = open quest
   requiresVerification: boolean("requires_verification").notNull().default(false),
+  verificationType: text("verification_type"), // 'photo' | 'inspection' | null (none)
   xpReward: integer("xp_reward").notNull().default(25),
   goldReward: integer("gold_reward").notNull().default(10),
   partyGoldReward: integer("party_gold_reward").notNull().default(5),
@@ -49,6 +50,7 @@ export const questAssignmentsTable = pgTable("quest_assignments", {
   goldAwarded: integer("gold_awarded").notNull().default(0),
   partyGoldAwarded: integer("party_gold_awarded").notNull().default(0),
   verificationNote: text("verification_note"),
+  proofPhotoPath: text("proof_photo_path"), // /objects/... path for photo verification
   reviewedBy: integer("reviewed_by"),
   claimedBy: integer("claimed_by"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

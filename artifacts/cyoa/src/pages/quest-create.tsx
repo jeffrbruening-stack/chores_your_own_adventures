@@ -13,7 +13,7 @@ import {
   getListQuestsQueryKey,
 } from '@workspace/api-client-react';
 import { useAuth } from '@/contexts/auth-context';
-import { ArrowLeft, Sparkles, BrainCircuit, RefreshCw, CalendarDays, Clock } from 'lucide-react';
+import { ArrowLeft, Sparkles, BrainCircuit, RefreshCw, CalendarDays, Clock, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -60,6 +60,7 @@ export default function QuestCreate() {
   // Step 4: Difficulty
   const [difficulty, setDifficulty] = useState<'easy' | 'normal' | 'hard' | 'epic' | 'legendary'>('normal');
   const [isLegendary, setIsLegendary] = useState(false);
+  const [verificationType, setVerificationType] = useState<'none' | 'photo' | 'inspection'>('none');
 
   const { data: members } = useListPartyMembers(activePartyId!, {
     query: { enabled: !!activePartyId, queryKey: getListPartyMembersQueryKey(activePartyId!) },
@@ -164,6 +165,8 @@ export default function QuestCreate() {
             recurrenceDays: scheduleType === 'recurring' ? recurrenceDays : undefined,
             timeWindowStart: w.start,
             timeWindowEnd: w.end,
+            requiresVerification: verificationType !== 'none',
+            verificationType: verificationType !== 'none' ? verificationType : undefined,
           } as any,
         });
         created++;
@@ -547,6 +550,42 @@ export default function QuestCreate() {
             >
               <Sparkles className="w-4 h-4" /> LEGENDARY QUEST
             </button>
+
+            {/* Verification */}
+            <div className="bg-card border border-border rounded-xl p-4 space-y-3 mt-6">
+              <div className="flex items-center gap-2 text-sm font-bold text-primary">
+                <ShieldCheck className="w-4 h-4" /> VERIFICATION
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Should a grown-up check this quest before rewards are paid out?
+              </p>
+              <div className="grid grid-cols-1 gap-2">
+                {([
+                  { id: 'none',       label: 'NO CHECK NEEDED',      desc: 'Rewards are paid instantly on completion', icon: '⚡' },
+                  { id: 'photo',      label: 'PHOTO PROOF',          desc: 'Kid must snap a photo of the finished chore', icon: '📸' },
+                  { id: 'inspection', label: 'VISUAL INSPECTION',    desc: 'A grown-up checks in person, then approves in the app', icon: '🔍' },
+                ] as const).map(opt => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setVerificationType(opt.id)}
+                    data-testid={`button-verification-${opt.id}`}
+                    className={cn(
+                      'flex items-center gap-3 rounded-xl px-3 py-3 text-left transition-all border',
+                      verificationType === opt.id
+                        ? 'bg-primary/15 border-primary text-foreground'
+                        : 'bg-muted text-muted-foreground border-border'
+                    )}
+                  >
+                    <span className="text-lg">{opt.icon}</span>
+                    <span>
+                      <span className="block text-[11px] font-bold">{opt.label}</span>
+                      <span className="block text-[10px] opacity-75">{opt.desc}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {/* Preview */}
             <div className="bg-card border border-border p-4 rounded-xl mt-6 space-y-1">

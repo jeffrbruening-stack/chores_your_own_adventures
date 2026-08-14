@@ -1,7 +1,9 @@
+import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Star, Coins, ShieldAlert, Clock, CheckCircle2, AlertCircle, CalendarDays, RefreshCw } from 'lucide-react';
+import { X, Star, Coins, ShieldAlert, Clock, CheckCircle2, AlertCircle, CalendarDays, RefreshCw, Camera, XCircle } from 'lucide-react';
 import { format, isPast } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
+import { proofImageUrl } from '@/lib/quest-proof';
 import { cn } from '@/lib/utils';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -27,6 +29,8 @@ export interface QuestLike {
   isLegendary?: boolean;
   questType?: string;
   requiresVerification?: boolean;
+  verificationType?: string | null;
+  proofPhotoPath?: string | null;
   xpReward: number;
   goldReward: number;
   partyGoldReward: number;
@@ -42,8 +46,10 @@ export interface QuestLike {
 interface QuestDetailSheetProps {
   quest: QuestLike;
   onClose: () => void;
-  onComplete?: () => void;
-  onVerify?: () => void;
+  /** For photo-verification quests, receives the chosen proof photo. */
+  onComplete?: (photoFile?: File) => void;
+  /** approved=false sends the quest back to the kid. */
+  onVerify?: (approved: boolean) => void;
   isLeader?: boolean;
 }
 
@@ -69,6 +75,18 @@ export function QuestDetailSheet({
   isLeader,
 }: QuestDetailSheetProps) {
   const { currentUser } = useAuth();
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const needsPhoto = quest.requiresVerification && quest.verificationType === 'photo';
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
   const title =
     currentUser?.adventureMode && quest.adventureTitle
       ? quest.adventureTitle
@@ -268,16 +286,73 @@ export function QuestDetailSheet({
             <div className="flex items-start gap-2 text-sm text-orange-400 bg-orange-400/10 px-4 py-3 rounded-xl border border-orange-400/20">
               <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
               <span>
-                Requires leader verification before rewards are awarded.
+                {needsPhoto
+                  ? 'Snap a photo of the finished chore — a grown-up will check it before rewards are paid.'
+                  : 'A grown-up will inspect this in person before rewards are paid.'}
               </span>
             </div>
           )}
 
+          {/* Photo proof picker (kid, photo-verification quests) */}
+          {needsPhoto && quest.status === 'active' && onComplete && (
+            <div className="space-y-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handlePhotoChange}
+                data-testid="input-proof-photo"
+              />
+              {photoPreview ? (
+                <div className="relative rounded-xl overflow-hidden border-2 border-primary">
+                  <img src={photoPreview} alt="Proof" className="w-full max-h-64 object-cover" />
+                  <button
+                    onClick={() => { setPhotoFile(null); setPhotoPreview(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                    className="absolute top-2 right-2 bg-black/70 text-white rounded-full p-1.5"
+                    data-testid="button-remove-photo"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full border-2 border-dashed border-border rounded-xl py-8 flex flex-col items-center gap-2 text-muted-foreground hover:text-foreground hover:border-primary transition-colors"
+                  data-testid="button-take-photo"
+                >
+                  <Camera className="w-8 h-8" />
+                  <span className="text-sm font-bold">TAKE A PHOTO</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Proof photo (leader reviewing a submitted photo quest) */}
+          {isLeader &&
+            (quest.status === 'pending_verification' || quest.status === 'submitted') &&
+            quest.proofPhotoPath && (
+              <div className="space-y-1.5">
+                <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                  Photo Proof
+                </h3>
+                <img
+                  src={proofImageUrl(quest.id)}
+                  alt="Proof of completed quest"
+                  className="w-full max-h-72 object-contain rounded-xl border border-border bg-background"
+                  data-testid="img-proof-photo"
+                />
+              </div>
+            )}
+
           {/* Action: complete */}
           {quest.status === 'active' && onComplete && (
             <button
-              onClick={() => { onComplete(); onClose(); }}
-              className="w-full bg-primary text-primary-foreground font-pixel py-4 rounded-xl pixel-corners border-b-4 border-r-4 border-black active:border-b-0 active:border-r-0 active:translate-y-1 active:translate-x-1 transition-all text-sm flex items-center justify-center gap-2"
+              onClick={() => { onComplete(photoFile ?? undefined); onClose(); }}
+              disabled={needsPhoto && !photoFile}
+              className="w-full bg-primary text-primary-foreground font-pixel py-4 rounded-xl pixel-corners border-b-4 border-r-4 border-black active:border-b-0 active:border-r-0 active:translate-y-1 active:translate-x-1 transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+              data-testid="button-complete-quest"
             >
               <CheckCircle2 className="w-5 h-5" />
               {quest.requiresVerification ? 'SUBMIT FOR REVIEW' : 'COMPLETE QUEST'}
@@ -296,13 +371,24 @@ export function QuestDetailSheet({
           {isLeader &&
             (quest.status === 'pending_verification' || quest.status === 'submitted') &&
             onVerify && (
-              <button
-                onClick={() => { onVerify(); onClose(); }}
-                className="w-full bg-green-500 text-white font-pixel py-4 rounded-xl pixel-corners border-b-4 border-r-4 border-green-900 active:border-b-0 active:border-r-0 active:translate-y-1 active:translate-x-1 transition-all text-sm flex items-center justify-center gap-2"
-              >
-                <CheckCircle2 className="w-5 h-5" />
-                VERIFY & AWARD REWARDS
-              </button>
+              <div className="space-y-2">
+                <button
+                  onClick={() => { onVerify(true); onClose(); }}
+                  className="w-full bg-green-500 text-white font-pixel py-4 rounded-xl pixel-corners border-b-4 border-r-4 border-green-900 active:border-b-0 active:border-r-0 active:translate-y-1 active:translate-x-1 transition-all text-sm flex items-center justify-center gap-2"
+                  data-testid="button-approve-quest"
+                >
+                  <CheckCircle2 className="w-5 h-5" />
+                  APPROVE & AWARD REWARDS
+                </button>
+                <button
+                  onClick={() => { onVerify(false); onClose(); }}
+                  className="w-full bg-card text-red-400 font-pixel py-3.5 rounded-xl border-2 border-red-500/40 active:translate-y-0.5 transition-all text-xs flex items-center justify-center gap-2"
+                  data-testid="button-reject-quest"
+                >
+                  <XCircle className="w-4 h-4" />
+                  SEND BACK — NOT DONE YET
+                </button>
+              </div>
             )}
 
           {/* Status: completed */}
