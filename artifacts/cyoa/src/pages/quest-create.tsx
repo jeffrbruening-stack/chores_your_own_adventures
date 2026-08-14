@@ -33,7 +33,8 @@ const TIME_PRESETS = [
 
 export default function QuestCreate() {
   const [, setLocation] = useLocation();
-  const { activePartyId } = useAuth();
+  const { activePartyId, currentUser } = useAuth();
+  const isKid = currentUser?.userType === 'kid';
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -172,7 +173,11 @@ export default function QuestCreate() {
         created++;
       }
       invalidateQuestCaches();
-      toast({ title: multi ? `${windows.length} Quests Created!` : 'Quest Created!' });
+      if (isKid) {
+        toast({ title: 'Quest Suggested!', description: 'A grown-up will review it. If approved, it lands on your quest list.' });
+      } else {
+        toast({ title: multi ? `${windows.length} Quests Created!` : 'Quest Created!' });
+      }
       setLocation('/quests');
     } catch (err: any) {
       // Partial failure: some windows may already be created — refresh caches
@@ -211,7 +216,7 @@ export default function QuestCreate() {
         >
           <ArrowLeft className="w-6 h-6" />
         </button>
-        <h1 className="text-lg font-pixel text-primary flex-1">CREATE QUEST</h1>
+        <h1 className="text-lg font-pixel text-primary flex-1">{isKid ? 'SUGGEST QUEST' : 'CREATE QUEST'}</h1>
         <span className="text-xs text-muted-foreground font-mono">{step}/{totalSteps}</span>
       </div>
 
@@ -614,7 +619,7 @@ export default function QuestCreate() {
               disabled={createQuestMutation.isPending}
               className="w-full mt-8 bg-green-500 text-white font-pixel py-4 px-4 rounded-xl pixel-corners border-b-4 border-r-4 border-green-900 active:border-b-0 active:border-r-0 active:translate-y-1 active:translate-x-1 transition-all disabled:opacity-50"
             >
-              {createQuestMutation.isPending ? 'SAVING...' : 'CREATE QUEST'}
+              {createQuestMutation.isPending ? 'SAVING...' : (isKid ? 'SUGGEST QUEST' : 'CREATE QUEST')}
             </button>
           </div>
         )}

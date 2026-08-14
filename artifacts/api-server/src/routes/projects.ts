@@ -15,27 +15,44 @@ router.get("/", requireAuth, async (req, res) => {
     await assertMember(partyId, req.userId!);
     const projects = await db.select().from(projectsTable)
       .where(and(eq(projectsTable.partyId, partyId), eq(projectsTable.isActive, true)));
-    res.json(projects);
+    res.json(projects.map(toSpecProject));
   } catch (err: any) {
     res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
   }
 });
 
+// Map a DB row to the spec's Project shape (status + HP-based task counts)
+function toSpecProject(p: typeof projectsTable.$inferSelect) {
+  const hpMax = p.bossHp ?? 0;
+  const hpCurrent = p.currentHp ?? hpMax;
+  return {
+    ...p,
+    projectType: p.isBoss ? "boss" : "normal",
+    status: p.completedAt ? "completed" : "active",
+    totalTaskCount: hpMax,
+    completedTaskCount: hpMax - hpCurrent,
+    hpMax: p.bossHp,
+    hpCurrent: p.currentHp,
+  };
+}
+
 // POST /api/projects
 router.post("/", requireAuth, async (req, res) => {
   try {
-    const { partyId, name, description, isBoss, bossHp, targetDate } = req.body;
+    const { partyId, name, description, isBoss, projectType, bossHp, targetDate } = req.body;
     if (!partyId || !name) { res.status(400).json({ error: "partyId and name required" }); return; }
     await assertLeader(partyId, req.userId!);
+    const boss = projectType === "boss" || (isBoss ?? false);
+    const hp = bossHp ?? (boss ? 10 : null);
     const [project] = await db.insert(projectsTable).values({
       partyId, creatorId: req.userId!,
       name, description,
-      isBoss: isBoss ?? false,
-      bossHp: bossHp ?? null,
-      currentHp: bossHp ?? null,
+      isBoss: boss,
+      bossHp: hp,
+      currentHp: hp,
       targetDate: targetDate ? new Date(targetDate) : null,
     }).returning();
-    res.status(201).json(project);
+    res.status(201).json(toSpecProject(project));
   } catch (err: any) {
     res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
   }

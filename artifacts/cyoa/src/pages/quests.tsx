@@ -10,6 +10,9 @@ import {
   getListPendingVerificationQueryKey,
   getListQuestsQueryKey,
   getGetHomeDataQueryKey,
+  useListProposedQuests,
+  getListProposedQuestsQueryKey,
+  useReviewQuestProposal,
 } from '@workspace/api-client-react';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
@@ -54,6 +57,24 @@ export default function Quests() {
     { partyId: activePartyId! },
     { query: { enabled: !!activePartyId && activeTab === 'all' && isLeader, queryKey: getListQuestsQueryKey({ partyId: activePartyId! }) } }
   );
+
+  const { data: proposedQuests, isLoading: loadingProposed, refetch: refetchProposed } = useListProposedQuests(
+    { partyId: activePartyId! },
+    { query: { enabled: !!activePartyId && activeTab === 'proposed' && isLeader, queryKey: getListProposedQuestsQueryKey({ partyId: activePartyId! }) } }
+  );
+  const reviewProposalMutation = useReviewQuestProposal();
+
+  const handleReviewProposal = async (proposalId: number, approve: boolean) => {
+    try {
+      await reviewProposalMutation.mutateAsync({ questId: proposalId, data: { action: approve ? 'approve' : 'decline' } as any });
+      toast({ title: approve ? 'Quest Approved!' : 'Suggestion Declined', description: approve ? "It's now on their quest list." : undefined });
+      refetchProposed();
+      queryClient.invalidateQueries({ queryKey: getGetHomeDataQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getListQuestsQueryKey({ partyId: activePartyId! }) });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    }
+  };
 
   const [selectedQuest, setSelectedQuest] = useState<QuestLike | null>(null);
 
@@ -134,6 +155,7 @@ export default function Quests() {
     { id: 'open', label: 'OPEN' },
     ...(isLeader ? [
       { id: 'pending', label: 'VERIFY' },
+      { id: 'proposed', label: 'SUGGESTED' },
       { id: 'all', label: 'ALL' }
     ] : [])
   ];
@@ -206,6 +228,44 @@ export default function Quests() {
             : <EmptyState text="Nothing pending verification." />
         )}
 
+        {activeTab === 'proposed' && isLeader && (
+          loadingProposed ? <LoadingState /> :
+          proposedQuests?.length
+            ? proposedQuests.map((p: any) => (
+                <div key={p.id} className="border-2 border-orange-400/50 bg-card rounded-xl p-4" data-testid={`card-proposal-${p.id}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-pixel text-sm text-foreground">{p.adventureTitle || p.plainTitle}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{p.plainTitle}</p>
+                      {p.description && <p className="text-xs text-muted-foreground mt-1">{p.description}</p>}
+                      <p className="text-xs text-orange-400 mt-2 font-bold">
+                        Suggested by {p.proposedByName ?? 'an adventurer'} • {String(p.difficulty).toUpperCase()} • {p.xpReward} XP / {p.goldReward} gold
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={() => handleReviewProposal(p.id, true)}
+                      disabled={reviewProposalMutation.isPending}
+                      className="flex-1 py-2 bg-primary text-primary-foreground font-pixel text-xs rounded-lg active:scale-95 transition-transform"
+                      data-testid={`button-approve-proposal-${p.id}`}
+                    >
+                      APPROVE
+                    </button>
+                    <button
+                      onClick={() => handleReviewProposal(p.id, false)}
+                      disabled={reviewProposalMutation.isPending}
+                      className="flex-1 py-2 bg-muted text-muted-foreground font-pixel text-xs rounded-lg active:scale-95 transition-transform"
+                      data-testid={`button-decline-proposal-${p.id}`}
+                    >
+                      DECLINE
+                    </button>
+                  </div>
+                </div>
+              ))
+            : <EmptyState text="No quest suggestions waiting for review." />
+        )}
+
         {activeTab === 'all' && isLeader && (
           loadingAll ? <LoadingState /> :
           allQuests?.length
@@ -232,8 +292,8 @@ export default function Quests() {
         )}
       </div>
 
-      {/* FAB for Leaders */}
-      {isLeader && (
+      {/* FAB — kids' creations become suggestions a grown-up approves */}
+      {(
         <Link
           href="/quest-create"
           className="fixed bottom-20 right-4 w-14 h-14 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform z-30"

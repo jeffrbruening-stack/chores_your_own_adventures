@@ -168,7 +168,7 @@ router.post("/change-password", requireAuth, async (req, res) => {
 // GET /api/auth/household/:code — list characters in household
 router.get(["/household/:code", "/household/:code/adventurers"], async (req, res) => {
   try {
-    const { code } = req.params;
+    const code = String(req.params.code);
     const [party] = await db.select({ id: partiesTable.id })
       .from(partiesTable).where(eq(partiesTable.householdCode, code.toUpperCase())).limit(1);
     if (!party) { res.status(404).json({ error: "Household not found" }); return; }

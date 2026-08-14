@@ -34,3 +34,9 @@ After saving character appearance in create-character.tsx, must call:
 
 ## Quest detail
 QuestDetailSheet component in `artifacts/cyoa/src/components/quest-detail-sheet.tsx` — bottom sheet accepting `QuestLike` (shared interface covering both QuestAssignment and QuestDefinition shapes).
+
+## Kid quest suggestions (approval flow)
+- Kid POST /api/quests is diverted server-side into quest_proposals (status pending) — kids can never create live quests directly.
+- Grown-ups (member_role leader OR adult) list via GET /quests/proposed and review via POST /quests/:id/review-proposal (spec) or legacy /quests/proposals/:id/review — both share reviewProposalTx.
+- Review uses a compare-and-set UPDATE ... WHERE status='pending' inside a db.transaction so concurrent reviews can't double-create quests; 409 when already reviewed.
+- Approval creates the quest definition assigned to the proposer PLUS an active quest_assignment (definitions without assignments are invisible in My Quests).

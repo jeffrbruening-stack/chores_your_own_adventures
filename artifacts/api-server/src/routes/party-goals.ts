@@ -15,7 +15,12 @@ router.get("/", requireAuth, async (req, res) => {
     await assertMember(partyId, req.userId!);
     const goals = await db.select().from(partyGoalsTable)
       .where(eq(partyGoalsTable.partyId, partyId));
-    res.json(goals);
+    // Progress toward the active goal is the party's shared gold stash —
+    // it counts everything earned so far, including gold from before activation.
+    const [party] = await db.select({ partyGoldReserve: partiesTable.partyGoldReserve })
+      .from(partiesTable).where(eq(partiesTable.id, partyId)).limit(1);
+    const reserve = party?.partyGoldReserve ?? 0;
+    res.json(goals.map(g => g.status === "active" ? { ...g, currentGold: reserve } : g));
   } catch (err: any) {
     res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
   }

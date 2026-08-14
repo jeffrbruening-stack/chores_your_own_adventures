@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { db } from "@workspace/db";
 import {
   partiesTable, partyMembersTable, usersTable, inviteTokensTable, charactersTable,
+  partyGoalsTable,
 } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
@@ -111,7 +112,17 @@ router.get("/:partyId", requireAuth, async (req, res) => {
       .where(eq(partiesTable.id, partyId)).limit(1);
     if (!party) { res.status(404).json({ error: "Not found" }); return; }
     const role = await getMemberRole(partyId, req.userId!);
-    res.json({ ...party, myRole: role });
+    const [activePartyGoal] = await db.select().from(partyGoalsTable)
+      .where(and(eq(partyGoalsTable.partyId, partyId), eq(partyGoalsTable.status, "active")))
+      .limit(1);
+    res.json({
+      ...party,
+      myRole: role,
+      // Goal progress = the party's shared gold stash (counts gold earned before activation too)
+      activePartyGoal: activePartyGoal
+        ? { ...activePartyGoal, currentGold: party.partyGoldReserve ?? 0 }
+        : null,
+    });
   } catch (err: any) {
     res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
   }

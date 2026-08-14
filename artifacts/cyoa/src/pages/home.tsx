@@ -11,7 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import { QuestCard } from '@/components/quest-card';
 import { QuestDetailSheet, type QuestLike } from '@/components/quest-detail-sheet';
 import { PixelCharacter, portraitImageUrl, type EquippedItems } from '@/components/pixel-character';
-import { Sword, Coins, Bell, ChevronDown, Plus, Settings as SettingsIcon } from 'lucide-react';
+import { Sword, Coins, Bell, ChevronDown, ChevronRight, Plus, Settings as SettingsIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'wouter';
 import { playSuccessSound, playLevelUpSound, playTadaSound } from '@/lib/sounds';
@@ -297,9 +297,10 @@ export default function Home() {
 
         <div className="flex-1 min-w-0 flex flex-col gap-2">
           <div className="flex justify-between items-start">
-            <div className="min-w-0">
-              <h2 className="font-bold text-lg leading-tight truncate">
+            <Link href="/character" className="min-w-0 group" data-testid="link-character-details">
+              <h2 className="font-bold text-lg leading-tight truncate group-active:text-primary transition-colors">
                 {character?.adventurerName || user.displayName}
+                <ChevronRight className="w-4 h-4 inline-block ml-1 text-muted-foreground align-middle" />
               </h2>
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="font-pixel text-[10px] text-primary">LVL {lvl}</span>
@@ -307,9 +308,12 @@ export default function Home() {
                   <span className="text-[10px] text-muted-foreground capitalize">{character.class}</span>
                 )}
               </div>
-            </div>
-            <div className="bg-background px-2 py-1 rounded-lg border border-yellow-500/40 flex items-center gap-1 text-xs font-bold text-yellow-400 shrink-0 ml-2">
-              {user.personalGold} <Coins className="w-3 h-3" />
+            </Link>
+            <div className="bg-background px-2 py-1 rounded-lg border border-yellow-500/40 shrink-0 ml-2 text-center" data-testid="badge-my-gold">
+              <div className="text-[8px] font-pixel text-muted-foreground">MY GOLD</div>
+              <div className="flex items-center justify-center gap-1 text-xs font-bold text-yellow-400">
+                {user.personalGold} <Coins className="w-3 h-3" />
+              </div>
             </div>
           </div>
 

@@ -103,6 +103,17 @@ router.post("/", requireAuth, async (req, res) => {
     const role = await getMemberRole(partyId, userId);
     if (!role) { res.status(403).json({ error: "Not a member" }); return; }
 
+    // Kids can't create live quests — their ideas become proposals a grown-up reviews.
+    if (role === "kid") {
+      const [proposal] = await db.insert(questProposalsTable).values({
+        partyId, proposedBy: userId,
+        plainTitle, adventureTitle, description,
+        difficulty: (difficulty && difficulty in DIFFICULTY_REWARDS ? difficulty : "normal") as any,
+      }).returning();
+      res.status(201).json({ ...proposal, proposed: true });
+      return;
+    }
+
     const rewards = DIFFICULTY_REWARDS[difficulty as keyof typeof DIFFICULTY_REWARDS] ?? DIFFICULTY_REWARDS.normal;
 
     // Derive isRoutine / routineSchedule from scheduleType + recurrenceDays when provided
@@ -506,18 +517,133 @@ router.post("/propose", requireAuth, async (req, res) => {
   }
 });
 
-// GET /api/quests/proposals?partyId=
+// Shared: list pending proposals for a party, shaped like the spec's QuestDefinition
+async function listPendingProposals(partyId: number) {
+  const rows = await db.select({
+    proposal: questProposalsTable,
+    proposerName: usersTable.displayName,
+  })
+    .from(questProposalsTable)
+    .leftJoin(usersTable, eq(usersTable.id, questProposalsTable.proposedBy))
+    .where(and(
+      eq(questProposalsTable.partyId, partyId),
+      eq(questProposalsTable.status, "pending"),
+    ));
+  return rows.map(({ proposal: p, proposerName }) => ({
+    id: p.id,
+    partyId: p.partyId,
+    plainTitle: p.plainTitle,
+    adventureTitle: p.adventureTitle,
+    description: p.description,
+    questType: "individual",
+    difficulty: p.difficulty,
+    status: "proposed",
+    proposedByUserId: p.proposedBy,
+    proposedByName: proposerName,
+    proposedDifficulty: p.difficulty,
+    xpReward: DIFFICULTY_REWARDS[p.difficulty as keyof typeof DIFFICULTY_REWARDS]?.xp ?? 25,
+    goldReward: DIFFICULTY_REWARDS[p.difficulty as keyof typeof DIFFICULTY_REWARDS]?.gold ?? 15,
+    partyGoldReward: DIFFICULTY_REWARDS[p.difficulty as keyof typeof DIFFICULTY_REWARDS]?.partyGold ?? 5,
+    createdAt: p.createdAt,
+  }));
+}
+
+// Grown-ups (leaders and adults) review kid suggestions
+async function assertAdultOrLeader(partyId: number, userId: number) {
+  const role = await getMemberRole(partyId, userId);
+  if (role !== "leader" && role !== "adult") {
+    throw Object.assign(new Error("Only grown-ups can review suggestions"), { status: 403 });
+  }
+}
+
+// Shared: claim a pending proposal (compare-and-set so two simultaneous reviews
+// can't both win) and, on approve, create the live quest — all in one transaction.
+async function reviewProposalTx(
+  proposalId: number,
+  reviewerId: number,
+  approve: boolean,
+  note?: string | null,
+  difficultyOverride?: string | null,
+) {
+  return db.transaction(async (tx) => {
+    const [claimed] = await tx.update(questProposalsTable)
+      .set({ status: approve ? "approved" : "rejected", reviewedBy: reviewerId, reviewNote: note ?? null })
+      .where(and(eq(questProposalsTable.id, proposalId), eq(questProposalsTable.status, "pending")))
+      .returning();
+    if (!claimed) return null; // already reviewed
+    if (!approve) return { declined: true as const };
+    return { quest: await approveProposal(tx, claimed, reviewerId, difficultyOverride) };
+  });
+}
+
+// Shared: approve a proposal → live quest assigned to the proposer
+async function approveProposal(tx: Pick<typeof db, "insert">, proposal: typeof questProposalsTable.$inferSelect, reviewerId: number, difficultyOverride?: string | null) {
+  const difficulty = (difficultyOverride && difficultyOverride in DIFFICULTY_REWARDS
+    ? difficultyOverride
+    : proposal.difficulty) as keyof typeof DIFFICULTY_REWARDS;
+  const rewards = DIFFICULTY_REWARDS[difficulty] ?? DIFFICULTY_REWARDS.normal;
+  const [quest] = await tx.insert(questDefinitionsTable).values({
+    partyId: proposal.partyId,
+    creatorId: reviewerId,
+    plainTitle: proposal.plainTitle,
+    adventureTitle: proposal.adventureTitle,
+    description: proposal.description,
+    difficulty: difficulty as any,
+    questType: "individual",
+    assignedToUserIds: [String(proposal.proposedBy)],
+    xpReward: rewards.xp,
+    goldReward: rewards.gold,
+    partyGoldReward: rewards.partyGold,
+  }).returning();
+  await tx.insert(questAssignmentsTable).values({
+    questDefinitionId: quest.id,
+    userId: proposal.proposedBy,
+    partyId: proposal.partyId,
+    status: "active",
+  });
+  return quest;
+}
+
+// GET /api/quests/proposed?partyId= — spec: listProposedQuests (leader view)
+router.get("/proposed", requireAuth, async (req, res) => {
+  try {
+    const partyId = parseInt(req.query.partyId as string);
+    if (!partyId) { res.status(400).json({ error: "partyId required" }); return; }
+    await assertAdultOrLeader(partyId, req.userId!);
+    res.json(await listPendingProposals(partyId));
+  } catch (err: any) {
+    res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
+  }
+});
+
+// GET /api/quests/proposals?partyId= — legacy path, same data
 router.get("/proposals", requireAuth, async (req, res) => {
   try {
     const partyId = parseInt(req.query.partyId as string);
     if (!partyId) { res.status(400).json({ error: "partyId required" }); return; }
-    await assertMember(partyId, req.userId!);
-    const proposals = await db.select().from(questProposalsTable)
-      .where(and(
-        eq(questProposalsTable.partyId, partyId),
-        eq(questProposalsTable.status, "pending"),
-      ));
-    res.json(proposals);
+    await assertAdultOrLeader(partyId, req.userId!);
+    res.json(await listPendingProposals(partyId));
+  } catch (err: any) {
+    res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
+  }
+});
+
+// POST /api/quests/:questId/review-proposal — spec: reviewQuestProposal (questId = proposal id)
+router.post("/:questId/review-proposal", requireAuth, async (req, res) => {
+  try {
+    const proposalId = parseInt(String(req.params.questId));
+    const [proposal] = await db.select().from(questProposalsTable)
+      .where(eq(questProposalsTable.id, proposalId)).limit(1);
+    if (!proposal) { res.status(404).json({ error: "Not found" }); return; }
+    await assertAdultOrLeader(proposal.partyId, req.userId!);
+    const { action, difficulty, reason } = req.body;
+    if (action !== "approve" && action !== "change_difficulty" && action !== "decline") {
+      res.status(400).json({ error: "Invalid action" }); return;
+    }
+    const approve = action !== "decline";
+    const result = await reviewProposalTx(proposalId, req.userId!, approve, reason, difficulty);
+    if (!result) { res.status(409).json({ error: "Already reviewed" }); return; }
+    res.json("quest" in result ? result.quest : { id: proposalId, status: "declined" });
   } catch (err: any) {
     res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
   }
@@ -530,27 +656,11 @@ router.post("/proposals/:proposalId/review", requireAuth, async (req, res) => {
     const [proposal] = await db.select().from(questProposalsTable)
       .where(eq(questProposalsTable.id, proposalId)).limit(1);
     if (!proposal) { res.status(404).json({ error: "Not found" }); return; }
-    await assertLeader(proposal.partyId, req.userId!);
+    await assertAdultOrLeader(proposal.partyId, req.userId!);
     const { approved, note } = req.body;
-    const status = approved ? "approved" : "rejected";
-    await db.update(questProposalsTable).set({
-      status, reviewedBy: req.userId!, reviewNote: note,
-    }).where(eq(questProposalsTable.id, proposalId));
-    if (approved) {
-      await db.insert(questDefinitionsTable).values({
-        partyId: proposal.partyId,
-        creatorId: req.userId!,
-        plainTitle: proposal.plainTitle,
-        adventureTitle: proposal.adventureTitle,
-        description: proposal.description,
-        difficulty: proposal.difficulty,
-        questType: "individual",
-        xpReward: DIFFICULTY_REWARDS[proposal.difficulty as keyof typeof DIFFICULTY_REWARDS]?.xp ?? 25,
-        goldReward: DIFFICULTY_REWARDS[proposal.difficulty as keyof typeof DIFFICULTY_REWARDS]?.gold ?? 15,
-        partyGoldReward: DIFFICULTY_REWARDS[proposal.difficulty as keyof typeof DIFFICULTY_REWARDS]?.partyGold ?? 5,
-      });
-    }
-    res.json({ status });
+    const result = await reviewProposalTx(proposalId, req.userId!, !!approved, note);
+    if (!result) { res.status(409).json({ error: "Already reviewed" }); return; }
+    res.json({ status: approved ? "approved" : "rejected" });
   } catch (err: any) {
     res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
   }
