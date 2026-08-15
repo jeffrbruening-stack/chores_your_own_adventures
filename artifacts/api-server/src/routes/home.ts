@@ -230,7 +230,9 @@ router.get("/", requireAuth, async (req, res) => {
       myQuests,
       xpForNextLevel: xpNext,
       partyGoldReserve: activeParty?.partyGoldReserve ?? 0,
-      activeGoal: activeGoal ?? null,
+      activeGoal: activeGoal
+        ? { ...activeGoal, currentGold: activeParty?.partyGoldReserve ?? 0 }
+        : null,
       pendingVerificationsCount,
       proposedQuestsCount,
       catFoleyActive: false,
