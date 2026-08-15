@@ -11,7 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import { QuestCard } from '@/components/quest-card';
 import { PartyGoalCard } from '@/components/party-goal-card';
 import { QuestDetailSheet, type QuestLike } from '@/components/quest-detail-sheet';
-import { Sword, Coins, Bell, ChevronDown, ChevronRight, Plus, Settings as SettingsIcon } from 'lucide-react';
+import { Sword, Coins, Bell, ChevronDown, ChevronRight, Plus, Settings as SettingsIcon, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'wouter';
 import { playSuccessSound, playLevelUpSound, playTadaSound } from '@/lib/sounds';
@@ -120,6 +120,31 @@ export default function Home() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [selectedQuest, setSelectedQuest] = useState<QuestLike | null>(null);
+  const [bonusSheetQuest, setBonusSheetQuest] = useState<{ id: number; title: string } | null>(null);
+  const [bonusNote, setBonusNote] = useState('');
+  const [bonusSubmitting, setBonusSubmitting] = useState(false);
+  const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+  const handleSubmitBonusRequest = async () => {
+    if (!bonusSheetQuest || !bonusNote.trim()) return;
+    setBonusSubmitting(true);
+    try {
+      const token = localStorage.getItem('cyoa_token');
+      const res = await fetch(`${BASE_URL}/api/bonus-requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ partyId: activePartyId, assignmentId: bonusSheetQuest.id, note: bonusNote }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Failed');
+      toast({ title: '⭐ Sent!', description: 'Your extra effort is waiting for a grown-up to review.' });
+      setBonusSheetQuest(null);
+      setBonusNote('');
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setBonusSubmitting(false);
+    }
+  };
 
   const { data: homeData, isLoading, refetch } = useGetHomeData({
     query: { enabled: !!activePartyId, queryKey: getGetHomeDataQueryKey() },
@@ -374,8 +399,41 @@ export default function Home() {
               ? (photoFile?: File) => { handleComplete(selectedQuest.id, photoFile); setSelectedQuest(null); }
               : undefined
           }
+          onBonusRequest={
+            !isLeader && (selectedQuest.status === 'active' || selectedQuest.status === 'completed')
+              ? () => { setSelectedQuest(null); setBonusSheetQuest({ id: selectedQuest.id, title: selectedQuest.plainTitle }); setBonusNote(''); }
+              : undefined
+          }
           isLeader={isLeader}
         />
+      )}
+
+      {/* Bonus gold request sheet */}
+      {bonusSheetQuest && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 px-4" onClick={() => setBonusSheetQuest(null)}>
+          <div className="w-full max-w-md bg-card border-2 border-yellow-500/40 rounded-2xl p-5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="font-pixel text-sm text-yellow-400">⭐ I DID EXTRA!</h2>
+              <button onClick={() => setBonusSheetQuest(null)} className="text-muted-foreground p-1"><X className="w-5 h-5" /></button>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">Tell a grown-up what extra effort you put in — they can send you bonus gold!</p>
+            <label className="text-[10px] font-pixel text-muted-foreground">WHAT DID YOU DO EXTRA?</label>
+            <textarea
+              value={bonusNote}
+              onChange={e => setBonusNote(e.target.value)}
+              placeholder="I practiced my bass for 30 minutes instead of 10!"
+              rows={3}
+              className="w-full mt-1 mb-4 bg-background border border-border rounded-lg px-3 py-2 text-sm resize-none"
+            />
+            <button
+              onClick={handleSubmitBonusRequest}
+              disabled={!bonusNote.trim() || bonusSubmitting}
+              className="w-full bg-yellow-500 text-black font-pixel py-4 rounded-xl text-xs pixel-corners border-b-4 border-r-4 border-yellow-700 active:border-b-0 active:border-r-0 active:translate-y-1 active:translate-x-1 transition-all disabled:opacity-50"
+            >
+              {bonusSubmitting ? 'SENDING...' : '⭐ REQUEST BONUS GOLD'}
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Your quests */}
@@ -414,8 +472,13 @@ export default function Home() {
                 quest={quest as QuestLike}
                 onComplete={
                   quest.requiresVerification && quest.verificationType === 'photo'
-                    ? () => setSelectedQuest(quest as QuestLike) // photo needed → open sheet
+                    ? () => setSelectedQuest(quest as QuestLike)
                     : () => handleComplete(quest.id)
+                }
+                onBonusRequest={
+                  !isLeader && (quest.status === 'active' || quest.status === 'completed')
+                    ? () => { setBonusSheetQuest({ id: quest.id, title: quest.plainTitle ?? quest.adventureTitle ?? 'Quest' }); setBonusNote(''); }
+                    : undefined
                 }
                 onClick={() => setSelectedQuest(quest as QuestLike)}
               />

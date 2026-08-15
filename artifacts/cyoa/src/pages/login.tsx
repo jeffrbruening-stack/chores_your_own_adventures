@@ -68,10 +68,7 @@ export default function Login() {
           </div>
 
           <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <label className="text-sm font-bold block">PASSWORD</label>
-              <Link href="/forgot-password" className="text-sm text-primary font-bold">Forgot?</Link>
-            </div>
+            <label className="text-sm font-bold block">PASSWORD</label>
             <div className="relative">
               <input 
                 type={showPassword ? "text" : "password"} 
@@ -88,6 +85,9 @@ export default function Login() {
               </button>
             </div>
             {errors.password && <p className="text-destructive text-sm">{errors.password.message}</p>}
+            <div className="flex justify-end">
+              <Link href="/forgot-password" className="text-sm text-primary font-bold">Forgot?</Link>
+            </div>
           </div>
 
           <button 
