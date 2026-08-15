@@ -50,6 +50,7 @@ interface QuestDetailSheetProps {
   onComplete?: (photoFile?: File) => void;
   /** approved=false sends the quest back to the kid. */
   onVerify?: (approved: boolean) => void;
+  onBonusRequest?: () => void;
   isLeader?: boolean;
 }
 
@@ -72,6 +73,7 @@ export function QuestDetailSheet({
   onClose,
   onComplete,
   onVerify,
+  onBonusRequest,
   isLeader,
 }: QuestDetailSheetProps) {
   const { currentUser } = useAuth();
@@ -393,8 +395,19 @@ export function QuestDetailSheet({
 
           {/* Status: completed */}
           {quest.status === 'completed' && (
-            <div className="text-center text-sm font-bold text-green-400 bg-green-400/10 py-4 rounded-xl border border-green-400/20 flex items-center justify-center gap-2">
-              <CheckCircle2 className="w-5 h-5" /> QUEST COMPLETED
+            <div className="flex flex-col gap-2">
+              <div className="text-center text-sm font-bold text-green-400 bg-green-400/10 py-4 rounded-xl border border-green-400/20 flex items-center justify-center gap-2">
+                <CheckCircle2 className="w-5 h-5" /> QUEST COMPLETED
+              </div>
+              {onBonusRequest && (
+                <button
+                  onClick={onBonusRequest}
+                  className="w-full border border-yellow-500/50 text-yellow-400 font-pixel text-[10px] py-3 rounded-xl bg-yellow-500/10 active:scale-95 transition-transform"
+                  data-testid="button-bonus-request-sheet"
+                >
+                  ⭐ I DID EXTRA — REQUEST BONUS GOLD
+                </button>
+              )}
             </div>
           )}
         </div>

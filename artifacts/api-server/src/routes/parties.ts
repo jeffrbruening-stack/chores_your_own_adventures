@@ -315,7 +315,10 @@ router.post("/:partyId/invite", requireAuth, async (req, res) => {
     await db.insert(inviteTokensTable).values({
       partyId, token, createdBy: req.userId!, expiresAt, role,
     });
-    res.json({ token, expiresAt, role, inviteUrl: `https://choresyourownadventure.com/join/${token}` });
+    // Build the invite URL from the request origin so it works in dev and prod
+    const origin = req.headers.origin ?? `https://${process.env.REPLIT_DEV_DOMAIN ?? "localhost"}`;
+    const inviteUrl = `${origin}/join/${token}`;
+    res.json({ token, expiresAt, role, inviteUrl });
   } catch (err: any) {
     res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
   }

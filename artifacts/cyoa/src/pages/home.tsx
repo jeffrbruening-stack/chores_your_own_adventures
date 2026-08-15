@@ -235,7 +235,7 @@ export default function Home() {
     return <SetupPartyScreen onPartyCreated={(id) => setActivePartyId(id)} />;
   }
 
-  const { user, myQuests, activeGoal, xpForNextLevel, partyGoldReserve, activeParty, pendingVerificationsCount, proposedQuestsCount } = homeData as any;
+  const { user, myQuests, activeGoal, xpForNextLevel, partyGoldReserve, activeParty, pendingVerificationsCount, proposedQuestsCount, bonusRequestsCount } = homeData as any;
 
   // XP progress bar
   const lvl = user.currentLevel;
@@ -325,7 +325,7 @@ export default function Home() {
       </button>
 
       {/* Leader attention banner */}
-      {(pendingVerificationsCount > 0 || proposedQuestsCount > 0) && (
+      {(pendingVerificationsCount > 0 || proposedQuestsCount > 0 || bonusRequestsCount > 0) && (
         <div className="bg-orange-500/10 border-2 border-orange-500/30 p-4 rounded-xl flex flex-col gap-3">
           <h3 className="font-pixel text-[10px] text-orange-400 flex items-center gap-2">
             <Bell className="w-4 h-4" /> NEEDS ATTENTION
@@ -344,6 +344,14 @@ export default function Home() {
                 <div className="bg-background border border-orange-500/40 p-3 rounded-xl text-center">
                   <div className="text-orange-400 font-pixel text-xl">{proposedQuestsCount}</div>
                   <div className="text-[9px] font-bold text-muted-foreground mt-0.5">PROPOSED</div>
+                </div>
+              </Link>
+            )}
+            {bonusRequestsCount > 0 && (
+              <Link href="/quests?tab=bonus" className="flex-1">
+                <div className="bg-background border border-orange-500/40 p-3 rounded-xl text-center">
+                  <div className="text-yellow-400 font-pixel text-xl">{bonusRequestsCount}</div>
+                  <div className="text-[9px] font-bold text-muted-foreground mt-0.5">BONUS ⭐</div>
                 </div>
               </Link>
             )}

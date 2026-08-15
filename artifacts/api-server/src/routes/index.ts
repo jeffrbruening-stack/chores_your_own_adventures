@@ -19,6 +19,7 @@ import characterRouter from "./character.js";
 import openQuestsRouter from "./open-quests.js";
 import quickQuestsRouter from "./quick-quests.js";
 import partyRecapRouter from "./party-recap.js";
+import bonusRequestsRouter from "./bonus-requests.js";
 
 const router: IRouter = Router();
 
@@ -42,5 +43,6 @@ router.use("/character", characterRouter);
 router.use("/open-quests", openQuestsRouter);
 router.use("/quick-quests", quickQuestsRouter);
 router.use("/party-recap", partyRecapRouter);
+router.use("/bonus-requests", bonusRequestsRouter);
 
 export default router;

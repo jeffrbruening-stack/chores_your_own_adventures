@@ -5,6 +5,7 @@
  * Chores Your Own Adventure API
  * OpenAPI spec version: 0.1.0
  */
+import type { RecapByType } from './recapByType';
 import type { RecapDay } from './recapDay';
 import type { RecapQuest } from './recapQuest';
 
@@ -25,4 +26,5 @@ export interface RecapResponse {
   /** @nullable */
   currentLevel?: number | null;
   byDay: RecapDay[];
+  byType: RecapByType[];
 }

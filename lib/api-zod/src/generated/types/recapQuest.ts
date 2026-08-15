@@ -15,6 +15,8 @@ export interface RecapQuest {
   xpAwarded: number;
   goldAwarded: number;
   /** @nullable */
+  questType?: string | null;
+  /** @nullable */
   userId?: number | null;
   /** @nullable */
   userName?: string | null;

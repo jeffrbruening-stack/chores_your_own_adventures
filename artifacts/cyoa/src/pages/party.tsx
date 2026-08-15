@@ -536,41 +536,60 @@ export default function Party() {
                       <p className="text-xs text-muted-foreground">Choose the role this adult will have:</p>
                       <div className="flex gap-2">
                         <button
-                          onClick={() => setInviteRole('adult')}
+                          onClick={() => { setInviteRole('adult'); setInviteResult(null); }}
                           className={`flex-1 py-2.5 rounded-xl text-xs font-bold border-2 transition-colors ${inviteRole === 'adult' ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground'}`}
                         >
                           ⚔️ Adventurer
                         </button>
                         <button
-                          onClick={() => setInviteRole('leader')}
+                          onClick={() => { setInviteRole('leader'); setInviteResult(null); }}
                           className={`flex-1 py-2.5 rounded-xl text-xs font-bold border-2 transition-colors ${inviteRole === 'leader' ? 'border-yellow-400 bg-yellow-400/10 text-yellow-500' : 'border-border text-muted-foreground'}`}
                         >
                           👑 Party Leader
                         </button>
                       </div>
+
                       {!inviteResult ? (
                         <button
                           onClick={handleGenerateInvite}
                           disabled={generatingInvite}
-                          className="w-full bg-primary text-primary-foreground font-pixel py-3 rounded-xl text-xs disabled:opacity-50"
+                          className="w-full bg-primary text-primary-foreground font-pixel py-4 rounded-xl text-xs disabled:opacity-50 pixel-corners border-b-4 border-r-4 border-black active:border-b-0 active:border-r-0 active:translate-y-1 active:translate-x-1 transition-all"
                         >
-                          {generatingInvite ? 'GENERATING...' : '🔗 GENERATE INVITE LINK'}
+                          {generatingInvite ? 'GENERATING...' : '✉️ CREATE INVITE'}
                         </button>
                       ) : (
-                        <div className="flex flex-col gap-2">
-                          <div className="bg-background rounded-xl border border-border p-3">
-                            <p className="text-[10px] text-muted-foreground mb-1 font-pixel">INVITE LINK</p>
-                            <p className="text-xs break-all font-mono text-primary">{inviteResult.inviteUrl}</p>
+                        <div className="flex flex-col gap-3">
+                          <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 text-center flex flex-col gap-1">
+                            <p className="font-pixel text-[10px] text-green-400">INVITE READY!</p>
+                            <p className="text-xs text-muted-foreground">
+                              Send this to {inviteResult.role === 'leader' ? 'a new Party Leader' : 'an adult adventurer'} — valid for 7 days.
+                            </p>
                           </div>
-                          <div className="bg-background rounded-xl border border-border p-3">
-                            <p className="text-[10px] text-muted-foreground mb-1 font-pixel">INVITE CODE</p>
-                            <p className="text-sm font-mono tracking-widest font-bold text-center">{inviteResult.token}</p>
-                          </div>
-                          <p className="text-[10px] text-muted-foreground text-center">
-                            Expires in 7 days.
-                            {inviteResult.role === 'leader' && <span className="text-yellow-500"> They'll join as <strong>Party Leader</strong>.</span>}
-                          </p>
-                          <button onClick={() => setInviteResult(null)} className="text-[10px] text-muted-foreground underline">
+
+                          {/* Primary: native share sheet (iMessage, WhatsApp, AirDrop, etc.) */}
+                          {'share' in navigator ? (
+                            <button
+                              onClick={() => navigator.share({ title: 'Join our Chores Your Own Adventure party!', url: inviteResult.inviteUrl })}
+                              className="w-full bg-primary text-primary-foreground font-pixel py-4 rounded-xl text-xs pixel-corners border-b-4 border-r-4 border-black active:border-b-0 active:border-r-0 active:translate-y-1 active:translate-x-1 transition-all"
+                              data-testid="button-share-invite"
+                            >
+                              📤 SHARE INVITE
+                            </button>
+                          ) : (
+                            /* Fallback: copy to clipboard */
+                            <button
+                              onClick={() => { navigator.clipboard.writeText(inviteResult.inviteUrl); toast({ title: 'Copied!', description: 'Invite link copied to clipboard.' }); }}
+                              className="w-full bg-primary text-primary-foreground font-pixel py-4 rounded-xl text-xs pixel-corners border-b-4 border-r-4 border-black active:border-b-0 active:border-r-0 active:translate-y-1 active:translate-x-1 transition-all"
+                              data-testid="button-copy-invite"
+                            >
+                              📋 COPY INVITE LINK
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => setInviteResult(null)}
+                            className="text-[10px] text-muted-foreground underline text-center"
+                          >
                             Generate a new invite
                           </button>
                         </div>
@@ -675,16 +694,7 @@ export default function Party() {
               )}
             </div>
 
-            {/* BOSS BATTLES quick link */}
-            <Link href="/projects">
-              <div className="bg-card border border-red-900/40 rounded-xl p-4 flex items-center justify-between hover:border-red-500/60 transition-colors">
-                <div>
-                  <div className="font-pixel text-[10px] text-red-400 mb-0.5">BOSS BATTLES</div>
-                  <div className="text-xs text-muted-foreground">Tackle big projects as a team</div>
-                </div>
-                <div className="text-2xl">⚔️</div>
-              </div>
-            </Link>
+            {/* BOSS BATTLES — hidden until feature is ready */}
           </>
         ) : (
           <div className="text-center py-12 text-muted-foreground">

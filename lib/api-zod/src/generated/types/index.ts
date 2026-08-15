@@ -115,6 +115,7 @@ export * from './questProposalReviewAction';
 export * from './questProposalReviewDifficulty';
 export * from './questRewardResult';
 export * from './quickQuest';
+export * from './recapByType';
 export * from './recapDay';
 export * from './recapQuest';
 export * from './recapResponse';

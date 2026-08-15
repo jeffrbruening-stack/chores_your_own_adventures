@@ -4,7 +4,7 @@ import {
   usersTable, partiesTable, partyMembersTable, charactersTable,
   questAssignmentsTable, questDefinitionsTable, partyGoalsTable,
   equippedItemsTable, shopItemsTable, catFoleyAppearancesTable,
-  questProposalsTable,
+  questProposalsTable, bonusGoldRequestsTable,
 } from "@workspace/db/schema";
 import { eq, and, inArray, count } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
@@ -210,6 +210,7 @@ router.get("/", requireAuth, async (req, res) => {
     // Pending verifications count (for leaders)
     let pendingVerificationsCount = 0;
     let proposedQuestsCount = 0;
+    let bonusRequestsCount = 0;
     if (partyId && (membership?.role === "leader" || membership?.role === "adult")) {
       const [vc] = await db.select({ count: count() }).from(questAssignmentsTable)
         .where(and(eq(questAssignmentsTable.partyId, partyId), eq(questAssignmentsTable.status, "submitted")));
@@ -217,6 +218,9 @@ router.get("/", requireAuth, async (req, res) => {
       const [pc] = await db.select({ count: count() }).from(questProposalsTable)
         .where(and(eq(questProposalsTable.partyId, partyId), eq(questProposalsTable.status, "pending")));
       proposedQuestsCount = Number(pc?.count ?? 0);
+      const [bc] = await db.select({ count: count() }).from(bonusGoldRequestsTable)
+        .where(and(eq(bonusGoldRequestsTable.partyId, partyId), eq(bonusGoldRequestsTable.status, "pending")));
+      bonusRequestsCount = Number(bc?.count ?? 0);
     }
 
     // XP for next level
@@ -235,6 +239,7 @@ router.get("/", requireAuth, async (req, res) => {
         : null,
       pendingVerificationsCount,
       proposedQuestsCount,
+      bonusRequestsCount,
       catFoleyActive: false,
     });
   } catch (err) {

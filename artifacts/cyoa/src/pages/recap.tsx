@@ -237,10 +237,10 @@ export default function Recap() {
           </div>
 
           {/* Quest type breakdown */}
-          {(recap as any).byType?.length > 0 && (
+          {recap.byType?.length > 0 && (
             <div className="bg-card border border-border rounded-xl p-4 flex flex-col gap-2">
               <h2 className="font-pixel text-[10px] text-muted-foreground">QUEST TYPES</h2>
-              {(recap as any).byType.map(({ type, count }: { type: string; count: number }) => {
+              {recap.byType.map(({ type, count }) => {
                 const total = recap.completedCount || 1;
                 const pct = Math.round((count / total) * 100);
                 const LABELS: Record<string, { label: string; color: string; emoji: string }> = {

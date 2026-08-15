@@ -6,3 +6,4 @@ export * from "./shop";
 export * from "./party-goals";
 export * from "./projects";
 export * from "./misc";
+export * from "./bonus-requests";

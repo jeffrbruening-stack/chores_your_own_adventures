@@ -26,6 +26,8 @@ export interface RecapQuest {
   xpAwarded: number;
   goldAwarded: number;
   /** @nullable */
+  questType?: string | null;
+  /** @nullable */
   userId?: number | null;
   /** @nullable */
   userName?: string | null;
@@ -33,6 +35,11 @@ export interface RecapQuest {
 
 export interface RecapDay {
   date: string;
+  count: number;
+}
+
+export interface RecapByType {
+  type: string;
   count: number;
 }
 
@@ -53,6 +60,7 @@ export interface RecapResponse {
   /** @nullable */
   currentLevel?: number | null;
   byDay: RecapDay[];
+  byType: RecapByType[];
 }
 
 export interface RegisterInput {
@@ -1283,3 +1291,4 @@ userId?: number;
 partyId?: number;
 limit?: number;
 };
+

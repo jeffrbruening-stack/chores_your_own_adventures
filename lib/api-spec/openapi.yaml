@@ -1903,6 +1903,8 @@ components:
           type: number
         goldAwarded:
           type: number
+        questType:
+          type: ["string", "null"]
         userId:
           type: ["number", "null"]
         userName:
@@ -1919,7 +1921,7 @@ components:
 
     RecapResponse:
       type: object
-      required: [from, to, questsCompleted, totalAssigned, completedCount, completionRate, xpEarned, goldEarned, levelUps, byDay]
+      required: [from, to, questsCompleted, totalAssigned, completedCount, completionRate, xpEarned, goldEarned, levelUps, byDay, byType]
       properties:
         from:
           type: string
@@ -1951,6 +1953,19 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RecapDay"
+        byType:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecapByType"
+
+    RecapByType:
+      type: object
+      required: [type, count]
+      properties:
+        type:
+          type: string
+        count:
+          type: number
 
     # ─── AUTH SCHEMAS ──────────────────────────────────────────────────────────
     RegisterInput:

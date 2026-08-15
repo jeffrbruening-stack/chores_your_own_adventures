@@ -8,6 +8,7 @@ interface QuestCardProps {
   quest: QuestLike;
   onComplete?: () => void;
   onVerify?: () => void;
+  onBonusRequest?: () => void;
   isLeader?: boolean;
   onClick?: () => void;
 }
@@ -20,7 +21,7 @@ const difficultyColors: Record<string, string> = {
   legendary: 'bg-yellow-500/20 text-yellow-500 border-yellow-500/50',
 };
 
-export function QuestCard({ quest, onComplete, onVerify, isLeader, onClick }: QuestCardProps) {
+export function QuestCard({ quest, onComplete, onVerify, onBonusRequest, isLeader, onClick }: QuestCardProps) {
   const { currentUser } = useAuth();
   
   const title = currentUser?.adventureMode && quest.adventureTitle ? quest.adventureTitle : quest.plainTitle;
@@ -78,6 +79,16 @@ export function QuestCard({ quest, onComplete, onVerify, isLeader, onClick }: Qu
           className="mt-2 w-full bg-primary text-primary-foreground font-pixel text-[10px] py-3 rounded-lg active:scale-95 transition-transform"
         >
           {quest.requiresVerification ? 'SUBMIT FOR REVIEW' : 'COMPLETE QUEST'}
+        </button>
+      )}
+
+      {(quest.status === 'active' || quest.status === 'completed') && onBonusRequest && (
+        <button
+          onClick={e => { e.stopPropagation(); onBonusRequest(); }}
+          className="w-full border border-yellow-500/50 text-yellow-400 font-pixel text-[10px] py-2 rounded-lg active:scale-95 transition-transform bg-yellow-500/10"
+          data-testid={`button-bonus-request-${quest.id}`}
+        >
+          ⭐ I DID EXTRA!
         </button>
       )}
 
