@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'wouter';
-import { ArrowLeft, Star, Coins, Zap, CalendarDays, Trophy, ScrollText, Calendar } from 'lucide-react';
-import { format, startOfDay, endOfDay, isAfter, isBefore } from 'date-fns';
+import { ArrowLeft, Star, Coins, Zap, CalendarDays, Trophy, ScrollText, Calendar, PartyPopper } from 'lucide-react';
+import { format, startOfDay, endOfDay, isAfter } from 'date-fns';
 import { useAuth } from '@/contexts/auth-context';
 import {
   useGetPartyRecap,
   useListPartyMembers,
 } from '@workspace/api-client-react';
 import { cn } from '@/lib/utils';
+import { RewardCertificate } from '@/components/reward-certificate';
 
 const PRESETS = [
   { label: '7 DAYS', days: 7 },
@@ -30,8 +31,11 @@ function toDateInputValue(d: Date) {
 }
 
 export default function Recap() {
-  const { activePartyId } = useAuth();
+  const { activePartyId, currentUser } = useAuth();
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [showCertificate, setShowCertificate] = useState(false);
+
+  const isAdult = currentUser?.userType !== 'kid';
 
   // Period mode: preset days or custom range
   const [mode, setMode] = useState<'preset' | 'custom'>('preset');
@@ -89,6 +93,24 @@ export default function Recap() {
   const bestDays = (recap?.byDay ?? [])
     .filter((d) => d.count === maxDayCount && maxDayCount > 0)
     .map((d) => format(new Date(d.date + 'T12:00:00'), 'EEE MMM d'));
+
+  const periodLabel = useMemo(() => {
+    if (mode === 'custom' && customStart && customEnd && !customError) {
+      const s = format(new Date(customStart + 'T12:00:00'), 'MMM d, yyyy');
+      const e = format(new Date(customEnd + 'T12:00:00'), 'MMM d, yyyy');
+      return `${s} – ${e}`;
+    }
+    return `Last ${days} Days`;
+  }, [mode, days, customStart, customEnd, customError]);
+
+  const selectedMember = useMemo(
+    () => (members ?? []).find((m: any) => m.userId === selectedUserId),
+    [members, selectedUserId],
+  );
+
+  const kidName = selectedMember
+    ? (selectedMember.adventurerName ?? selectedMember.displayName ?? 'Adventurer')
+    : 'The Party';
 
   return (
     <div className="max-w-lg mx-auto px-4 py-6 pb-24 flex flex-col gap-5">
@@ -293,7 +315,36 @@ export default function Recap() {
               ))
             )}
           </div>
+
+          {/* CELEBRATE button — adults only, shown for any view */}
+          {isAdult && (
+            <button
+              onClick={() => setShowCertificate(true)}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-yellow-400/10 border-2 border-yellow-400/50 hover:bg-yellow-400/20 hover:border-yellow-400 transition-colors font-pixel text-[10px] text-yellow-400"
+              data-testid="button-celebrate"
+            >
+              <PartyPopper className="w-4 h-4" />
+              CELEBRATE!
+            </button>
+          )}
         </>
+      )}
+
+      {/* Certificate overlay */}
+      {showCertificate && recap && (
+        <RewardCertificate
+          data={{
+            kidName,
+            periodLabel,
+            completedCount: recap.completedCount,
+            xpEarned: recap.xpEarned,
+            goldEarned: recap.goldEarned,
+            levelUps: recap.levelUps,
+            currentLevel: recap.currentLevel,
+            completionRate: recap.completionRate,
+          }}
+          onClose={() => setShowCertificate(false)}
+        />
       )}
     </div>
   );
