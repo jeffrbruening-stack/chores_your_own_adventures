@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   useGetHomeData, getGetHomeDataQueryKey,
@@ -123,7 +123,25 @@ export default function Home() {
   const [bonusSheetQuest, setBonusSheetQuest] = useState<{ id: number; title: string } | null>(null);
   const [bonusNote, setBonusNote] = useState('');
   const [bonusSubmitting, setBonusSubmitting] = useState(false);
+  const [declinedRequests, setDeclinedRequests] = useState<any[]>([]);
+  const [dismissedDeclines, setDismissedDeclines] = useState<Set<number>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('cyoa_dismissed_declines') ?? '[]')); }
+    catch { return new Set(); }
+  });
   const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+  const isLeaderCheck = currentUser?.userType === 'adult';
+
+  useEffect(() => {
+    if (isLeaderCheck) return; // only for kids
+    const token = localStorage.getItem('cyoa_token');
+    fetch(`${BASE_URL}/api/bonus-requests/mine`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setDeclinedRequests(data); })
+      .catch(() => {});
+  }, [isLeaderCheck, BASE_URL]);
 
   const handleSubmitBonusRequest = async () => {
     if (!bonusSheetQuest || !bonusNote.trim()) return;
@@ -383,6 +401,44 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* Kid: bonus request outcome messages (approved or declined) */}
+      {!isLeader && declinedRequests.filter(r => !dismissedDeclines.has(r.id)).map(r => (
+        <div
+          key={r.id}
+          className={cn(
+            "border-2 rounded-xl p-4 flex flex-col gap-2",
+            r.status === 'approved' ? "bg-yellow-500/10 border-yellow-500/40" : "bg-card border-muted"
+          )}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <p className={cn("text-xs font-pixel", r.status === 'approved' ? "text-yellow-400" : "text-muted-foreground")}>
+              {r.status === 'approved' ? '⭐ BONUS GOLD AWARDED!' : 'ABOUT YOUR EXTRA EFFORT REQUEST'}
+            </p>
+            <button
+              onClick={() => setDismissedDeclines(prev => {
+                const next = new Set([...prev, r.id]);
+                localStorage.setItem('cyoa_dismissed_declines', JSON.stringify([...next]));
+                return next;
+              })}
+              className="text-muted-foreground shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          {r.questTitle && <p className="text-xs text-muted-foreground">"{r.questTitle}"</p>}
+          {r.status === 'approved' ? (
+            <p className="text-sm font-bold">
+              A grown-up sent you <span className="text-yellow-400">+{r.bonusGold} bonus gold</span> for going above and beyond! 🎉
+            </p>
+          ) : (
+            <>
+              <p className="text-sm font-bold">A grown-up passed on this one:</p>
+              <p className="text-sm italic text-foreground bg-muted/40 rounded-lg px-3 py-2">"{r.declineReason}"</p>
+            </>
+          )}
+        </div>
+      ))}
 
       {/* Active party goal */}
       {activeGoal && (

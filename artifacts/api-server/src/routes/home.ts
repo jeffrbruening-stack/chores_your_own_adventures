@@ -6,7 +6,7 @@ import {
   equippedItemsTable, shopItemsTable, catFoleyAppearancesTable,
   questProposalsTable, bonusGoldRequestsTable,
 } from "@workspace/db/schema";
-import { eq, and, inArray, count } from "drizzle-orm";
+import { eq, and, inArray, count, ne } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { xpForLevel } from "../lib/rewards.js";
 import { toUserProfile } from "./auth.js";
@@ -170,8 +170,8 @@ router.get("/", requireAuth, async (req, res) => {
     const [character] = await db.select().from(charactersTable)
       .where(eq(charactersTable.userId, userId)).limit(1);
 
-    // Active quests for user — canonical filter (same as /assignments/mine)
-    const myQuests = partyId ? await db.select({
+    // Active quests for user — includes completed party quests while co-assignees are still pending
+    const myQuestsRaw = partyId ? await db.select({
       id: questAssignmentsTable.id,
       questDefinitionId: questAssignmentsTable.questDefinitionId,
       status: questAssignmentsTable.status,
@@ -199,9 +199,44 @@ router.get("/", requireAuth, async (req, res) => {
       .where(and(
         eq(questAssignmentsTable.userId, userId),
         eq(questAssignmentsTable.partyId, partyId),
-        inArray(questAssignmentsTable.status, ["active", "submitted"]),
+        inArray(questAssignmentsTable.status, ["active", "submitted", "completed"]),
         eq(questDefinitionsTable.isArchived, false),
       )).then(rows => rows.filter((a) => isAssignmentVisibleNow(a, tz))) : [];
+
+    // Attach co-assignee info for multi-person quests
+    const questDefIds = [...new Set(myQuestsRaw.map(a => a.questDefinitionId))];
+    type CoRow = { userId: number; questDefinitionId: number; status: string; name: string | null };
+    let coRows: CoRow[] = [];
+    if (questDefIds.length > 0 && partyId) {
+      coRows = await db.select({
+        userId: questAssignmentsTable.userId,
+        questDefinitionId: questAssignmentsTable.questDefinitionId,
+        status: questAssignmentsTable.status,
+        name: usersTable.displayName,
+      })
+        .from(questAssignmentsTable)
+        .leftJoin(usersTable, eq(usersTable.id, questAssignmentsTable.userId))
+        .where(and(
+          inArray(questAssignmentsTable.questDefinitionId, questDefIds),
+          eq(questAssignmentsTable.partyId, partyId),
+          ne(questAssignmentsTable.userId, userId),
+        )) as CoRow[];
+    }
+    const coByQuest: Record<number, { name: string; completed: boolean }[]> = {};
+    for (const row of coRows) {
+      if (!coByQuest[row.questDefinitionId]) coByQuest[row.questDefinitionId] = [];
+      coByQuest[row.questDefinitionId].push({
+        name: row.name ?? "Adventurer",
+        completed: row.status === "completed" || row.status === "submitted",
+      });
+    }
+    const myQuests = myQuestsRaw
+      .filter(a => {
+        if (a.status !== "completed") return true;
+        const co = coByQuest[a.questDefinitionId] ?? [];
+        return co.length > 0 && co.some(c => !c.completed);
+      })
+      .map(a => ({ ...a, coAssignees: coByQuest[a.questDefinitionId] ?? [] }));
 
     // Active party goal
     const [activeGoal] = partyId ? await db.select().from(partyGoalsTable)

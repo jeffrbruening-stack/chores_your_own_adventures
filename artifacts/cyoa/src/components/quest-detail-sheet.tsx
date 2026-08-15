@@ -41,6 +41,7 @@ export interface QuestLike {
   isRoutine?: boolean;
   routineSchedule?: string | null;
   scheduledDate?: string | null;
+  coAssignees?: { name: string; completed: boolean }[];
 }
 
 interface QuestDetailSheetProps {

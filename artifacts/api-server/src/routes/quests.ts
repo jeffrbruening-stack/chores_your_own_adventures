@@ -4,7 +4,7 @@ import {
   questDefinitionsTable, questAssignmentsTable, questProposalsTable,
   usersTable, quickQuestsTable, partyMembersTable,
 } from "@workspace/db/schema";
-import { eq, and, inArray, count, asc, notInArray } from "drizzle-orm";
+import { eq, and, inArray, count, asc, notInArray, ne } from "drizzle-orm";
 import { requireAuth } from "../lib/auth.js";
 import { assertLeader, assertMember, getMemberRole } from "../lib/party.js";
 import { DIFFICULTY_REWARDS, levelFromXp } from "../lib/rewards.js";
@@ -197,20 +197,62 @@ router.get("/assignments/mine", requireAuth, async (req, res) => {
   try {
     const partyId = parseInt(req.query.partyId as string);
     const tz = tzOffsetFromHeader(req.headers["x-tz-offset"]);
-    // Verify current membership before issuing routine assignments.
     if (partyId) await assertMember(partyId, req.userId!);
     if (partyId) await ensureRoutineAssignments(req.userId!, partyId, tz);
+
+    // Fetch active, submitted, AND completed (completed needed for "waiting on" state)
     const assignments = await db.select(ASSIGNMENT_SELECT)
       .from(questAssignmentsTable)
       .innerJoin(questDefinitionsTable, eq(questDefinitionsTable.id, questAssignmentsTable.questDefinitionId))
       .where(and(
         eq(questAssignmentsTable.userId, req.userId!),
         ...(partyId ? [eq(questAssignmentsTable.partyId, partyId)] : []),
-        // Canonical filter: same as Home — only show active/submitted
-        inArray(questAssignmentsTable.status, ["active", "submitted"]),
+        inArray(questAssignmentsTable.status, ["active", "submitted", "completed"]),
         eq(questDefinitionsTable.isArchived, false),
       ));
-    res.json(assignments.filter((a) => isAssignmentVisibleNow(a, tz)));
+
+    const visible = assignments.filter((a) => isAssignmentVisibleNow(a, tz));
+
+    // Look up co-assignees for multi-person quests
+    const questDefIds = [...new Set(visible.map(a => a.questDefinitionId))];
+    type CoRow = { userId: number; questDefinitionId: number; status: string; name: string | null };
+    let coRows: CoRow[] = [];
+    if (questDefIds.length > 0 && partyId) {
+      coRows = await db.select({
+        userId: questAssignmentsTable.userId,
+        questDefinitionId: questAssignmentsTable.questDefinitionId,
+        status: questAssignmentsTable.status,
+        name: usersTable.displayName,
+      })
+        .from(questAssignmentsTable)
+        .leftJoin(usersTable, eq(usersTable.id, questAssignmentsTable.userId))
+        .where(and(
+          inArray(questAssignmentsTable.questDefinitionId, questDefIds),
+          eq(questAssignmentsTable.partyId, partyId),
+          ne(questAssignmentsTable.userId, req.userId!),
+        )) as CoRow[];
+    }
+
+    // Group co-assignees by quest definition id
+    const coByQuest: Record<number, { name: string; completed: boolean }[]> = {};
+    for (const row of coRows) {
+      if (!coByQuest[row.questDefinitionId]) coByQuest[row.questDefinitionId] = [];
+      coByQuest[row.questDefinitionId].push({
+        name: row.name ?? "Adventurer",
+        completed: row.status === "completed" || row.status === "submitted",
+      });
+    }
+
+    // Drop completed solo assignments; drop completed party assignments where everyone else is also done
+    const result = visible
+      .filter(a => {
+        if (a.status !== "completed") return true;
+        const co = coByQuest[a.questDefinitionId] ?? [];
+        return co.length > 0 && co.some(c => !c.completed); // keep only if someone still pending
+      })
+      .map(a => ({ ...a, coAssignees: coByQuest[a.questDefinitionId] ?? [] }));
+
+    res.json(result);
   } catch {
     res.status(500).json({ error: "Failed" });
   }

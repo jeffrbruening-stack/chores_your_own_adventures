@@ -26,6 +26,47 @@ router.post("/", requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/bonus-requests/mine — kid sees their own recent declined requests
+router.get("/mine", requireAuth, async (req, res) => {
+  try {
+    const rows = await db.select({
+      id: bonusGoldRequestsTable.id,
+      note: bonusGoldRequestsTable.note,
+      status: bonusGoldRequestsTable.status,
+      bonusGold: bonusGoldRequestsTable.bonusGold,
+      declineReason: bonusGoldRequestsTable.declineReason,
+      reviewedAt: bonusGoldRequestsTable.reviewedAt,
+      assignmentId: bonusGoldRequestsTable.assignmentId,
+    })
+      .from(bonusGoldRequestsTable)
+      .where(and(
+        eq(bonusGoldRequestsTable.userId, req.userId!),
+        inArray(bonusGoldRequestsTable.status, ["declined", "approved"]),
+      ))
+      .orderBy(bonusGoldRequestsTable.reviewedAt);
+
+    const assignmentIds = rows.map(r => r.assignmentId).filter((id): id is number => id != null);
+    const questTitles: Record<number, string> = {};
+    if (assignmentIds.length > 0) {
+      const qs = await db.select({
+        assignmentId: questAssignmentsTable.id,
+        title: questDefinitionsTable.plainTitle,
+      })
+        .from(questAssignmentsTable)
+        .innerJoin(questDefinitionsTable, eq(questDefinitionsTable.id, questAssignmentsTable.questDefinitionId))
+        .where(inArray(questAssignmentsTable.id, assignmentIds));
+      for (const q of qs) questTitles[q.assignmentId] = q.title;
+    }
+
+    res.json(rows.map(r => ({
+      ...r,
+      questTitle: r.assignmentId ? (questTitles[r.assignmentId] ?? null) : null,
+    })));
+  } catch (err: any) {
+    res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
+  }
+});
+
 // GET /api/bonus-requests?partyId= — adults list pending requests
 router.get("/", requireAuth, async (req, res) => {
   try {

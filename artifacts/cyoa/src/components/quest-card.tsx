@@ -27,6 +27,11 @@ export function QuestCard({ quest, onComplete, onVerify, onBonusRequest, isLeade
   const title = currentUser?.adventureMode && quest.adventureTitle ? quest.adventureTitle : quest.plainTitle;
   const isExpired = quest.expiresAt && isPast(new Date(quest.expiresAt));
 
+  // "Waiting on co-assignees" state: I finished but others haven't
+  const pendingCoAssignees = (quest.coAssignees ?? []).filter(c => !c.completed);
+  const isWaitingOnOthers = quest.status === 'completed' && pendingCoAssignees.length > 0;
+  const waitingNames = pendingCoAssignees.map(c => c.name).join(' & ');
+
   return (
     <div
       onClick={onClick}
@@ -35,6 +40,7 @@ export function QuestCard({ quest, onComplete, onVerify, onBonusRequest, isLeade
         "bg-card border-2 p-4 rounded-xl flex flex-col gap-3 relative overflow-hidden transition-all",
         quest.isLegendary ? "border-yellow-500/50" : "border-border",
         isExpired && quest.status !== 'completed' ? "opacity-75" : "",
+        isWaitingOnOthers ? "opacity-50" : "",
         onClick ? "cursor-pointer active:scale-[0.98] active:brightness-90" : ""
       )}
     >
@@ -73,6 +79,12 @@ export function QuestCard({ quest, onComplete, onVerify, onBonusRequest, isLeade
         </div>
       )}
 
+      {isWaitingOnOthers && (
+        <div className="text-center text-xs font-pixel text-muted-foreground bg-muted/60 py-2 rounded-lg">
+          ✅ YOU'RE DONE — WAITING ON {waitingNames.toUpperCase()}
+        </div>
+      )}
+
       {quest.status === 'active' && onComplete && (
         <button 
           onClick={e => { e.stopPropagation(); onComplete(); }}
@@ -82,7 +94,7 @@ export function QuestCard({ quest, onComplete, onVerify, onBonusRequest, isLeade
         </button>
       )}
 
-      {(quest.status === 'active' || quest.status === 'completed') && onBonusRequest && (
+      {!isWaitingOnOthers && (quest.status === 'active' || quest.status === 'completed') && onBonusRequest && (
         <button
           onClick={e => { e.stopPropagation(); onBonusRequest(); }}
           className="w-full border border-yellow-500/50 text-yellow-400 font-pixel text-[10px] py-2 rounded-lg active:scale-95 transition-transform bg-yellow-500/10"
