@@ -214,6 +214,38 @@ export default function Recap() {
             <StatCard icon={<Coins className="w-4 h-4 text-yellow-500" />} label="Gold Earned" value={recap.goldEarned} />
           </div>
 
+          {/* Quest type breakdown */}
+          {(recap as any).byType?.length > 0 && (
+            <div className="bg-card border border-border rounded-xl p-4 flex flex-col gap-2">
+              <h2 className="font-pixel text-[10px] text-muted-foreground">QUEST TYPES</h2>
+              {(recap as any).byType.map(({ type, count }: { type: string; count: number }) => {
+                const total = recap.completedCount || 1;
+                const pct = Math.round((count / total) * 100);
+                const LABELS: Record<string, { label: string; color: string; emoji: string }> = {
+                  individual: { label: 'Individual', color: 'bg-blue-500',   emoji: '⚔️' },
+                  open:       { label: 'Open',       color: 'bg-green-500',  emoji: '📜' },
+                  party:      { label: 'Party',      color: 'bg-purple-500', emoji: '🏰' },
+                  quick:      { label: 'Quick',      color: 'bg-yellow-500', emoji: '⚡' },
+                };
+                const { label, color, emoji } = LABELS[type] ?? { label: type, color: 'bg-primary', emoji: '✦' };
+                return (
+                  <div key={type} className="flex items-center gap-3">
+                    <span className="text-base w-6 text-center">{emoji}</span>
+                    <div className="flex-1">
+                      <div className="flex justify-between text-[10px] font-bold mb-1">
+                        <span className="capitalize text-foreground">{label}</span>
+                        <span className="text-muted-foreground">{count} ({pct}%)</span>
+                      </div>
+                      <div className="h-2 bg-muted rounded-full overflow-hidden">
+                        <div className={`h-full ${color} rounded-full`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {/* Level ups + most active days */}
           <div className="flex flex-col gap-2">
             {recap.levelUps > 0 && (

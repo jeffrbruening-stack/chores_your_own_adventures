@@ -46,6 +46,7 @@ router.get("/", requireAuth, async (req, res) => {
       assignmentId: questAssignmentsTable.id,
       title: questDefinitionsTable.plainTitle,
       adventureTitle: questDefinitionsTable.adventureTitle,
+      questType: questDefinitionsTable.questType,
       completedAt: questAssignmentsTable.completedAt,
       xpAwarded: questAssignmentsTable.xpAwarded,
       goldAwarded: questAssignmentsTable.goldAwarded,
@@ -81,6 +82,16 @@ router.get("/", requireAuth, async (req, res) => {
 
     const xpEarned = completed.reduce((s, q) => s + (q.xpAwarded ?? 0), 0);
     const goldEarned = completed.reduce((s, q) => s + (q.goldAwarded ?? 0), 0);
+
+    // Quest type breakdown
+    const byTypeMap: Record<string, number> = {};
+    for (const q of completed) {
+      const t = q.questType ?? "individual";
+      byTypeMap[t] = (byTypeMap[t] ?? 0) + 1;
+    }
+    const byType = Object.entries(byTypeMap)
+      .map(([type, count]) => ({ type, count }))
+      .sort((a, b) => b.count - a.count);
 
     // Level-ups: compare level at (current lifetime XP − XP earned in window) vs now.
     // Approximation — assumes no XP was earned outside the window after it ended.
@@ -141,6 +152,7 @@ router.get("/", requireAuth, async (req, res) => {
       levelUps,
       currentLevel,
       byDay,
+      byType,
     });
   } catch (err) {
     console.error("party-recap error:", err);
