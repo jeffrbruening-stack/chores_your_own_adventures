@@ -72,6 +72,8 @@ export default function Quests() {
   const [bonusRequests, setBonusRequests] = useState<any[]>([]);
   const [bonusLoading, setBonusLoading] = useState(false);
   const [bonusGoldAmounts, setBonusGoldAmounts] = useState<Record<number, number>>({});
+  const [bonusDeclineReasons, setBonusDeclineReasons] = useState<Record<number, string>>({});
+  const [bonusDeclining, setBonusDeclining] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     if (activeTab === 'bonus' && isLeader && activePartyId) {
@@ -109,20 +111,24 @@ export default function Quests() {
 
   const handleReviewBonus = async (requestId: number, approve: boolean) => {
     const gold = bonusGoldAmounts[requestId];
+    const reason = bonusDeclineReasons[requestId]?.trim();
     if (approve && (!gold || gold < 1)) {
       toast({ title: 'Enter a gold amount first', variant: 'destructive' }); return;
+    }
+    if (!approve && !reason) {
+      toast({ title: 'Add a reason so they know what to do next time', variant: 'destructive' }); return;
     }
     try {
       const token = localStorage.getItem('cyoa_token');
       const res = await fetch(`${BASE}/api/bonus-requests/${requestId}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ approved: approve, bonusGold: gold }),
+        body: JSON.stringify({ approved: approve, bonusGold: gold, declineReason: reason }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? 'Failed');
       toast(approve
         ? { title: `⭐ ${gold} bonus gold awarded!`, className: 'bg-yellow-500 text-black border-none font-bold' }
-        : { title: 'Request declined' });
+        : { title: 'Request passed on', description: reason });
       setBonusRequests(prev => prev.filter(r => r.id !== requestId));
       queryClient.invalidateQueries({ queryKey: getGetHomeDataQueryKey() });
     } catch (e: any) {
@@ -315,43 +321,85 @@ export default function Quests() {
             ? <EmptyState text="No bonus gold requests right now." />
             : bonusRequests.map((r: any) => (
                 <div key={r.id} className="bg-card border-2 border-yellow-500/40 rounded-xl p-4 flex flex-col gap-3" data-testid={`bonus-request-${r.id}`}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-yellow-400 font-pixel">⭐ EXTRA EFFORT</p>
-                      <p className="font-bold text-sm mt-1">{r.userName ?? 'Adventurer'}</p>
-                      {r.questTitle && <p className="text-xs text-muted-foreground">on: {r.questTitle}</p>}
-                      {r.note && <p className="text-sm mt-2 italic text-foreground">"{r.note}"</p>}
-                    </div>
+                  {/* Header */}
+                  <div>
+                    <p className="text-xs font-bold text-yellow-400 font-pixel">⭐ EXTRA EFFORT</p>
+                    <p className="font-bold text-sm mt-1">{r.userName ?? 'Adventurer'}</p>
+                    {r.questTitle && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                        on: {r.questTitle}
+                        {r.questGoldReward != null && (
+                          <span className="ml-1 flex items-center gap-0.5 text-yellow-500 font-bold">
+                            (standard reward: <Coins className="w-3 h-3" />{r.questGoldReward})
+                          </span>
+                        )}
+                      </p>
+                    )}
+                    {r.note && <p className="text-sm mt-2 italic text-foreground">"{r.note}"</p>}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1 bg-background border border-yellow-500/40 rounded-lg px-2 py-1.5 flex-1">
-                      <Coins className="w-3 h-3 text-yellow-400 shrink-0" />
-                      <input
-                        type="number"
-                        min={1}
-                        max={999}
-                        placeholder="Gold amount"
-                        value={bonusGoldAmounts[r.id] ?? ''}
-                        onChange={e => setBonusGoldAmounts(prev => ({ ...prev, [r.id]: parseInt(e.target.value) || 0 }))}
-                        className="bg-transparent text-sm font-bold text-yellow-400 w-full outline-none"
-                        data-testid={`input-bonus-gold-${r.id}`}
+
+                  {/* Award row */}
+                  {!bonusDeclining[r.id] && (
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1 bg-background border border-yellow-500/40 rounded-lg px-2 py-1.5 flex-1">
+                        <Coins className="w-3 h-3 text-yellow-400 shrink-0" />
+                        <input
+                          type="number"
+                          min={1}
+                          max={999}
+                          placeholder="Bonus gold"
+                          value={bonusGoldAmounts[r.id] ?? ''}
+                          onChange={e => setBonusGoldAmounts(prev => ({ ...prev, [r.id]: parseInt(e.target.value) || 0 }))}
+                          className="bg-transparent text-sm font-bold text-yellow-400 w-full outline-none"
+                          data-testid={`input-bonus-gold-${r.id}`}
+                        />
+                      </div>
+                      <button
+                        onClick={() => handleReviewBonus(r.id, true)}
+                        className="px-3 py-2 bg-yellow-500 text-black font-pixel text-xs rounded-lg active:scale-95 transition-transform shrink-0"
+                        data-testid={`button-award-bonus-${r.id}`}
+                      >
+                        AWARD
+                      </button>
+                      <button
+                        onClick={() => setBonusDeclining(prev => ({ ...prev, [r.id]: true }))}
+                        className="px-3 py-2 bg-muted text-muted-foreground font-pixel text-xs rounded-lg active:scale-95 transition-transform shrink-0"
+                        data-testid={`button-decline-bonus-${r.id}`}
+                      >
+                        PASS
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Decline reason */}
+                  {bonusDeclining[r.id] && (
+                    <div className="flex flex-col gap-2">
+                      <label className="text-[10px] font-pixel text-muted-foreground">WHY NOT THIS TIME? (they'll see this)</label>
+                      <textarea
+                        rows={2}
+                        placeholder="e.g. Great effort! But the baseline is already 30 min — try 45 next time."
+                        value={bonusDeclineReasons[r.id] ?? ''}
+                        onChange={e => setBonusDeclineReasons(prev => ({ ...prev, [r.id]: e.target.value }))}
+                        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm resize-none"
+                        data-testid={`input-decline-reason-${r.id}`}
                       />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleReviewBonus(r.id, false)}
+                          className="flex-1 py-2 bg-muted text-muted-foreground font-pixel text-xs rounded-lg active:scale-95 transition-transform"
+                          data-testid={`button-confirm-decline-${r.id}`}
+                        >
+                          SEND & PASS
+                        </button>
+                        <button
+                          onClick={() => setBonusDeclining(prev => ({ ...prev, [r.id]: false }))}
+                          className="px-3 py-2 border border-border text-muted-foreground font-pixel text-xs rounded-lg active:scale-95 transition-transform"
+                        >
+                          BACK
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => handleReviewBonus(r.id, true)}
-                      className="px-3 py-2 bg-yellow-500 text-black font-pixel text-xs rounded-lg active:scale-95 transition-transform shrink-0"
-                      data-testid={`button-award-bonus-${r.id}`}
-                    >
-                      AWARD
-                    </button>
-                    <button
-                      onClick={() => handleReviewBonus(r.id, false)}
-                      className="px-3 py-2 bg-muted text-muted-foreground font-pixel text-xs rounded-lg active:scale-95 transition-transform shrink-0"
-                      data-testid={`button-decline-bonus-${r.id}`}
-                    >
-                      PASS
-                    </button>
-                  </div>
+                  )}
                 </div>
               ))
         )}

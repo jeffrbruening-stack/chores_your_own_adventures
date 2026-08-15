@@ -56,23 +56,25 @@ router.get("/", requireAuth, async (req, res) => {
       ))
       .orderBy(bonusGoldRequestsTable.createdAt);
 
-    // Attach quest title if assignmentId is set
+    // Attach quest title + standard gold reward if assignmentId is set
     const assignmentIds = rows.map(r => r.assignmentId).filter((id): id is number => id != null);
-    const questTitles: Record<number, string> = {};
+    const questInfo: Record<number, { title: string; goldReward: number }> = {};
     if (assignmentIds.length > 0) {
       const qs = await db.select({
         assignmentId: questAssignmentsTable.id,
         title: questDefinitionsTable.plainTitle,
+        goldReward: questDefinitionsTable.goldReward,
       })
         .from(questAssignmentsTable)
         .innerJoin(questDefinitionsTable, eq(questDefinitionsTable.id, questAssignmentsTable.questDefinitionId))
         .where(inArray(questAssignmentsTable.id, assignmentIds));
-      for (const q of qs) questTitles[q.assignmentId] = q.title;
+      for (const q of qs) questInfo[q.assignmentId] = { title: q.title, goldReward: q.goldReward };
     }
 
     res.json(rows.map(r => ({
       ...r,
-      questTitle: r.assignmentId ? (questTitles[r.assignmentId] ?? null) : null,
+      questTitle: r.assignmentId ? (questInfo[r.assignmentId]?.title ?? null) : null,
+      questGoldReward: r.assignmentId ? (questInfo[r.assignmentId]?.goldReward ?? null) : null,
     })));
   } catch (err: any) {
     res.status(err.status ?? 500).json({ error: err.message ?? "Failed" });
@@ -83,7 +85,7 @@ router.get("/", requireAuth, async (req, res) => {
 router.post("/:id/review", requireAuth, async (req, res) => {
   try {
     const id = parseInt(String(req.params.id));
-    const { approved, bonusGold } = req.body;
+    const { approved, bonusGold, declineReason } = req.body;
     const [request] = await db.select().from(bonusGoldRequestsTable)
       .where(eq(bonusGoldRequestsTable.id, id)).limit(1);
     if (!request || request.status !== "pending") {
@@ -109,6 +111,7 @@ router.post("/:id/review", requireAuth, async (req, res) => {
     } else {
       await db.update(bonusGoldRequestsTable).set({
         status: "declined", reviewedBy: req.userId!, reviewedAt: new Date(),
+        declineReason: declineReason?.trim() ?? null,
       }).where(eq(bonusGoldRequestsTable.id, id));
       res.json({ approved: false });
     }

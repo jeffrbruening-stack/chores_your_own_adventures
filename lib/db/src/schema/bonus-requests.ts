@@ -10,5 +10,6 @@ export const bonusGoldRequestsTable = pgTable("bonus_gold_requests", {
   bonusGold: integer("bonus_gold"),            // filled in by adult on approval
   reviewedBy: integer("reviewed_by"),
   reviewedAt: timestamp("reviewed_at"),
+  declineReason: text("decline_reason"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
