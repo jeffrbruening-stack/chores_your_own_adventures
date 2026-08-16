@@ -22,25 +22,35 @@ const quickQuests = [
   { plainTitle: "Homework", adventureTitle: "Study the Ancient Scrolls", difficulty: "hard" as const, xpReward: 50, goldReward: 25, partyGoldReward: 10 },
 ];
 
+// spriteKey values are paths relative to public/paperdoll/gandalf/ — male-only
+// for now (see sprite-doll.tsx EquippedSpriteKeys). Items with no reasonable
+// match in the pack are left without one; they stay emoji-only, same as
+// before, and equip rendering just skips them.
 const shopItems = [
   // Weapons
-  { name: "Wooden Sword", category: "weapon" as const, description: "A trusty beginner's blade", goldPrice: 50, minLevel: 1, emoji: "🗡️" },
-  { name: "Steel Longsword", category: "weapon" as const, description: "Forged in the fires of Ironton", goldPrice: 150, minLevel: 5, emoji: "⚔️" },
-  { name: "Legendary Excalibur", category: "weapon" as const, description: "A blade of myth and legend", goldPrice: 500, minLevel: 10, emoji: "✨" },
+  { name: "Wooden Sword", category: "weapon" as const, description: "A trusty beginner's blade", goldPrice: 50, minLevel: 1, emoji: "🗡️", spriteKey: "hand-items/male/wooden-sword.png" },
+  { name: "Steel Longsword", category: "weapon" as const, description: "Forged in the fires of Ironton", goldPrice: 150, minLevel: 5, emoji: "⚔️", spriteKey: "hand-items/male/iron-sword.png" },
+  { name: "Legendary Excalibur", category: "weapon" as const, description: "A blade of myth and legend", goldPrice: 500, minLevel: 10, emoji: "✨", spriteKey: "hand-items/male/golden-sword.png" },
   // Off-hand
   { name: "Wooden Shield", category: "offhand" as const, description: "Simple but sturdy", goldPrice: 40, minLevel: 1, emoji: "🛡️" },
   { name: "Magic Tome", category: "offhand" as const, description: "Crackling with arcane energy", goldPrice: 200, minLevel: 7, emoji: "📖" },
   { name: "Arcane Orb", category: "offhand" as const, description: "Hums with ancient power", goldPrice: 250, minLevel: 8, emoji: "🔮" },
   // Outfits
-  { name: "Adventurer's Tunic", category: "outfit" as const, description: "The classic hero look", goldPrice: 60, minLevel: 1, emoji: "👕" },
-  { name: "Knight's Plate Armor", category: "outfit" as const, description: "Heavy but glorious", goldPrice: 300, minLevel: 8, emoji: "🛡️" },
+  { name: "Adventurer's Tunic", category: "outfit" as const, description: "The classic hero look", goldPrice: 60, minLevel: 1, emoji: "👕", spriteKey: "clothing/male/shirt.png" },
+  { name: "Knight's Plate Armor", category: "outfit" as const, description: "Heavy but glorious", goldPrice: 300, minLevel: 8, emoji: "🛡️", spriteKey: "clothing/male/chainmail.png" },
   { name: "Mage Robes", category: "outfit" as const, description: "Shimmering with enchantment", goldPrice: 250, minLevel: 6, emoji: "🔮" },
   { name: "Rogue's Leather", category: "outfit" as const, description: "Light and shadow-black", goldPrice: 180, minLevel: 4, emoji: "🦹" },
   // Head
-  { name: "Adventurer's Hat", category: "head" as const, description: "Keeps the sun out of your eyes", goldPrice: 40, minLevel: 1, emoji: "🎩" },
+  { name: "Adventurer's Hat", category: "head" as const, description: "Keeps the sun out of your eyes", goldPrice: 40, minLevel: 1, emoji: "🎩", spriteKey: "hats/male/male-hat-1.png" },
   { name: "Crown of Valor", category: "head" as const, description: "Worn by champions", goldPrice: 400, minLevel: 12, emoji: "👑" },
   { name: "Wizard's Hat", category: "head" as const, description: "Pointy and powerful", goldPrice: 180, minLevel: 4, emoji: "🧙" },
-  { name: "Ranger's Hood", category: "head" as const, description: "Blends with the forest", goldPrice: 120, minLevel: 3, emoji: "🏹" },
+  { name: "Ranger's Hood", category: "head" as const, description: "Blends with the forest", goldPrice: 120, minLevel: 3, emoji: "🏹", spriteKey: "hats/male/male-green-cap.png" },
+  // Legs
+  { name: "Traveler's Pants", category: "legs" as const, description: "Sturdy and road-worn", goldPrice: 40, minLevel: 1, emoji: "👖", spriteKey: "clothing/male/pants.png" },
+  { name: "Ranger's Leggings", category: "legs" as const, description: "Quiet in the underbrush", goldPrice: 90, minLevel: 3, emoji: "🍃", spriteKey: "clothing/male/green-pants.png" },
+  // Back
+  { name: "Adventurer's Backpack", category: "back" as const, description: "Room for all your loot", goldPrice: 50, minLevel: 1, emoji: "🎒", spriteKey: "back/small-backpack.png" },
+  { name: "Traveler's Cape", category: "back" as const, description: "Billows dramatically in the wind", goldPrice: 130, minLevel: 4, emoji: "🧣", spriteKey: "back/cape-green.png" },
   // Pets
   { name: "Baby Dragon", category: "pet" as const, description: "A tiny fire-breather. Very loyal.", goldPrice: 200, minLevel: 3, emoji: "🐉" },
   { name: "Fluffkin", category: "pet" as const, description: "An adorable magical bunny", goldPrice: 100, minLevel: 1, emoji: "🐰" },

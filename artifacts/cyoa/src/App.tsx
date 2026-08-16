@@ -16,6 +16,7 @@ import { AppShell } from '@/components/layout/app-shell';
 // Pages
 import Landing from '@/pages/landing';
 import PaperdollPreview from '@/pages/paperdoll-preview';
+import AvatarPoc from '@/pages/avatar-poc';
 import Login from '@/pages/login';
 import Register from '@/pages/register';
 import KidLogin from '@/pages/kid-login';
@@ -93,6 +94,7 @@ function Router() {
           <Route path="/kid-login" component={KidLogin} />
           <Route path="/forgot-password" component={ForgotPassword} />
           <Route path="/paperdoll-preview" component={PaperdollPreview} />
+          <Route path="/avatar-poc" component={AvatarPoc} />
 
           {/* Character creation — protected but skips char check to avoid loop */}
           <Route path="/create-character">

@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Progress } from '@/components/ui/progress';
 import { type EquippedItems } from '@/components/pixel-character';
 import { CharacterSprite } from '@/components/character-sprite';
+import type { EquippedSpriteKeys } from '@/components/sprite-doll';
 import { Sparkles, Trophy, Settings as SettingsIcon, ShoppingBag, X } from 'lucide-react';
 import { Link } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
@@ -27,6 +28,9 @@ const SLOT_LABELS: Record<string, string> = {
   background: 'BACKDROP',
   effect: 'EFFECT',
 };
+
+/** Slots SpriteDoll actually knows how to draw an override for (see sprite-doll.tsx EquippedSpriteKeys). */
+const SPRITE_SLOTS = new Set(['head', 'outfit', 'legs', 'main_hand', 'back']);
 
 const SLOT_SHOP_CAT: Record<string, string> = {
   head: 'head',
@@ -72,22 +76,29 @@ export default function Character() {
     }
   };
 
-  // Build equipped item map with names
-  const { equippedItems, equippedWithNames } = useMemo(() => {
-    if (!inventoryData) return { equippedItems: {} as Record<string, any>, equippedWithNames: {} as EquippedItems };
+  // Build equipped item map with names, plus the sprite-key subset SpriteDoll
+  // needs to actually draw purchased gear on the character.
+  const { equippedItems, equippedWithNames, equippedSpriteKeys } = useMemo(() => {
+    if (!inventoryData) {
+      return { equippedItems: {} as Record<string, any>, equippedWithNames: {} as EquippedItems, equippedSpriteKeys: {} as EquippedSpriteKeys };
+    }
     const { items, equipped } = inventoryData as any;
     const equippedItems: Record<string, any> = {};
     const equippedWithNames: EquippedItems = {};
+    const equippedSpriteKeys: EquippedSpriteKeys = {};
     if (equipped && items) {
       for (const [slot, itemId] of Object.entries(equipped)) {
         const item = (items as any[]).find((i: any) => i.shopItemId === itemId);
         if (item) {
           equippedItems[slot] = item;
           (equippedWithNames as any)[slot] = { name: item.name, emoji: item.emoji };
+          if (item.spriteKey && SPRITE_SLOTS.has(slot)) {
+            (equippedSpriteKeys as any)[slot] = item.spriteKey;
+          }
         }
       }
     }
-    return { equippedItems, equippedWithNames };
+    return { equippedItems, equippedWithNames, equippedSpriteKeys };
   }, [inventoryData]);
 
   const handleUnequip = async (slot: string) => {
@@ -145,7 +156,7 @@ export default function Character() {
         <div className="bg-card border-2 border-border rounded-2xl p-6 flex flex-col items-center gap-4">
           {/* Sprite */}
           <div className="flex items-center justify-center">
-            <CharacterSprite character={character as any} size={220} />
+            <CharacterSprite character={character as any} equippedSpriteKeys={equippedSpriteKeys} size={220} />
           </div>
 
           {/* Summon / re-summon AI portrait */}

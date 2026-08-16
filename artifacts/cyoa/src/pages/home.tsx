@@ -22,6 +22,11 @@ import { cn } from '@/lib/utils';
 // Pixel-art broom SVG — used for the "Give Me a Quest!" action
 import { type EquippedItems } from '@/components/pixel-character';
 import { CharacterSprite } from '@/components/character-sprite';
+import type { EquippedSpriteKeys } from '@/components/sprite-doll';
+
+/** Slots SpriteDoll actually knows how to draw an override for (see sprite-doll.tsx EquippedSpriteKeys). */
+const SPRITE_SLOTS = new Set(['head', 'outfit', 'legs', 'main_hand', 'back']);
+
 function BroomIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} style={{ imageRendering: 'pixelated' }}>
@@ -172,17 +177,22 @@ export default function Home() {
   const { data: inventoryData } = useGetInventory();
 
 
-  // Build equipped item map with names for PixelCharacter
-  const equippedWithNames = useMemo((): EquippedItems => {
-    if (!inventoryData) return {};
+  // Build equipped item map with names for PixelCharacter, plus the
+  // sprite-key subset SpriteDoll needs to actually draw purchased gear.
+  const { equippedWithNames, equippedSpriteKeys } = useMemo((): { equippedWithNames: EquippedItems; equippedSpriteKeys: EquippedSpriteKeys } => {
+    if (!inventoryData) return { equippedWithNames: {}, equippedSpriteKeys: {} };
     const { items, equipped } = inventoryData as any;
-    if (!equipped || !items) return {};
-    const result: EquippedItems = {};
+    if (!equipped || !items) return { equippedWithNames: {}, equippedSpriteKeys: {} };
+    const equippedWithNames: EquippedItems = {};
+    const equippedSpriteKeys: EquippedSpriteKeys = {};
     for (const [slot, itemId] of Object.entries(equipped)) {
       const item = (items as any[]).find((i: any) => i.shopItemId === itemId);
-      if (item) (result as any)[slot] = { name: item.name, emoji: item.emoji };
+      if (item) {
+        (equippedWithNames as any)[slot] = { name: item.name, emoji: item.emoji };
+        if (item.spriteKey && SPRITE_SLOTS.has(slot)) (equippedSpriteKeys as any)[slot] = item.spriteKey;
+      }
     }
-    return result;
+    return { equippedWithNames, equippedSpriteKeys };
   }, [inventoryData]);
 
   // Auto-set party if none selected but user has parties
@@ -322,7 +332,7 @@ export default function Home() {
       <div className="bg-card border-2 border-border rounded-2xl p-4 flex items-start gap-4 relative overflow-hidden">
         {/* Pixel character display */}
         <div className="shrink-0 flex items-center justify-center">
-          <CharacterSprite character={character as any} size={140} />
+          <CharacterSprite character={character as any} equippedSpriteKeys={equippedSpriteKeys} size={140} />
         </div>
 
         <div className="flex-1 min-w-0 flex flex-col gap-2">

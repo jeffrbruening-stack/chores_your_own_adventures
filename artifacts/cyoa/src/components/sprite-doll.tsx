@@ -8,8 +8,13 @@
  * divs cropping the same cell via background-position, image-rendering: pixelated.
  * Idle frame = cell (0, 0).
  *
- * Layer order: skin → boots → legs → torso → arms → hair → ears → mask → hat → back → hand
- * (this component renders the appearance layers; equipment layers come later).
+ * Layer order: skin → boots → legs → torso → equipped legs/outfit overrides →
+ * hair → ears → mask → hat → back → hand.
+ *
+ * Purchased equipment (equippedSpriteKeys) currently only has male art seeded
+ * (see scripts/seed.ts) — overrides are gated on body === 'male' so female
+ * characters just keep their class-default look until female sprite keys
+ * exist, rather than showing misaligned male-cut clothing.
  */
 
 export const CELL_W = 80;
@@ -153,29 +158,62 @@ export const CLASS_GEAR: Record<string, ClassGear> = {
 
 const isCape = (name: string) => name.startsWith('cape-');
 
+/** A shop item's spriteKey is already a full path relative to paperdoll/gandalf/ (e.g. "hats/male/male-green-cap.png") — capes and ear sheets are the pack's only 720px-wide exceptions. */
+function sheetForSpriteKey(path: string): Layer {
+  const narrow = /\/cape-[^/]+\.png$/.test(path) || path.startsWith('ears/');
+  return SHEET(path, narrow ? 720 : 800);
+}
+
+/** Purchased-equipment overrides, keyed by the same slot strings equipped_items uses. Null/undefined = no override, class default (or nothing) shows instead. */
+export interface EquippedSpriteKeys {
+  head?: string | null;
+  outfit?: string | null;
+  legs?: string | null;
+  main_hand?: string | null;
+  back?: string | null;
+}
+
 /**
  * Compose the full layer stack.
- * Order: skin → boots → legs → torso → hair → ears → mask → hat → back → hand.
- * When a known class is given, its starter gear replaces the default base outfit.
+ * Order: skin → boots → legs → torso → equipped legs/outfit overrides →
+ * hair → ears → mask → hat → back → hand.
+ * When a known class is given, its starter gear is the default outfit/hat/
+ * hand/back; `equipped` overrides those per-slot when the kid has purchased
+ * and equipped something (male-only art for now — see file header).
  */
-export function spriteLayers(a: SpriteAppearance, charClass?: string | null): Layer[] {
+export function spriteLayers(a: SpriteAppearance, charClass?: string | null, equipped?: EquippedSpriteKeys): Layer[] {
   const gear = charClass ? CLASS_GEAR[charClass] : undefined;
+  const canEquip = a.body === 'male';
   const layers: Layer[] = [skinLayer(a.body, a.skin)];
   if (gear) {
     layers.push(...gear.outfit[a.body].map(f => SHEET(`clothing/${a.body}/${f}.png`)));
   } else {
     layers.push(...baseOutfitLayers(a.body));
   }
+  // Legs/outfit(chest) don't have a single-file class override slot — the
+  // class outfit above bundles boots+pants+chest as one array — so an
+  // equipped item draws as an extra layer on top, covering just its region.
+  if (canEquip && equipped?.legs) layers.push(sheetForSpriteKey(equipped.legs));
+  if (canEquip && equipped?.outfit) layers.push(sheetForSpriteKey(equipped.outfit));
+
   if (a.hair && a.hair !== 'bald') layers.push(SHEET(`hair/${a.body}/${a.hair}.png`));
   if (a.ears) layers.push(SHEET(`ears/${a.body}/${a.ears}.png`, 720));
   const mask = a.mask ?? gear?.mask?.[a.body] ?? null;
   if (mask) layers.push(SHEET(`masks/${mask}.png`));
-  if (gear?.hat?.[a.body]) layers.push(SHEET(`hats/${a.body}/${gear.hat[a.body]}.png`));
-  if (gear?.back?.[a.body]) {
-    const b = gear.back[a.body]!;
-    layers.push(SHEET(`back/${b}.png`, isCape(b) ? 720 : 800));
+
+  const hat = canEquip && equipped?.head ? equipped.head : gear?.hat?.[a.body];
+  if (hat) layers.push(canEquip && equipped?.head ? sheetForSpriteKey(hat) : SHEET(`hats/${a.body}/${hat}.png`));
+
+  const back = canEquip && equipped?.back ? equipped.back : gear?.back?.[a.body];
+  if (back) {
+    layers.push(canEquip && equipped?.back
+      ? sheetForSpriteKey(back)
+      : SHEET(`back/${back}.png`, isCape(back) ? 720 : 800));
   }
-  if (gear?.hand) layers.push(SHEET(`hand-items/${a.body}/${gear.hand}.png`));
+
+  const hand = canEquip && equipped?.main_hand ? equipped.main_hand : gear?.hand;
+  if (hand) layers.push(canEquip && equipped?.main_hand ? sheetForSpriteKey(hand) : SHEET(`hand-items/${a.body}/${hand}.png`));
+
   return layers;
 }
 
@@ -236,6 +274,8 @@ interface SpriteDollProps {
   sprite: SpriteAppearance;
   /** Character class id — renders that class's starter gear (outfit, hat, weapon). */
   charClass?: string | null;
+  /** Purchased equipment overrides — see EquippedSpriteKeys. */
+  equipped?: EquippedSpriteKeys;
   /** Display width in px (height = width × 64/80). Default 120. */
   size?: number;
   /** Frame column/row in the sheet; (0,0) = idle. */
@@ -245,9 +285,9 @@ interface SpriteDollProps {
   'data-testid'?: string;
 }
 
-export function SpriteDoll({ sprite, charClass, size = 120, col = 0, row = 0, className, ...rest }: SpriteDollProps) {
+export function SpriteDoll({ sprite, charClass, equipped, size = 120, col = 0, row = 0, className, ...rest }: SpriteDollProps) {
   const scale = size / CELL_W;
-  const layers = spriteLayers(sprite, charClass);
+  const layers = spriteLayers(sprite, charClass, equipped);
   return (
     <div
       className={className}

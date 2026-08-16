@@ -19,6 +19,7 @@ router.get("/", requireAuth, async (req, res) => {
       name: shopItemsTable.name,
       category: shopItemsTable.category,
       emoji: shopItemsTable.emoji,
+      spriteKey: shopItemsTable.spriteKey,
       isEvolvingPet: shopItemsTable.isEvolvingPet,
       evolutionStages: shopItemsTable.evolutionStages,
     }).from(userInventoryTable)
@@ -35,12 +36,16 @@ router.get("/", requireAuth, async (req, res) => {
   }
 });
 
-// Allowed slots per item category
+// Allowed slots per item category.
+// NOTE: also duplicated in artifacts/cyoa/src/pages/shop.tsx as CAT_TO_SLOT —
+// keep both in sync when adding a category.
 const CATEGORY_SLOTS: Record<string, string> = {
   weapon: 'main_hand',
   offhand: 'off_hand',
   outfit: 'outfit',
   head: 'head',
+  legs: 'legs',
+  back: 'back',
   pet: 'pet',
   pet_accessory: 'pet_accessory',
   background: 'background',

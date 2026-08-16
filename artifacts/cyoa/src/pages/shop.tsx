@@ -23,6 +23,8 @@ const TABS = [
   { id: 'offhand',      label: 'OFF HAND'   },
   { id: 'outfit',       label: 'OUTFITS'    },
   { id: 'head',         label: 'HEADWEAR'   },
+  { id: 'legs',         label: 'LEGWEAR'    },
+  { id: 'back',         label: 'BACK'       },
   { id: 'pet',          label: 'PETS'       },
   { id: 'pet_accessory',label: 'PET ACC.'   },
   { id: 'background',   label: 'BACKDROPS'  },
@@ -30,11 +32,15 @@ const TABS = [
 ];
 
 // Category → equip slot mapping
+// NOTE: also duplicated in artifacts/api-server/src/routes/inventory.ts as
+// CATEGORY_SLOTS — keep both in sync when adding a category.
 const CAT_TO_SLOT: Record<string, string> = {
   weapon:        'main_hand',
   offhand:       'off_hand',
   outfit:        'outfit',
   head:          'head',
+  legs:          'legs',
+  back:          'back',
   pet:           'pet',
   pet_accessory: 'pet_accessory',
   background:    'background',

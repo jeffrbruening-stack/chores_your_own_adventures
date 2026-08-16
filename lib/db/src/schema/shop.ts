@@ -3,7 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const shopItemCategoryEnum = pgEnum("shop_item_category", [
-  "weapon", "offhand", "outfit", "head", "pet",
+  "weapon", "offhand", "outfit", "head", "legs", "back", "pet",
   "pet_accessory", "background", "effect"
 ]);
 
@@ -20,6 +20,10 @@ export const shopItemsTable = pgTable("shop_items", {
   isEvolvingPet: boolean("is_evolving_pet").notNull().default(false),
   evolutionStages: jsonb("evolution_stages"),
   emoji: text("emoji").notNull().default("⚔️"),
+  /** Path relative to public/paperdoll/gandalf/, e.g. "hats/male/male-green-cap.png".
+   *  Null means this item has no paperdoll art yet and stays emoji-only —
+   *  equip rendering skips it and falls back to whatever was there before. */
+  spriteKey: text("sprite_key"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

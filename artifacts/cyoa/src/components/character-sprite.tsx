@@ -2,8 +2,12 @@
  * CharacterSprite — renders a character's PixelLab-generated sprite PNG.
  * Falls back to the layered SpriteDoll (paper-doll packs) while a character
  * has no generated sprite yet, so existing characters keep rendering.
+ *
+ * `equippedSpriteKeys` only affects the SpriteDoll fallback — a PixelLab
+ * sprite is a flat baked image, so purchased equipment can't show on top of
+ * one today.
  */
-import { SpriteDoll, spriteFromCharacter } from '@/components/sprite-doll';
+import { SpriteDoll, spriteFromCharacter, type EquippedSpriteKeys } from '@/components/sprite-doll';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
@@ -18,12 +22,13 @@ interface CharacterSpriteProps {
     updatedAt?: string | Date | null;
     class?: string | null;
   } | null;
+  equippedSpriteKeys?: EquippedSpriteKeys;
   size?: number;
   className?: string;
   'data-testid'?: string;
 }
 
-export function CharacterSprite({ character, size = 120, className, ...rest }: CharacterSpriteProps) {
+export function CharacterSprite({ character, equippedSpriteKeys, size = 120, className, ...rest }: CharacterSpriteProps) {
   const testId = rest['data-testid'] ?? 'character-sprite';
   if (character?.spritePath && character?.userId) {
     return (
@@ -42,6 +47,7 @@ export function CharacterSprite({ character, size = 120, className, ...rest }: C
     <SpriteDoll
       sprite={spriteFromCharacter(character as any)}
       charClass={character?.class}
+      equipped={equippedSpriteKeys}
       size={size}
       className={className}
       data-testid={testId}
